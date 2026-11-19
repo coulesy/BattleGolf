@@ -69,6 +69,11 @@
   .pname i { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #2d5f1a; }
   .pname input { flex: 1; min-width: 0; font: inherit; font-size: 17px; font-weight: 700; color: #23461a; padding: 8px 12px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; -webkit-user-select: text; user-select: text; }
   .pname input:focus { outline: none; border-color: #2d5f1a; }
+  #sCount { flex-wrap: wrap; max-width: 232px; margin-left: auto; margin-right: auto; }     /* 1–8: two rows of four */
+  #sNames.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 8px; }            /* 5–8 names side by side */
+  #sNames.two .pname { gap: 6px; margin: 5px 0; min-width: 0; }
+  #sNames.two .pname i { width: 16px; height: 16px; }
+  #sNames.two .pname input { width: 0; font-size: 15px; padding: 7px 8px; }
   .handover h2 { color: var(--pc); -webkit-text-stroke: 3px #2d5f1a; paint-order: stroke fill; }   /* stroke under the fill: no lines inside the letters */
   .handover .ballicon { width: 54px; height: 54px; margin: 0 auto 8px; border-radius: 50%; background: var(--pc); border: 4px solid #2d5f1a; box-shadow: 0 4px 0 rgba(0,0,0,.2); }
   .scores { list-style: none; padding: 0; margin: 12px 0 4px; text-align: left; }
@@ -281,6 +286,7 @@
     cr = Math.cos(-D.north_rot); sr = Math.sin(-D.north_rot);
     CL = D.centreline; CLarc = [0];
     for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
+    yardMarks = findYardMarks();
     for (const k in arrowCache) delete arrowCache[k];
     zoom = 0; resize();
     $("loading").classList.add("hide");
@@ -402,8 +408,9 @@
 
   // ---------- state ----------
   // pass-and-play: each player has their own shot state; S always points at the player whose turn it is
-  const PCOLS = ["#ff5a5f", "#3fa7ff", "#ffd43b", "#c77dff"];
-  const setup = { n: 1, names: ["Player 1", "Player 2", "Player 3", "Player 4"], course: COURSES[0].id, round: "", btOn: false, btCount: 3, btMode: "random", fmt: "stroke" };
+  const MAXP = 8;   // pass-and-play and online (online needs supabase/migrations/20261119210000_battlegolf_8_players.sql)
+  const PCOLS = ["#ff5a5f", "#3fa7ff", "#ffd43b", "#c77dff", "#ff922b", "#2ee6d6", "#ff7ac8", "#f1f3f5"];
+  const setup = { n: 1, names: Array.from({ length: MAXP }, (_, i) => `Player ${i + 1}`), course: COURSES[0].id, round: "", btOn: false, btCount: 3, btMode: "random", fmt: "stroke" };
   try { Object.assign(setup, JSON.parse(localStorage.getItem("bgPlayers") || "{}")); } catch (e) {}
   let S, players = [], cur = 0, overlay = false;     // overlay: setup / handover / scorecard is up, so taps don't hit
   const multi = () => players.length > 1;
@@ -514,11 +521,11 @@
     const r = parseRound(roundSpec()), par = r.holes.reduce((a, h) => a + h.par, 0), yds = r.holes.reduce((a, h) => a + h.yards, 0);
     $("sHole").textContent = r.holes.length === 1 ? `${r.course.name} · Hole ${r.holes[0].n} · Par ${par} · ${yds} yds` : `${r.course.name} · Par ${par} · ${yds} yds`;
     const seg = document.getElementById("sCount"); seg.innerHTML = "";
-    for (let n = 1; n <= 4; n++) {
+    for (let n = 1; n <= MAXP; n++) {
       const b = document.createElement("button"); b.textContent = n; b.setAttribute("aria-pressed", n === setup.n);
       b.addEventListener("click", () => { readNames(); setup.n = n; renderSetup(); }); seg.appendChild(b);
     }
-    const box = document.getElementById("sNames"); box.innerHTML = "";
+    const box = document.getElementById("sNames"); box.innerHTML = ""; box.classList.toggle("two", setup.n > 4);
     for (let i = 0; i < setup.n; i++) {
       const row = document.createElement("label"); row.className = "pname";
       const dot = document.createElement("i"); dot.style.background = setup.n > 1 ? PCOLS[i] : "#fff";
@@ -1551,13 +1558,47 @@
       ctx.strokeText(label, sx, sy - r - 6); ctx.fillStyle = col; ctx.fillText(label, sx, sy - r - 6); ctx.restore();
     }
   }
+  // 100/150/200 yd markers: the hole picture has the coloured discs, but its labels are too small to read, so the
+  // game draws readable ones over them. Same spots as the renderer: on the centre line, that far from the green point.
+  let yardMarks = [];
+  function findYardMarks() {
+    const G = CL[CL.length - 1], total = CLarc[CLarc.length - 1], len = Math.hypot(G[0] - CL[0][0], G[1] - CL[0][1]), out = [];
+    for (const yd of [100, 150, 200]) {
+      const r = yd * YD; if (r >= len - 10) continue;
+      let best = null, bestErr = Infinity;
+      for (let i = 1; i < CL.length; i++) for (let k = 0; k <= 8; k++) {
+        const f = k / 8, x = CL[i - 1][0] + (CL[i][0] - CL[i - 1][0]) * f, y = CL[i - 1][1] + (CL[i][1] - CL[i - 1][1]) * f;
+        if (CLarc[i - 1] + (CLarc[i] - CLarc[i - 1]) * f > total - 20) continue;
+        const e = Math.abs(Math.hypot(x - G[0], y - G[1]) - r);
+        if (e < bestErr) { bestErr = e; best = [x, y]; }
+      }
+      if (best) out.push({ yd, x: best[0], y: best[1] });
+    }
+    return out;
+  }
+  function drawYardMarks() {
+    if (!yardMarks.length || putting()) return;
+    // at least 13 px, and growing with the zoom so it always covers the picture's own (tiny) label
+    const fs = Math.max(13, 11 * zoom), h = fs + 5, pad = fs * 0.4;
+    ctx.save(); ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textBaseline = "middle";
+    for (const m of yardMarks) {
+      const [ix, iy] = toImg(m.x, m.y), [sx, sy] = toScreen(ix, iy);
+      if (sx < -80 || sy < -40 || sx > VW + 40 || sy > VH + 40) continue;
+      const t = String(m.yd), w = ctx.measureText(t).width + 2 * pad, x0 = sx + Math.max(5, 6 * zoom);
+      ctx.fillStyle = "rgba(30,55,25,.88)"; ctx.beginPath(); ctx.roundRect(x0, sy - h / 2, w, h, h / 2); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillText(t, x0 + pad, sy + 0.5);
+    }
+    ctx.restore();
+  }
   function drawOtherBalls() {
-    players.forEach((p, i) => { if (i !== cur && !p.st.done) drawBall(p.st.ball.x, p.st.ball.y, 0, p.col, p.name); });
+    // balls sharing your spot (everyone on the tee) get no name tag, or up to 7 tags pile up on top of each other
+    const tag = (x, y, name) => Math.hypot(x - S.ball.x, y - S.ball.y) < 3 ? null : name;
+    players.forEach((p, i) => { if (i !== cur && !p.st.done) drawBall(p.st.ball.x, p.st.ball.y, 0, p.col, tag(p.st.ball.x, p.st.ball.y, p.name)); });
     if (ON.active) for (const p of ON.roster.values()) {   // online: the other phones' balls, replaying their shots
       if (p.id === ON.me.id) continue;
       const g = p.anim && ghostPos(p.anim);
       if (g) drawBall(g.x, g.y, g.h, p.col, p.name);
-      else if (!p.done && p.hole === round.i && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, p.name);
+      else if (!p.done && p.hole === round.i && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, tag(p.ball.x, p.ball.y, p.name));
     }
   }
   function drawTarget(t, phase) {
@@ -1722,6 +1763,7 @@
     drawImg(detailImg, D.detail.x, D.detail.y, D.detail.w, D.detail.h);   // 4x sharper tile around the green
     drawGreenRead(dt);
     drawGimmeRings();
+    drawYardMarks();
     drawOtherBalls();
 
     if (S.anim) {
