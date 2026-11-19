@@ -449,9 +449,11 @@
     beginHole();
     if (ON.active) renderBoard();
   }
+  // tee shots follow the fairway's curve, except on par 3s, which aim straight at the flag
+  const teeCurve = lie => lie === 4 && D.par > 3;
   function newState() {
     return { ball: { x: D.tee[0], y: D.tee[1] }, prev: null, strokes: 0, lie: 4, phase: "dist", t: 0,
-             aim: 0, aimDelta: 0, curve: true, dist: 0, latv: 0, anim: null, done: false, shotNo: 0 };
+             aim: 0, aimDelta: 0, curve: teeCurve(4), dist: 0, latv: 0, anim: null, done: false, shotNo: 0 };
   }
   function reset() {
     players = setup.names.slice(0, setup.n).map((name, i) => ({ name: name.trim() || `Player ${i + 1}`, col: setup.n > 1 ? PCOLS[i] : "#fff", st: newState(), cards: [], side: i }));
@@ -745,7 +747,7 @@
     if (ld && lh === myHole) {          // part-way through this hole (or finished the round)
       Object.assign(S, { ball: { x: ld.b[0], y: ld.b[1] }, strokes: ld.s, done: !!ld.d, lie: ld.lie, shotNo: lastMine.n % 100, prev: { ...S.ball } });
       if (S.done) S.phase = "done";
-      S.curve = S.lie === 4; aimAtPin(); updateHud(); setPrompt();
+      S.curve = teeCurve(S.lie); aimAtPin(); updateHud(); setPrompt();
     }
     sh.data.forEach(r => takeShot(r, true));
     zoom = baseZoom; cam = clampCam({ ...midTarget() });
@@ -1397,7 +1399,7 @@
     S.lie = lie === 9 ? 0 : lie;
     if (S.lie === 4) S.lie = 2;
     if (S.prev && Math.hypot(S.ball.x - D.tee[0], S.ball.y - D.tee[1]) < 3) S.lie = 4;
-    S.curve = S.lie === 4; S.aimDelta = 0;
+    S.curve = teeCurve(S.lie); S.aimDelta = 0;
     S.phase = "dist"; S.t = 0; aimAtPin(); updateHud(); setPrompt();
     sendShot();
     if (multi()) { S.phase = "wait"; setPrompt(); setTimeout(() => { S.phase = "dist"; nextTurn(); }, 900); }   // let the ball settle before passing on

@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The course is **Tilgate Forest** (18 holes).
+A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The courses are **Tilgate Forest** and **Ifield** (18 holes each).
 
 ## Play
 
@@ -13,7 +13,7 @@ cd game && python3 -m http.server 8765
 
 1. **Distance:** the target moves out from the ball and back, speeding up the further out it goes. Tap to lock it.
 2. **Direction:** the target swings side to side. Tap when it's on the line.
-3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg.
+3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg; on par 3s they aim straight at the flag.
 4. **Putting:** the green shows a slope heat map (blue low → red high, 5 cm contours) with downhill arrows. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
@@ -73,6 +73,7 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
 | `tools/build_course.sh` | Builds one hole's assets from a file in `data/` |
 | `tools/build_round.sh` | Builds every hole of a course into `game/courses/<course>/` and updates `courses.json` |
+| `tools/course_editor.py`, `tools/editor/` | Local course editor (see below) |
 | `tools/render_hole.py` | The earlier top-down (non-cartoon) renderer |
 | `tools/playtest.py` | Headless Playwright playtest that taps through rounds and screenshots the green |
 
@@ -85,6 +86,24 @@ bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~
 ```
 
 Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.
+
+## Course editor
+
+A local page for adjusting holes on a satellite map, then rebuilding them:
+
+```bash
+python3 tools/course_editor.py
+# open http://localhost:8790
+```
+
+- Pick a course and hole, then drag the **T**ee, **L**ayup and **G**reen markers. The dashed line is the centre line the fairway is built along (it always passes through the layup point), with a rough fairway corridor and green drawn round it.
+- Set par, stroke index and the three yardages. *Use for yellow* copies the length measured along the line.
+- **Save & rebuild** writes `data/<course>-NN.json` and rebuilds that hole into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`. The picture on the right refreshes when it's done, and *Play the game* opens it at `/game/`.
+- The first save of a hole keeps the original data in `build/editor-backups/<hole>.orig.json`; *Restore original* puts it back.
+- The elevation grid is laid along the original tee→green line (the orange box). Moving the tee or green more than about 15 m stretches the hills and green slopes, and the editor warns you.
+- Bunkers, water and trees are still placed by the renderer's rules, so they follow the new line automatically.
+
+Bump `VERSION` in `game/sw.js` before deploying rebuilt holes.
 
 ## Assumptions to check
 
