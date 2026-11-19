@@ -20,6 +20,13 @@
   .chip { background: rgba(32,64,26,.88); border: 2px solid #9fd06e; border-radius: 14px; padding: 6px 12px; text-align: center; min-width: 78px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
   .chip b { display: block; font-size: 20px; line-height: 1.1; }
   .chip span { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #c9ee96; }
+  @media (max-width: 440px) {   /* five chips (with a player's name) still fit across a phone */
+    .hud { gap: 5px; padding: 8px 6px; }
+    .chip { min-width: 0; flex: 0 1 auto; padding: 5px 7px; border-radius: 12px; }
+    .chip b { font-size: 17px; white-space: nowrap; }
+    .chip span { font-size: 9px; letter-spacing: .03em; white-space: nowrap; }
+    .chip.player b { max-width: 64px; font-size: 14px; }
+  }
   .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; justify-content: center; pointer-events: none; }
   .prompt { background: rgba(32,64,26,.9); border: 2px solid #9fd06e; border-radius: 16px; padding: 10px 16px; font-weight: 700; font-size: 16px; text-align: center; flex: 0 1 320px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
   .prompt small { display: block; font-weight: 500; font-size: 12px; color: #c9ee96; margin-top: 2px; }
@@ -88,6 +95,41 @@
   .pick { display: flex; gap: 8px; margin: 10px 0 4px; }
   .pick select { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 700; color: #23461a; padding: 8px 10px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; }
   .scores b.tp { min-width: 34px; text-align: right; }
+  /* battle mode */
+  .bopts { margin: 10px 0 0; padding: 10px 0 0; border-top: 2px dashed #cfe8b4; }
+  .toggle { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; font-size: 17px; }
+  .card button.tg { margin: 0; padding: 7px 14px; font-size: 16px; background: #e3f3cf; box-shadow: 0 3px 0 #2d5f1a; }
+  .card button.tg[aria-pressed="true"] { background: #ff8a3d; color: #3a1a05; }
+  .bopts .seg { margin: 8px 0 4px; flex-wrap: wrap; gap: 6px; }
+  .bopts .seg button { width: 40px; font-size: 17px; padding: 6px 0; }
+  .bopts .seg button.wide2 { width: auto; padding: 6px 12px; font-size: 15px; }
+  .bopts .hint { margin: 2px 0; }
+  .battle { position: fixed; left: 50%; transform: translateX(-50%); top: 72px; display: none; background: rgba(32,64,26,.9); border: 2px solid #ff8a3d; border-radius: 14px; padding: 5px 10px 6px; width: min(94vw, 360px); box-shadow: 0 3px 0 rgba(0,0,0,.25); font-size: 13px; pointer-events: auto; }
+  .battle.show { display: block; }
+  .battle h4 { margin: 0 0 3px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #ffc59a; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .battle h4 button { font: inherit; font-size: 11px; font-weight: 800; color: #23461a; background: #ffe14a; border: 2px solid #2d5f1a; border-radius: 8px; padding: 1px 7px; }
+  .bside { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-weight: 700; }
+  .bside i { flex: none; width: 11px; height: 11px; border-radius: 50%; border: 2px solid #2d5f1a; }
+  .bside .nm { flex: 0 1 auto; min-width: 0; max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hp { flex: 1; display: flex; gap: 2px; min-width: 50px; }
+  .hp b { flex: 1; height: 9px; border-radius: 3px; background: #ff5a5f; border: 1px solid #2d5f1a; max-width: 22px; }
+  .hp b.lost { background: rgba(255,255,255,.15); }
+  .bside .bw { color: #ffe14a; letter-spacing: 1px; font-size: 12px; }
+  .bside .pu { flex: none; font-size: 12px; background: #ff8a3d; color: #3a1a05; border-radius: 8px; padding: 0 6px; font-weight: 800; }
+  .bside small { color: #c9ee96; font-weight: 600; font-size: 11px; }
+  .loadout .card { width: min(92vw, 380px); padding: 18px 16px; }
+  .loadout h2 { font-size: 26px; }
+  .pulist { list-style: none; padding: 0; margin: 10px 0 0; text-align: left; }
+  .pulist li { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-bottom: 2px dashed #cfe8b4; }
+  .pulist li:last-child { border-bottom: none; }
+  .pulist .ic { flex: none; width: 30px; font-size: 22px; text-align: center; }
+  .pulist .tx { flex: 1; min-width: 0; }
+  .pulist .tx b { display: block; font-size: 15px; }
+  .pulist .tx span { display: block; font-size: 12px; color: #4b7a32; font-weight: 600; line-height: 1.25; }
+  .pulist select { flex: none; width: 92px; font: inherit; font-size: 14px; font-weight: 700; color: #23461a; padding: 6px 4px; border: 2px solid #9fd06e; border-radius: 10px; background: #fff; }
+  .pulist li.on { background: #fff1e6; border-radius: 10px; }
+  .pulist li.on select { border-color: #ff8a3d; }
+  .pupair { font-size: 13px; color: #4b7a32; font-weight: 700; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -110,6 +152,14 @@
   <button class="layer" data-layer="arrows" aria-pressed="true" aria-label="Slope arrows"><svg viewBox="0 0 26 18" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h9m-3-3 3 3-3 3" stroke="#ffdc00"/><path d="M12 13h11m-3-3 3 3-3 3" stroke="#ff2846"/></svg>Arrows</button>
   <button class="layer" data-layer="contours" aria-pressed="true" aria-label="Contour lines"><svg viewBox="0 0 26 18" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="13" cy="9" rx="11" ry="7"/><ellipse cx="14" cy="9" rx="6.5" ry="4"/><ellipse cx="15" cy="9" rx="2.5" ry="1.5"/></svg>Lines</button>
 </div>
+<div class="battle" id="battle"><h4><span id="btTitle">Bout 1</span><button id="btShare">Invite</button></h4><div id="btSides"></div></div>
+<div class="modal loadout" id="loadout"><div class="card">
+  <h2 id="loTitle">Power-ups</h2>
+  <p class="hint" id="loHint"></p>
+  <ul class="pulist" id="loList"></ul>
+  <p class="err" id="loMsg"></p>
+  <button id="loGo">Lock in</button>
+</div></div>
 <div class="board" id="board"><h4><span id="bdTitle">Match</span><button id="bdShare">Invite</button></h4><ul id="bdList"></ul></div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="card">
@@ -126,6 +176,17 @@
   <p style="margin-top:12px"><b>How many players?</b></p>
   <div class="seg" id="sCount"></div>
   <div id="sNames"></div>
+  <div id="sFmtBox"><div class="seg" id="sFmt"></div><p class="hint" id="sFmtWhy"></p></div>
+  <div class="bopts" id="sBattle">
+    <div class="toggle">⚔️ Battle mode <button class="tg" id="sBtOn" aria-pressed="false">Off</button></div>
+    <div id="sBtMore">
+      <p class="hint">1 v 1 over three bouts · win holes to knock health off</p>
+      <p style="margin:8px 0 0"><b>Power-ups each</b></p>
+      <div class="seg" id="sBtCount"></div>
+      <div class="seg" id="sBtMode"></div>
+    </div>
+    <p class="hint" id="sBtWhy"></p>
+  </div>
   <button id="start">Tee off</button>
   <div class="online">
     <p><b>Play online</b><br><span class="hint">Everyone plays the round on their own phone, whenever suits them</span></p>
@@ -314,7 +375,7 @@
   // ---------- state ----------
   // pass-and-play: each player has their own shot state; S always points at the player whose turn it is
   const PCOLS = ["#ff5a5f", "#3fa7ff", "#ffd43b", "#c77dff"];
-  const setup = { n: 1, names: ["Player 1", "Player 2", "Player 3", "Player 4"], course: COURSES[0].id, round: "" };
+  const setup = { n: 1, names: ["Player 1", "Player 2", "Player 3", "Player 4"], course: COURSES[0].id, round: "", btOn: false, btCount: 3, btMode: "random", fmt: "stroke" };
   try { Object.assign(setup, JSON.parse(localStorage.getItem("bgPlayers") || "{}")); } catch (e) {}
   let S, players = [], cur = 0, overlay = false;     // overlay: setup / handover / scorecard is up, so taps don't hit
   const multi = () => players.length > 1;
@@ -365,7 +426,7 @@
              aim: 0, aimDelta: 0, curve: true, dist: 0, latv: 0, anim: null, done: false, shotNo: 0 };
   }
   function reset() {
-    players = setup.names.slice(0, setup.n).map((name, i) => ({ name: name.trim() || `Player ${i + 1}`, col: setup.n > 1 ? PCOLS[i] : "#fff", st: newState(), cards: [] }));
+    players = setup.names.slice(0, setup.n).map((name, i) => ({ name: name.trim() || `Player ${i + 1}`, col: setup.n > 1 ? PCOLS[i] : "#fff", st: newState(), cards: [], side: i }));
     beginHole();
   }
   // everyone back on the tee of the current hole; the best score on the last hole has the honour
@@ -375,7 +436,8 @@
     switchTo(0);
     zoom = baseZoom; cam = clampCam({ ...midTarget() });
     document.getElementById("modal").classList.remove("show");
-    if (multi()) showHandover(); else overlay = false;
+    renderBattle();
+    if (multi()) showHandover(); else { overlay = false; if (BT && ON.active) { const t = holePowerUpText(ON.myUps); if (t) setTimeout(() => toast(t.split(":")[0]), 400); } }
   }
   function switchTo(i) {
     cur = i; S = players[i].st; S.t = 0;
@@ -402,6 +464,10 @@
     const dp = toPin();
     document.getElementById("hoInfo").textContent = S.strokes === 0 ? `Tee shot · ${Math.round(dp / YD)} yd to pin`
       : `${LIE[S.lie]} · ${putting() ? `${(dp * 3.281).toFixed(0)} ft` : `${Math.round(dp / YD)} yd`} to pin · ${S.strokes} stroke${S.strokes === 1 ? "" : "s"} so far`;
+    if (FMT === "match" && S.strokes === 0) { const m = matchState(fmtSides()); if (m && m.played) document.getElementById("hoInfo").textContent += ` · ${m.leader == null ? "All square" : `${fmtSides()[m.leader].name} ${Math.abs(m.up)} up`}`; }
+    if (FMT === "skins" && S.strokes === 0) { const st = skinsState(fmtSides()); document.getElementById("hoInfo").textContent += ` · ${skinWord(st.carry + 1)} on this hole`; }
+    const pu = BT ? holePowerUpText(p.ups) : "";
+    if (pu) document.getElementById("hoInfo").textContent += ` · ${pu}`;
     el.classList.add("show"); overlay = true;
   }
   function hideHandover() { document.getElementById("handover").classList.remove("show"); overlay = false; S.t = 0; }
@@ -430,7 +496,41 @@
       inp.setAttribute("aria-label", `Player ${i + 1} name`);
       row.append(dot, inp); box.appendChild(row);
     }
+    renderBattleSetup(r);
   }
+  // battle options: 1 v 1 over 9 or 18 holes (online battles are always 1 v 1, whatever the count above)
+  function renderFormatSetup() {
+    $("sFmtBox").style.display = setup.btOn ? "none" : "";
+    const box = $("sFmt"); box.innerHTML = "";
+    for (const [f, t] of Object.entries(FMTS)) {
+      const b = document.createElement("button"); b.className = "wide2"; b.textContent = t; b.setAttribute("aria-pressed", f === setup.fmt);
+      b.style.cssText = "width:auto;padding:7px 10px;font-size:14px;white-space:nowrap";
+      b.addEventListener("click", () => { readNames(); setup.fmt = f; renderSetup(); }); box.appendChild(b);
+    }
+    $("sFmtWhy").textContent = setup.fmt === "match" ? (setup.n === 2 ? "1 v 1, hole by hole: most holes won" : "Match play is 1 v 1: pick 2 players here. Online, the first 2 to join play.")
+      : setup.fmt === "skins" ? (setup.n >= 2 ? "Each hole is a skin; ties carry over to the next" : "Skins needs 2 or more players here. Online, everyone who joins plays.")
+      : "Fewest strokes wins";
+  }
+  function renderBattleSetup(r) {
+    renderFormatSetup();
+    const okHoles = battleOk(r.holes), okLocal = setup.n === 2;
+    $("sBtOn").setAttribute("aria-pressed", setup.btOn); $("sBtOn").textContent = setup.btOn ? "On" : "Off";
+    $("sBtMore").style.display = setup.btOn && okHoles ? "" : "none";
+    $("sBtWhy").textContent = !setup.btOn ? "" : !okHoles ? "Battles are played over 9 or 18 holes: pick 18 holes, Front 9 or Back 9."
+      : !okLocal ? "Pass-and-play battles need 2 players. Online battles are always 1 v 1." : "";
+    const cnt = $("sBtCount"); cnt.innerHTML = "";
+    for (let n = 3; n <= 8; n++) {
+      const b = document.createElement("button"); b.textContent = n; b.setAttribute("aria-pressed", n === setup.btCount);
+      b.addEventListener("click", () => { readNames(); setup.btCount = n; renderSetup(); }); cnt.appendChild(b);
+    }
+    const md = $("sBtMode"); md.innerHTML = "";
+    for (const [m, t] of [["random", "🎲 Dealt"], ["pick", "✋ Pick your own"]]) {
+      const b = document.createElement("button"); b.className = "wide2"; b.textContent = t; b.setAttribute("aria-pressed", m === setup.btMode);
+      b.addEventListener("click", () => { readNames(); setup.btMode = m; renderSetup(); }); md.appendChild(b);
+    }
+  }
+  const battleWanted = () => setup.btOn && battleOk(parseRound(roundSpec()).holes);
+  $("sBtOn").addEventListener("click", () => { readNames(); setup.btOn = !setup.btOn; renderSetup(); });
   function readNames() { document.querySelectorAll("#sNames input").forEach(inp => setup.names[+inp.dataset.i] = inp.value); }
   const roundSpec = () => `${setup.course}:${setup.round}`;
   $("sCourse").addEventListener("change", e => { readNames(); setup.course = e.target.value; setup.round = ""; renderSetup(); });
@@ -439,13 +539,16 @@
     if (ON.active) leaveOnline();
     document.getElementById("lobby").classList.remove("show");
     document.getElementById("modal").classList.remove("show"); document.getElementById("handover").classList.remove("show");
+    BT = null; renderBattle(); $("loadout").classList.remove("show");
     renderSetup(); document.getElementById("setup").classList.add("show"); overlay = true;
   }
   const saveSetup = () => { try { localStorage.setItem("bgPlayers", JSON.stringify(setup)); } catch (e) {} };
   document.getElementById("start").addEventListener("click", async () => {
     readNames(); saveSetup();
     document.getElementById("setup").classList.remove("show");
-    await startRound(roundSpec());
+    FMT = !battleWanted() && fmtOk(setup.fmt, setup.n) ? setup.fmt : "stroke";
+    if (battleWanted() && setup.n === 2) { FMT = "stroke"; await startBattleRound(roundSpec()); }
+    else { BT = null; await startRound(roundSpec()); }
   });
   document.getElementById("changePlayers").addEventListener("click", openSetup);
 
@@ -463,7 +566,8 @@
   const newSecret = () => (crypto.randomUUID ? crypto.randomUUID()
     : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
   const errText = e => /bg_create_match|function|schema cache/.test(e?.message) ? "Online rounds need the latest database update."
-    : /full/.test(e?.message) ? "That match is full (4 players)." : /not found/.test(e?.message) ? "No match with that code."
+    : /full/.test(e?.message) ? "That match is full."
+    : /battle|power-up/.test(e?.message) ? `Battle: ${e.message}.` : /not found/.test(e?.message) ? "No match with that code."
     : /name/.test(e?.message) ? "Type your name first." : "Couldn't reach the server. Check your connection and try again.";
 
   function setOnlineMsg(t) { $("onMsg").textContent = t || ""; }
@@ -481,7 +585,10 @@
     setOnlineMsg("Creating match…");
     const secret = newSecret();
     readNames(); saveSetup();
-    const { data, error } = await sb().rpc("bg_create_match", { p_name: name, p_secret: secret, p_round: roundSpec() });
+    const args = { p_name: name, p_secret: secret, p_round: roundSpec() };
+    if (battleWanted()) args.p_battle = { mode: setup.btMode, count: setup.btCount };
+    else if (setup.fmt !== "stroke") args.p_format = setup.fmt;
+    const { data, error } = await sb().rpc("bg_create_match", args);
     if (error) return setOnlineMsg(errText(error));
     const cred = { code: data.code, matchId: data.match_id, id: data.player_id, seat: data.seat, name, secret };
     saveCred(cred); setOnlineMsg("");
@@ -510,9 +617,10 @@
     let p = ON.roster.get(row.id);
     if (!p) {
       p = { id: row.id, seat: row.seat, name: row.name, col: PCOLS[row.seat] || "#fff", shots: {}, order: [], played: 0,
-            ball: { x: D.tee[0], y: D.tee[1] }, strokes: 0, done: false, lie: 4, anim: null, hole: 0, cards: [] };
+            ball: { x: D.tee[0], y: D.tee[1] }, strokes: 0, done: false, lie: 4, anim: null, hole: 0, cards: [], powerUps: null };
       ON.roster.set(row.id, p);
     }
+    if (row.power_ups !== undefined) p.powerUps = row.power_ups;
     return p;
   }
   // a shot from the database: store it; ghosts replay them in order (instantly when catching up)
@@ -585,13 +693,15 @@
     leaveOnline();
     ON.me = cred; ON.code = cred.code; ON.matchId = cred.matchId; ON.roster = new Map(); ON.outbox = [];
     const [mt, pl, sh] = await Promise.all([
-      sb().from("bg_matches").select("hole").eq("id", cred.matchId).single(),
-      sb().from("bg_players").select("id,seat,name").eq("match_id", cred.matchId).order("seat"),
+      sb().from("bg_matches").select("*").eq("id", cred.matchId).single(),
+      sb().from("bg_players").select("*").eq("match_id", cred.matchId).order("seat"),
       sb().from("bg_shots").select("player_id,n,data").eq("match_id", cred.matchId).order("n"),
     ]);
     if (mt.error || pl.error || sh.error) return setOnlineMsg(errText(mt.error || pl.error || sh.error));
     // the match's course and holes; where you are in it comes from the shots you've already sent (if rejoining)
     setRound(mt.data.hole);
+    BT = mt.data.battle && battleOk(round.holes) ? { ...mt.data.battle } : null;
+    FMT = !BT && FMTS[mt.data.format] ? mt.data.format : "stroke";
     const mine = sh.data.filter(r => r.player_id === cred.id), cards = [];
     for (const r of mine) if (r.data.d) cards[r.data.h ?? 0] = r.data.s;
     const lastMine = mine[mine.length - 1], ld = lastMine?.data, lh = ld?.h ?? 0;
@@ -601,6 +711,7 @@
     pl.data.forEach(rosterEntry);
     if (!ON.roster.has(cred.id)) { try { localStorage.removeItem(credKey(cred.code)); } catch (e) {} return setOnlineMsg("That match no longer has your seat."); }
     ON.active = true;
+    ON.myUps = ON.roster.get(cred.id).powerUps;
     players = [{ name: cred.name, col: PCOLS[cred.seat], st: newState(), cards }];
     S = players[0].st; aimAtPin(); switchTo(0);
     if (ld && lh === myHole) {          // part-way through this hole (or finished the round)
@@ -615,24 +726,45 @@
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bg_players", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => {
         if (ON.roster.has(r.id)) return; rosterEntry(r); toast(`${r.name} joined`); renderBoard(); renderLobby(); if (S.done) showOnlineScorecard(); })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bg_shots", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => takeShot(r, false))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bg_players", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => {
+        rosterEntry(r); if (BT && r.id !== ON.me.id && r.power_ups) toast(`${r.name} picked their power-ups`); renderBoard(); })
       .subscribe();
     history.replaceState(null, "", `?m=${ON.code}`);
     ["setup", "modal", "handover"].forEach(id => $(id).classList.remove("show"));
     $("board").classList.add("show"); renderBoard();
+    if (BT) await onlineBattleLoadout(mine.length > 0);
     if (isNew) { renderLobby(); $("lobby").classList.add("show"); overlay = true; }
     else if (S.done) showOnlineScorecard();
     else { overlay = false; toast(mine.length ? `Welcome back, ${cred.name} · hole ${holeEntry().n}` : `Joined ${ON.code} · tee off when ready`); }
   }
+  // online battle: a dealt set is shown once; a pick battle asks for your set before your first shot
+  async function onlineBattleLoadout(started) {
+    const seenKey = `bgBtSeen_${ON.code}`;
+    if (BT.mode === "random") {
+      let seen = false; try { seen = !!localStorage.getItem(seenKey); } catch (e) {}
+      if (!seen && !started && ON.myUps) { await loadout({ name: ON.me.name, col: PCOLS[ON.me.seat], dealt: ON.myUps }); try { localStorage.setItem(seenKey, "1"); } catch (e) {} }
+    } else if (!ON.myUps && !started) {
+      for (;;) {
+        const ups = await loadout({ name: ON.me.name, col: PCOLS[ON.me.seat] });
+        const { error } = await sb().rpc("bg_set_power_ups", { p_player: ON.me.id, p_secret: ON.me.secret, p_power_ups: ups });
+        if (!error || /already picked/.test(error.message)) { ON.myUps = ups; ON.roster.get(ON.me.id).powerUps = ups; break; }
+        toast(/function|schema/.test(error.message) ? "Battles need the latest database update" : "Couldn't save your power-ups — try again");
+      }
+    }
+    overlay = false; renderBattle();
+  }
   function leaveOnline() {
     if (ON.chan) { sb()?.removeChannel(ON.chan); ON.chan = null; }
-    ON.active = false; ON.roster = new Map(); $("board").classList.remove("show");
+    ON.active = false; ON.roster = new Map(); ON.myUps = null; $("board").classList.remove("show");
+    if (BT) { BT = null; renderBattle(); }
+    FMT = "stroke";
     if (location.search.includes("m=")) history.replaceState(null, "", location.pathname);
   }
   // catch up after the phone wakes or the connection comes back (realtime can miss events while asleep)
   async function resync() {
     if (!ON.active) return;
     const [pl, sh] = await Promise.all([
-      sb().from("bg_players").select("id,seat,name").eq("match_id", ON.matchId),
+      sb().from("bg_players").select("*").eq("match_id", ON.matchId),
       sb().from("bg_shots").select("player_id,n,data").eq("match_id", ON.matchId).order("n"),
     ]);
     if (!pl.error) pl.data.forEach(rosterEntry);
@@ -657,7 +789,7 @@
     return { ...ON.roster.get(ON.me.id), strokes: S.strokes, done: S.done, lie: S.lie, hole: round.i, cards };
   };
   const finishedRound = p => cardThru(p.cards) >= round.holes.length;
-  function playerRow(p, parent, bigScore) {
+  function playerRow(p, parent, bigScore, badge) {
     const li = document.createElement("li"), dot = document.createElement("i"), nm = document.createElement("span"), st = document.createElement("small");
     dot.style.background = p.col; nm.textContent = p.name + (p.id === ON.me.id ? " (you)" : "");
     const thru = cardThru(p.cards), multiHole = round.holes.length > 1;
@@ -667,14 +799,16 @@
     const b = document.createElement("b");
     if (!multiHole) b.textContent = p.done ? (bigScore ? p.strokes : " " + p.strokes) : bigScore ? "–" : "";
     else b.textContent = thru ? " " + tp(cardToPar(p.cards)) : bigScore ? "–" : "";
+    if (badge != null) b.textContent = badge ? " " + badge : "";
     if (b.textContent) li.appendChild(b);
     parent.appendChild(li); return li;
   }
   function renderBoard() {
     if (!ON.active) return;
-    $("bdTitle").textContent = `Match ${ON.code}`;
-    const ul = $("bdList"); ul.innerHTML = "";
-    for (const p of sortedRoster()) playerRow(p.id === ON.me.id ? meEntry() : p, ul, false);
+    if (BT) return renderBattle();
+    $("bdTitle").textContent = FMT === "stroke" ? `Match ${ON.code}` : `${FMTS[FMT]} · ${ON.code}`;
+    const ul = $("bdList"), sides = FMT === "stroke" ? null : fmtSides(); ul.innerHTML = "";
+    sortedRoster().forEach((p, k) => playerRow(p.id === ON.me.id ? meEntry() : p, ul, false, sides ? fmtBadge(sides, k) : null));
   }
   function renderLobby() {
     if (!ON.active) return;
@@ -684,6 +818,12 @@
   }
   // end of your round: waiting for the others, then the result
   function showOnlineScorecard() {
+    if (BT || FMT !== "stroke") {
+      if (BT) showBattleCard(true); else showFormatCard(true);
+      round.awaitNext = false;
+      $("again").textContent = "New match"; $("changePlayers").style.display = "none";
+      setPrompt(); $("modal").classList.add("show"); overlay = true; return;
+    }
     const all = sortedRoster().map(p => p.id === ON.me.id ? meEntry() : p);
     const total = p => cardStrokes(p.cards);
     const finished = all.filter(finishedRound).sort((a, b) => total(a) - total(b)), waiting = all.filter(p => !finishedRound(p));
@@ -745,6 +885,404 @@
     return { x: ix, y: iy };
   }
 
+  // ---------- formats for ordinary rounds: stroke play, match play, skins ----------
+  // FMT is this round's format. Match play is 1 v 1: a hole goes to the lower score, and the match is over once
+  // one player is more holes up than there are left (won "3&2"). Skins: each hole is worth a skin; the lowest
+  // score on its own takes it plus any carried over, a tie carries it to the next hole. Most skins wins.
+  let FMT = "stroke";
+  const FMTS = { stroke: "Stroke play", match: "Match play", skins: "Skins" };
+  const fmtOk = (f, n) => f === "match" ? n === 2 : f === "skins" ? n >= 2 : true;
+  function fmtSides() {
+    if (!ON.active) return [...players].sort((a, b) => a.side - b.side).map(p => ({ name: p.name, col: p.col, cards: p.cards, me: false, id: p.side }));
+    return sortedRoster().map(p => { const e = p.id === ON.me.id ? meEntry() : p; return { name: e.name, col: e.col, cards: e.cards, me: p.id === ON.me.id, id: p.id }; });
+  }
+  // match play between the first two sides: holes in order while both have a score
+  function matchState(sides) {
+    const n = round.holes.length, [a, b] = sides; let up = 0, played = 0, decidedAt = null; const holes = [];
+    if (!a || !b) return null;
+    for (let i = 0; i < n; i++) {
+      const x = a.cards[i], y = b.cards[i];
+      if (x == null || y == null) break;
+      const w = x < y ? 0 : y < x ? 1 : null; up += w === 0 ? 1 : w === 1 ? -1 : 0; played++;
+      holes.push({ w, up });
+      if (decidedAt == null && Math.abs(up) > n - played) decidedAt = played;
+      if (decidedAt != null) break;
+    }
+    const left = n - played, over = decidedAt != null || played === n;
+    const leader = up > 0 ? 0 : up < 0 ? 1 : null;
+    const score = !over ? (up ? `${Math.abs(up)} UP` : "AS") : leader == null ? "Halved" : left ? `${Math.abs(up)}&${left}` : `${Math.abs(up)} UP`;
+    return { up, played, left, over, leader, score, holes, dormie: !over && Math.abs(up) === left && left > 0 };
+  }
+  // skins: holes in order while everyone has a score
+  function skinsState(sides) {
+    const won = sides.map(() => 0), holes = []; let carry = 0;
+    for (let i = 0; i < round.holes.length; i++) {
+      const sc = sides.map(s => s.cards[i]);
+      if (sc.some(v => v == null)) break;
+      const low = Math.min(...sc), who = sc.map((v, k) => v === low ? k : -1).filter(k => k >= 0), pot = carry + 1;
+      if (who.length === 1) { won[who[0]] += pot; carry = 0; holes.push({ winner: who[0], pot }); }
+      else { carry = pot; holes.push({ winner: null, pot }); }
+    }
+    const done = holes.length === round.holes.length, top = Math.max(...won), leaders = won.map((v, k) => v === top ? k : -1).filter(k => k >= 0);
+    return { won, carry, holes, done, leaders, top };
+  }
+  const skinWord = n => `${n} skin${n === 1 ? "" : "s"}`;
+  // the big number on a scorecard / board row for this format
+  function fmtBadge(sides, k) {
+    if (FMT === "match") { const m = matchState(sides); if (!m || k > 1) return ""; return m.leader === k ? m.score : m.leader == null ? (m.played ? (m.over ? "Halved" : "AS") : "–") : ""; }
+    if (FMT === "skins") return sides.length < 2 ? "" : skinWord(skinsState(sides).won[k]);
+    return null;
+  }
+  const matchDecided = () => FMT === "match" && !ON.active && !!matchState(fmtSides())?.over;
+
+  // between holes and at the end of a match play or skins round
+  function showFormatCard(final) {
+    const sides = fmtSides(), list = $("mScores"), h = holeEntry(), $t = $("mTitle"), $x = $("mText"), best = $("mBest");
+    list.innerHTML = ""; best.textContent = "";
+    const nm = s => s.name + (s.me ? " (you)" : "");
+    const nx = round.holes[round.i + 1], nextTxt = nx && !final ? `next: hole ${nx.n}, par ${nx.par}` : "";
+    if (FMT === "match") {
+      const m = matchState(sides), hr = m?.holes[round.i];
+      if (!m || sides.length < 2) { $t.textContent = `Hole ${h.n} done`; $x.textContent = "Waiting for an opponent to join"; return; }
+      if (final && m.over) {
+        $t.textContent = m.leader == null ? "Match halved" : `${sides[m.leader].me ? "You win" : sides[m.leader].name + " wins"} ${m.score}`;
+        $x.textContent = `Match play · ${round.course.name}`;
+      } else if (final) {
+        $t.textContent = "Waiting for your opponent…"; $x.textContent = `${m.leader == null ? "All square" : `${sides[m.leader].name} ${m.score}`} after ${m.played}`;
+      } else if (!hr) {
+        $t.textContent = `Hole ${h.n} done`; $x.textContent = `Waiting for ${sides.find(s => s.cards[round.i] == null)?.name || "your opponent"} to finish this hole`;
+      } else {
+        $t.textContent = hr.w == null ? "Hole halved" : `${sides[hr.w].name} wins the hole`;
+        $x.textContent = `Hole ${h.n} · ${m.leader == null ? "All square" : `${sides[m.leader].name} ${Math.abs(m.up)} up`} with ${m.left} to play${m.dormie ? " · dormie" : ""}`;
+      }
+      sides.slice(0, 2).forEach((s, k) => {
+        const v = s.cards[round.i];
+        scoreRow(list, s.col, (final && m.over && m.leader === k ? "🏆 " : "") + nm(s), final ? `${cardStrokes(s.cards)} strokes · thru ${cardThru(s.cards)}` : v != null ? scoreNameFor(v, h.par).replace("!", "") : "playing", fmtBadge(sides, k) || " ", "tp");
+      });
+      best.textContent = nextTxt;
+      return;
+    }
+    // skins
+    if (sides.length < 2) { $t.textContent = `Hole ${h.n} done`; $x.textContent = "Skins starts once someone else joins"; best.textContent = nextTxt; return; }
+    const st = skinsState(sides), hr = st.holes[round.i];
+    if (final && st.done) {
+      $t.textContent = st.leaders.length > 1 ? "It's a tie!" : `${sides[st.leaders[0]].me ? "You win" : sides[st.leaders[0]].name + " wins"}!`;
+      $x.textContent = `Skins · ${round.course.name}${st.carry ? ` · ${skinWord(st.carry)} left unclaimed` : ""}`;
+    } else if (final) { $t.textContent = "Waiting for others…"; $x.textContent = `${skinWord(st.won.reduce((a, b) => a + b, 0))} won so far`; }
+    else if (!hr) { $t.textContent = `Hole ${h.n} done`; $x.textContent = "Waiting for everyone to finish this hole"; }
+    else {
+      $t.textContent = hr.winner == null ? (hr.pot > 1 ? `${hr.pot} skins carry over` : "Skin carries over") : `${sides[hr.winner].name} wins ${skinWord(hr.pot)}`;
+      $x.textContent = `Hole ${h.n} · par ${h.par}${hr.winner == null ? " · tied for the lowest score" : ""}`;
+    }
+    const order = sides.map((s, k) => k).sort((a, b) => st.won[b] - st.won[a]);
+    for (const k of order) {
+      const s = sides[k], v = s.cards[round.i];
+      scoreRow(list, s.col, (final && st.done && st.leaders.length === 1 && st.leaders[0] === k ? "🏆 " : "") + nm(s),
+        final ? `${cardStrokes(s.cards)} strokes · thru ${cardThru(s.cards)}` : v != null ? scoreNameFor(v, h.par).replace("!", "") : "playing", skinWord(st.won[k]), "tp");
+    }
+    best.textContent = [nextTxt && st.carry ? `${skinWord(st.carry + 1)} on the next hole` : "", nextTxt].filter(Boolean).join(" · ");
+  }
+
+  // ---------- battle mode: Pure Golf's battle rules ----------
+  // 1 v 1 over three bouts of equal length (6 holes of an 18, 3 of a 9). Both players start each bout on full
+  // health (one per hole of the bout). Each hole is compared on Stableford points (2 for par, 1 more per stroke
+  // under, none at double bogey or worse) and the difference is the damage the loser takes. Running out of
+  // health loses the bout on the spot; otherwise the healthier player takes it. Most bouts wins; damage dealt
+  // breaks a tie. Power-ups are fixed to holes before the round (dealt, or picked) and never change.
+  const PU = [
+    ["double_down", "⚡", "Double Down", () => "Damage from the hole is doubled, whoever wins it."],
+    ["shield", "🛡️", "Shield", () => "Damage you take is halved, rounding down."],
+    ["heal", "💚", "Heal", f => `You regain ${third(f)} health before the hole is played.`],
+    ["critical_hit", "🔥", "Critical Hit", f => `Win the hole and you deal ${third(f)} extra damage.`],
+    ["leech", "🩸", "Leech", () => "Win the hole and you regain the damage you deal."],
+    ["sniper", "🎯", "Sniper", f => `Score 3 points or more and you deal at least ${sniperDmg(f)} damage, whatever they score.`],
+    ["poison", "🧪", "Poison", () => "Win the hole and they take 1 more damage at the start of the next hole of the bout."],
+    ["block", "⛔", "Block", () => "You take no damage at all on the hole."],
+    ["last_stand", "✋", "Last Stand", () => "You can't be knocked out on the hole: your health stops at 1."],
+    ["counter", "🔁", "Counter", () => "Damage aimed at you lands on the player who dealt it instead."],
+    ["second_wind", "🌬️", "Second Wind", f => `Start the hole on ${third(f)} health or less and you go back up to ${third(f) * 2}.`],
+  ].map(([key, icon, label, blurb]) => ({ key, icon, label, blurb }));
+  const puInfo = k => PU.find(p => p.key === k) || { key: k, icon: "❔", label: k, blurb: () => "" };
+  const third = f => Math.ceil(f / 3), sniperDmg = f => Math.ceil(f / 2);
+  const stableford = (strokes, par) => Math.max(0, 2 + par - strokes);
+  const battleOk = holes => holes.length >= 3 && holes.length % 3 === 0;
+
+  // plays the fight out from both players' points per hole (null = not scored yet); ups map kind -> 1-based hole
+  function battlePlay(pointsA, pointsB, upsA = {}, upsB = {}, full) {
+    const holes = pointsA.length, per = holes / 3, th = third(full), sn = sniperDmg(full);
+    const onHole = (ups, h) => new Set(Object.keys(ups).filter(k => ups[k] === h));
+    const bouts = []; let wonA = 0, wonB = 0, dealtA = 0, dealtB = 0;
+    for (let b = 0; b < 3; b++) {
+      let hA = full, hB = full, ko = false, waiting = false, poisonOnA = null, poisonOnB = null;
+      const played = [], end = (b + 1) * per;
+      for (let i = b * per; i < end; i++) {
+        const hole = i + 1, uA = onHole(upsA, hole), uB = onHole(upsB, hole);
+        let dA = 0, dB = 0, healA = 0, healB = 0, poisA = false, poisB = false;
+        const a = pointsA[i], bb = pointsB[i], pending = !ko && (a == null || bb == null);
+        if (pending) waiting = true;
+        if (!ko && !pending) {
+          const hitA = n => { const room = Math.max(0, hA - (uA.has("last_stand") ? 1 : 0)), t = Math.min(Math.max(n, 0), room); hA -= t; dA += t; dealtB += t; };
+          const hitB = n => { const room = Math.max(0, hB - (uB.has("last_stand") ? 1 : 0)), t = Math.min(Math.max(n, 0), room); hB -= t; dB += t; dealtA += t; };
+          const mendA = n => { const g = Math.min(Math.max(n, 0), full - hA); hA += g; healA += g; };
+          const mendB = n => { const g = Math.min(Math.max(n, 0), full - hB); hB += g; healB += g; };
+          // 1. poison carried over from the hole before
+          if (poisonOnA === i && !uA.has("block")) { hitA(1); poisA = dA > 0; }
+          if (poisonOnB === i && !uB.has("block")) { hitB(1); poisB = dB > 0; }
+          if (hA > 0 && hB > 0) {
+            // 2. recovery, before a ball is hit
+            if (uA.has("heal")) mendA(th);
+            if (uB.has("heal")) mendB(th);
+            if (uA.has("second_wind") && hA <= th) mendA(th * 2 - hA);
+            if (uB.has("second_wind") && hB <= th) mendB(th * 2 - hB);
+            // 3. what each player throws at the other
+            const diff = a - bb, aWon = diff > 0, bWon = diff < 0;
+            let atB = 0, atA = 0;
+            if (diff !== 0) {
+              let n = Math.abs(diff);
+              if (uA.has("double_down")) n *= 2;
+              if (uB.has("double_down")) n *= 2;
+              if ((aWon ? uA : uB).has("critical_hit")) n += th;
+              if (aWon) atB = n; else atA = n;
+            }
+            if (uA.has("sniper") && a >= 3 && atB < sn) atB = sn;
+            if (uB.has("sniper") && bb >= 3 && atA < sn) atA = sn;
+            // 4. how each lands: a Counter sends it back, unless that player is blocking or countering too
+            let onA = 0, onB = 0;
+            if (atB > 0 && !uB.has("block")) {
+              if (uB.has("counter")) { if (!uA.has("block") && !uA.has("counter")) hitA(atB); }
+              else { const was = dB; hitB(uB.has("shield") ? Math.floor(atB / 2) : atB); onB = dB - was; }
+            }
+            if (atA > 0 && !uA.has("block")) {
+              if (uA.has("counter")) { if (!uB.has("block") && !uB.has("counter")) hitB(atA); }
+              else { const was = dA; hitA(uA.has("shield") ? Math.floor(atA / 2) : atA); onA = dA - was; }
+            }
+            // 5. what winning the hole earns
+            if (aWon && uA.has("leech")) mendA(onB);
+            if (bWon && uB.has("leech")) mendB(onA);
+            if (i + 1 < end) { if (aWon && uA.has("poison")) poisonOnB = i + 1; if (bWon && uB.has("poison")) poisonOnA = i + 1; }
+          }
+        }
+        played.push({ hole, a, b: bb, upsA: uA, upsB: uB, dA, dB, poisA, poisB, healA, healB, hA, hB, skipped: ko, pending });
+        if (hA === 0 || hB === 0) ko = true;
+      }
+      const finished = ko || !waiting, winner = !finished ? null : hA > hB ? 0 : hB > hA ? 1 : null;
+      if (winner === 0) wonA++; if (winner === 1) wonB++;
+      bouts.push({ n: b + 1, holes: played, hA, hB, winner, ko, finished });
+    }
+    const finished = bouts.every(b => b.finished);
+    const winner = !finished ? null : wonA !== wonB ? (wonA > wonB ? 0 : 1) : dealtA !== dealtB ? (dealtA > dealtB ? 0 : 1) : null;
+    return { bouts, full, wonA, wonB, dealtA, dealtB, winner, finished, per };
+  }
+
+  // the deal, as Pure Golf does it: the same kinds for both players, spread evenly over the bouts (the bouts
+  // that take any extra drawn once, so both get the same count per bout), each player on their own random holes
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  function dealSettings(count, holes) {
+    const kinds = shuffle(PU.map(p => p.key)).slice(0, count), extra = shuffle([0, 1, 2]).slice(0, count % 3);
+    return { mode: "random", count, health: holes / 3, kinds, bouts: [0, 1, 2].map(b => Math.floor(count / 3) + (extra.includes(b) ? 1 : 0)) };
+  }
+  function dealOne(bt, holes) {
+    const per = holes / 3, picks = [];
+    for (let b = 0; b < 3; b++) picks.push(...shuffle(Array.from({ length: per }, (_, k) => b * per + k + 1)).slice(0, bt.bouts[b]));
+    const kinds = shuffle(bt.kinds.slice()), ups = {};
+    kinds.forEach((k, i) => ups[k] = picks[i]);
+    return ups;
+  }
+
+  // BT: this round's battle (null when not battling). Pass-and-play keeps each player's power-ups on players[i].ups,
+  // with side 0 the first player named; online, side 0 is seat 0.
+  let BT = null;
+  const battleOn = () => !!BT;
+  function battleSides() {
+    if (!BT) return null;
+    if (!ON.active) {
+      const s = [...players].sort((a, b) => a.side - b.side);
+      return s.length === 2 ? s.map(p => ({ name: p.name, col: p.col, cards: p.cards, ups: p.ups || {}, me: false, hole: round.i, thru: cardThru(p.cards) })) : null;
+    }
+    return sortedRoster().slice(0, 2).map(p => {
+      const e = p.id === ON.me.id ? meEntry() : p;
+      return { name: e.name, col: e.col, cards: e.cards, ups: (p.id === ON.me.id ? ON.myUps : p.powerUps) || {}, me: p.id === ON.me.id, hole: e.hole, thru: cardThru(e.cards), picked: !!(p.id === ON.me.id ? ON.myUps : p.powerUps) };
+    });
+  }
+  const pointsOf = cards => round.holes.map((h, i) => cards[i] != null ? stableford(cards[i], h.par) : null);
+  function battleNow() {
+    const sides = battleSides(); if (!sides) return null;
+    if (sides.length < 2) return { sides, res: null };
+    const res = battlePlay(pointsOf(sides[0].cards), pointsOf(sides[1].cards), sides[0].ups, sides[1].ups, BT.health);
+    return { sides, res };
+  }
+  const boutOf = i => Math.floor(i / (round.holes.length / 3));
+  const boutWord = n => ["first", "second", "final"][n] || "";
+
+  // the bar under the HUD: bout, each side's health, bouts won, and the power-up on the hole being played
+  function renderBattle() {
+    const el = $("battle");
+    el.classList.toggle("show", battleOn());
+    if (!battleOn()) return;
+    if (ON.active) $("board").classList.remove("show");
+    el.style.top = `${Math.round(document.querySelector(".hud").getBoundingClientRect().bottom) - 4}px`;   // just under the HUD, however tall it wraps
+    const now = battleNow(), box = $("btSides"); box.innerHTML = "";
+    const b = boutOf(round.i), per = round.holes.length / 3, bout = now?.res?.bouts[b];
+    $("btTitle").textContent = `Bout ${b + 1} of 3 · hole ${round.i % per + 1} of ${per}${bout?.ko ? " · KO" : ""}`;
+    $("btShare").style.display = ON.active && (!now || now.sides.length < 2) ? "" : "none";
+    const sides = now ? now.sides : [];
+    sides.forEach((s, k) => {
+      const row = document.createElement("div"); row.className = "bside";
+      const dot = document.createElement("i"); dot.style.background = s.col;
+      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = s.name + (s.me ? " (you)" : "");
+      const hp = document.createElement("span"); hp.className = "hp";
+      const h = bout ? (k ? bout.hB : bout.hA) : BT.health;
+      for (let j = 0; j < BT.health; j++) { const pip = document.createElement("b"); if (j >= h) pip.className = "lost"; hp.appendChild(pip); }
+      hp.title = `${h} of ${BT.health} health`;
+      const bw = document.createElement("span"); bw.className = "bw";
+      const won = now.res ? (k ? now.res.wonB : now.res.wonA) : 0; bw.textContent = "★".repeat(won) + "☆".repeat(Math.max(0, 2 - won));
+      row.append(dot, nm, hp, bw);
+      const up = Object.keys(s.ups).find(key => s.ups[key] === round.i + 1);
+      if (up) { const pu = document.createElement("span"); pu.className = "pu"; pu.textContent = `${puInfo(up).icon} ${puInfo(up).label}`; pu.title = puInfo(up).blurb(BT.health); row.appendChild(pu); }
+      if (ON.active && !s.me && s.hole !== round.i) { const sm = document.createElement("small"); sm.textContent = s.thru ? `thru ${s.thru}` : "not started"; row.appendChild(sm); }
+      box.appendChild(row);
+    });
+    if (!sides.length || sides.length < 2) { const w = document.createElement("div"); w.className = "bside"; w.innerHTML = `<small>Waiting for an opponent to join…</small>`; box.appendChild(w); }
+  }
+  $("btShare").addEventListener("click", e => { e.stopPropagation(); share(); });
+
+  // "Your power-up this hole" text for the hand-over card / a toast
+  function holePowerUpText(ups) {
+    const k = Object.keys(ups || {}).find(key => ups[key] === round.i + 1);
+    return k ? `${puInfo(k).icon} ${puInfo(k).label} this hole: ${puInfo(k).blurb(BT.health)}` : "";
+  }
+
+  // loadout: shows dealt power-ups, or lets a player pick theirs (each on its own hole); resolves with the set
+  function loadout({ name, col, dealt, pairs }) {
+    return new Promise(resolve => {
+      const H = round.holes.length, per = H / 3, list = $("loList"); list.innerHTML = ""; $("loMsg").textContent = "";
+      $("loadout").style.setProperty("--pc", col);
+      const holeLabel = n => `Hole ${round.holes[n - 1].n} · bout ${boutOf(n - 1) + 1}`;
+      if (pairs) {                                   // dealt: both players' sets, read only
+        $("loTitle").textContent = "Power-ups dealt";
+        $("loHint").textContent = `${BT.count} each, spread over the three bouts. Bouts start on ${BT.health} health.`;
+        for (const k of BT.kinds) {
+          const li = document.createElement("li"), p = puInfo(k);
+          li.innerHTML = `<span class="ic">${p.icon}</span><span class="tx"><b>${p.label}</b><span>${p.blurb(BT.health)}</span>` +
+            pairs.map(s => `<span class="pupair"><span style="color:${s.col};-webkit-text-stroke:1px #2d5f1a">●</span> ${esc(s.name)}: hole ${round.holes[s.ups[k] - 1].n}</span>`).join("") + `</span>`;
+          list.appendChild(li);
+        }
+        $("loGo").textContent = "Let's battle";
+      } else if (dealt) {
+        $("loTitle").textContent = `${name}'s power-ups`;
+        $("loHint").textContent = `Dealt to you, ${BT.count} over the three bouts. Bouts start on ${BT.health} health.`;
+        for (const k of Object.keys(dealt).sort((a, b) => dealt[a] - dealt[b])) {
+          const li = document.createElement("li"), p = puInfo(k);
+          li.innerHTML = `<span class="ic">${p.icon}</span><span class="tx"><b>${p.label} · ${holeLabel(dealt[k])}</b><span>${p.blurb(BT.health)}</span></span>`;
+          list.appendChild(li);
+        }
+        $("loGo").textContent = "Let's battle";
+      } else {
+        $("loTitle").textContent = `${name}: pick ${BT.count}`;
+        $("loHint").textContent = `Choose ${BT.count} power-ups and the hole each one is played on (one per hole). Bouts start on ${BT.health} health.`;
+        for (const p of PU) {
+          const li = document.createElement("li"), sel = document.createElement("select");
+          sel.dataset.k = p.key; sel.setAttribute("aria-label", `Hole for ${p.label}`);
+          sel.innerHTML = `<option value="">Not used</option>` + Array.from({ length: H }, (_, i) => `<option value="${i + 1}">Hole ${round.holes[i].n}${i % per === 0 ? ` · B${boutOf(i) + 1}` : ""}</option>`).join("");
+          sel.addEventListener("change", () => { li.classList.toggle("on", !!sel.value); $("loMsg").textContent = ""; });
+          li.innerHTML = `<span class="ic">${p.icon}</span><span class="tx"><b>${p.label}</b><span>${p.blurb(BT.health)}</span></span>`;
+          li.appendChild(sel); list.appendChild(li);
+        }
+        $("loGo").textContent = "Lock in";
+      }
+      $("loadout").classList.add("show"); overlay = true; $("loadout").querySelector(".card").scrollTop = 0;
+      $("loGo").onclick = () => {
+        let ups = dealt || null;
+        if (!dealt && !pairs) {
+          ups = {}; const used = new Set();
+          for (const sel of list.querySelectorAll("select")) if (sel.value) { if (used.has(sel.value)) return $("loMsg").textContent = "Two power-ups can't share a hole."; used.add(sel.value); ups[sel.dataset.k] = +sel.value; }
+          const n = Object.keys(ups).length;
+          if (n !== BT.count) return $("loMsg").textContent = n < BT.count ? `Pick ${BT.count - n} more.` : `That's ${n - BT.count} too many: pick ${BT.count}.`;
+        }
+        $("loadout").classList.remove("show"); $("loGo").onclick = null; resolve(ups);
+      };
+    });
+  }
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // pass-and-play: deal or pick before the first tee shot
+  async function startBattleRound(spec) {
+    setRound(spec);
+    const H = round.holes.length;
+    BT = setup.btMode === "pick" ? { mode: "pick", count: Math.min(setup.btCount, H), health: H / 3 } : dealSettings(setup.btCount, H);
+    await goToHole(0); reset();
+    players.forEach((p, i) => p.side = i);
+    $("handover").classList.remove("show");
+    if (BT.mode === "random") {
+      players.forEach(p => p.ups = dealOne(BT, H));
+      await loadout({ pairs: players.map(p => ({ name: p.name, col: p.col, ups: p.ups })) });
+    } else {
+      for (const p of players) {
+        await showHandoverFor(p, "Pick your power-ups in secret");
+        p.ups = await loadout({ name: p.name, col: p.col });
+      }
+    }
+    renderBattle(); beginHole();
+  }
+  function showHandoverFor(p, info) {
+    return new Promise(resolve => {
+      const el = $("handover"); el.style.setProperty("--pc", p.col);
+      $("hoName").textContent = `${p.name}'s turn`; $("hoInfo").textContent = info;
+      el.classList.add("show"); overlay = true;
+      const go = () => { $("hoGo").removeEventListener("click", go, true); el.classList.remove("show"); resolve(); };
+      $("hoGo").addEventListener("click", go, true);
+    });
+  }
+
+  // between holes: what the hole did to the fight; at the end, the battle's result
+  function showBattleCard(final) {
+    const now = battleNow(), list = $("mScores"); list.innerHTML = "";
+    const h = holeEntry(), $t = $("mTitle"), $x = $("mText"), best = $("mBest");
+    if (!now || !now.res) { $t.textContent = `Hole ${h.n} done`; $x.textContent = "Waiting for an opponent to join"; best.textContent = ""; return; }
+    const { sides, res } = now, b = boutOf(round.i), bout = res.bouts[b], hr = bout.holes[round.i % res.per];
+    const nm = k => sides[k].name + (sides[k].me ? " (you)" : "");
+    if (final) {
+      if (!res.finished) {
+        $t.textContent = "Waiting for your opponent…";
+        $x.textContent = `Bouts ${res.wonA}–${res.wonB} so far`;
+      } else {
+        $t.textContent = res.winner == null ? "It's a draw!" : sides[res.winner].me ? "You win the battle!" : `${sides[res.winner].name} wins the battle!`;
+        $x.textContent = `Bouts ${res.wonA}–${res.wonB}${res.wonA === res.wonB ? ` · damage ${res.dealtA}–${res.dealtB}` : ""} · ${round.course.name}`;
+      }
+      sides.forEach((s, k) => {
+        const won = k ? res.wonB : res.wonA, dealt = k ? res.dealtB : res.dealtA;
+        const li = scoreRow(list, s.col, (res.finished && res.winner === k ? "🏆 " : "") + nm(k), `${dealt} damage · ${s.thru ? tp(cardToPar(s.cards)) : "–"}`, `${won} ★`, "tp");
+        if (!res.finished && s.thru < round.holes.length) li.querySelector("small").textContent += ` · thru ${s.thru}`;
+      });
+      best.textContent = res.bouts.map(x => `B${x.n}: ${x.winner == null ? (x.finished ? "level" : "…") : sides[x.winner].name}${x.ko ? " (KO)" : ""}`).join(" · ");
+      return;
+    }
+    if (hr.pending) {
+      $t.textContent = `Hole ${h.n} done`;
+      $x.textContent = `Bout ${b + 1} · waiting for ${sides.find((s, k) => (k ? hr.b : hr.a) == null)?.name || "your opponent"} to finish this hole`;
+    } else if (hr.skipped) {
+      $t.textContent = `Hole ${h.n} done`;
+      $x.textContent = `Bout ${b + 1} was already won by knockout`;
+    } else {
+      const lead = hr.a === hr.b ? null : hr.a > hr.b ? 0 : 1;
+      $t.textContent = bout.ko && (hr.hA === 0 || hr.hB === 0) ? "Knockout!" : lead == null ? "Halved" : `${sides[lead].name} wins the hole`;
+      $x.textContent = `Hole ${h.n} · ${sides[0].name} ${hr.a} pt${hr.a === 1 ? "" : "s"} v ${sides[1].name} ${hr.b} pt${hr.b === 1 ? "" : "s"}`;
+    }
+    sides.forEach((s, k) => {
+      const ups = k ? hr.upsB : hr.upsA, d = k ? hr.dB : hr.dA, heal = k ? hr.healB : hr.healA, hp = k ? hr.hB : hr.hA;
+      const bits = [];
+      if (d) bits.push(`−${d} health${(k ? hr.poisB : hr.poisA) ? " (incl. poison)" : ""}`);
+      if (heal) bits.push(`+${heal} healed`);
+      for (const u of ups) bits.push(`${puInfo(u).icon} ${puInfo(u).label}`);
+      if (!bits.length) bits.push(hr.pending ? "playing" : hr.skipped ? "bout already over" : "no damage");
+      scoreRow(list, s.col, nm(k), bits.join(" · "), hr.pending ? "–" : `${hp}/${res.full}`, "tp");
+    });
+    const nx = round.holes[round.i + 1], nb = boutOf(round.i + 1);
+    const boutEnd = bout.finished && !hr.skipped && (bout.ko ? (hr.hA === 0 || hr.hB === 0) : round.i % res.per === res.per - 1);
+    best.textContent = (boutEnd ? `Bout ${b + 1}: ${bout.winner == null ? "level" : sides[bout.winner].name}${bout.ko ? " by knockout" : ""} · ` : "") +
+      `bouts ${res.wonA}–${res.wonB}` + (nx ? ` · next: hole ${nx.n}, par ${nx.par}${nb !== b ? ` · the ${boutWord(nb)} bout starts, full health` : ""}` : "");
+  }
+
   // ---------- input ----------
   function tap() {
     if (S.done || overlay) return;
@@ -777,7 +1315,7 @@
     for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => holdEnd(s));
     b.addEventListener("contextmenu", e => e.preventDefault());   // long-press on phones would open a menu
   });
-  document.getElementById("again").addEventListener("click", () => round.awaitNext ? nextHole() : startRound(round.spec));
+  document.getElementById("again").addEventListener("click", () => round.awaitNext ? nextHole() : BT && !ON.active ? startBattleRound(round.spec) : startRound(round.spec));
 
   // ---------- shot ----------
   function hit() {
@@ -861,7 +1399,7 @@
     li.append(dot, nm, lbl, sc); list.appendChild(li); return li;
   }
   function showScorecard() {
-    const final = lastHole();
+    const final = lastHole() || matchDecided();
     if (ON.active && final) return showOnlineScorecard();
     const $t = $("mTitle"), $x = $("mText"), list = $("mScores"), best1 = $("mBest");
     list.innerHTML = ""; best1.textContent = "";
@@ -870,7 +1408,9 @@
     $("again").textContent = final ? "Play again" : `Next hole ›`;
     $("changePlayers").textContent = final ? "Players" : "Quit";
     $("changePlayers").style.display = ON.active && !final ? "none" : "";
-    if (!final) {                       // between holes: this hole's result + the running totals
+    if (BT) showBattleCard(final);
+    else if (FMT !== "stroke" && (multi() || ON.active)) showFormatCard(final);
+    else if (!final) {                  // between holes: this hole's result + the running totals
       const me = players[0];
       if (!multi() && !ON.active) {
         $t.textContent = scoreName(me.cards[round.i]);
@@ -920,6 +1460,7 @@
     const d = toPin();
     document.getElementById("hPin").textContent = putting() ? `${(d * 3.281).toFixed(0)} ft` : `${Math.round(d / YD)} yd`;
     document.getElementById("hLie").textContent = LIE[S.lie];
+    if (BT) renderBattle();
   }
   function setPrompt() {
     const p = document.getElementById("prompt");
@@ -1147,6 +1688,18 @@
     }
     requestAnimationFrame(frame);
   }
+  // test hook, local dev server only: finish the current hole with given strokes per side (pass-and-play)
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__bg = {
+    score(strokes) {
+      if (ON.active) {          // online: finish my hole and send it like a real (holed) shot
+        S.strokes = strokes[0]; S.shotNo = strokes[0] - 1;
+        lastAnim = { kind: "fly", from: { x: D.tee[0], y: D.tee[1] }, land: { ...pin }, rest: { ...pin }, peak: 10, dur: 1 };
+        S.done = true; S.phase = "done"; S.ball = { ...pin }; sendShot(); return nextTurn();
+      }
+      for (const p of players) { p.st.strokes = strokes[p.side ?? players.indexOf(p)]; p.st.done = true; } $("handover").classList.remove("show"); overlay = false; nextTurn();
+    },
+    get BT() { return BT; }, get round() { return round; }, players: () => players,
+  };
   renderSetup();
   await startRound(roundSpec());          // course renders behind the setup screen
   openSetup();
