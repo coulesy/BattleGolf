@@ -1,5 +1,6 @@
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"; mkdir -p "$ROOT/build"; cd "$ROOT/build"; cp "$ROOT/data/${HOLE:-abbey-hill-13}.json" hole.json
+# HOLE=<data file name>  OUT=<folder for the game assets>
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"; export ROOT; BUILD="$ROOT/build/${HOLE:-abbey-hill-13}"; mkdir -p "$BUILD"; cd "$BUILD"; cp "$ROOT/data/${HOLE:-abbey-hill-13}.json" hole.json
 for O in portrait land; do
   P=0; DATA=game_data.json; [ $O = portrait ] && P=1 && DATA=game_data_portrait.json
   GAME=1 PORTRAIT=$P python3 "$ROOT/tools/render_hole_toon.py" hole.json course_$O.png $DATA
@@ -34,5 +35,10 @@ for f,o in [('game_data.json','land'),('game_data_portrait.json','portrait')]:
 print('merged')
 PY
 ls -la *.jpg *heat*.png
-cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg detail_land_heat.png detail_portrait_heat.png detail_land_contours.png detail_portrait_contours.png game_data.json game_data_portrait.json "$ROOT/game/"
-echo "copied assets to game/"
+python3 - <<'PY'
+import sys, os; sys.path.insert(0, os.environ["ROOT"] + "/tools"); import pin
+print("pin", pin.repin("."))
+PY
+DEST="${OUT:-$ROOT/game}"; mkdir -p "$DEST"
+cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg detail_land_heat.png detail_portrait_heat.png detail_land_contours.png detail_portrait_contours.png game_data.json game_data_portrait.json "$DEST/"
+echo "copied assets to $DEST"

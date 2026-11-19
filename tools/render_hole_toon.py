@@ -3,7 +3,7 @@ Same inputs as render_hole.py (tee, layup, green front/centre/back, elevation gr
 import json, base64, sys, math
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from scipy.ndimage import gaussian_filter, map_coordinates, binary_erosion
+from scipy.ndimage import gaussian_filter, map_coordinates, binary_erosion, distance_transform_edt
 from scipy.spatial import cKDTree
 
 src, out = sys.argv[1], sys.argv[2]
@@ -71,6 +71,62 @@ for sc, am in zip([16, 7], [1, .5]):
 nbw = lambda x, y: world_sample(NBW, x, y)
 nb = nbw(X, Y)
 
+# ---------------- real course features (OpenStreetMap), rasterised in world space ----------------
+# OSM=data/osm/<course>.json. Everything here is world-space, so detail tiles line up with the base picture.
+OSMF = json.load(open(os.environ["OSM"])) if os.environ.get("OSM") else None
+def frame(pts): return np.array([R @ to_m(p) for p in pts])
+def world_mask(polys, width=None, round_ends=True):
+    m = Image.new("L", (wnx, wny), 0); dr = ImageDraw.Draw(m)
+    for P in polys:
+        q = [((x - bx[0]) / WC, (y - by[0]) / WC) for x, y in P]
+        if width:
+            dr.line(q, fill=255, width=max(1, int(width / WC)), joint="curve")
+            if round_ends:
+                r_ = width / WC / 2
+                for x_, y_ in (q[0], q[-1]): dr.ellipse([x_ - r_, y_ - r_, x_ + r_, y_ + r_], fill=255)
+        elif len(q) >= 3: dr.polygon(q, fill=255)
+    return np.asarray(m, float) / 255
+def in_world(Wm, p): return float(world_sample(Wm, [p[0]], [p[1]])[0]) > 0.5
+def polyline_cut(P, a, b):
+    """part of polyline P between arc lengths a and b"""
+    seg = np.linalg.norm(np.diff(P, axis=0), axis=1); cum = np.concatenate([[0], np.cumsum(seg)])
+    ts = np.linspace(max(a, 0), min(b, cum[-1]), 60)
+    return np.stack([np.interp(ts, cum, P[:, 0]), np.interp(ts, cum, P[:, 1])], 1)
+OSM_ON = OSMF is not None
+if OSM_ON:
+    feats = {}
+    for f in OSMF["features"]:
+        feats.setdefault(f["kind"], []).append(f)
+    poly = lambda k: [frame(f["pts"]) for f in feats.get(k, [])]
+    greens_all = poly("green")
+    own_green = None
+    if greens_all:
+        dists = [np.linalg.norm(P.mean(0) - G) for P in greens_all]
+        if min(dists) < 15: own_green = greens_all[int(np.argmin(dists))]
+    W_green_own = world_mask([own_green]) if own_green is not None else None
+    W_green_oth = world_mask([P for P in greens_all if P is not own_green])
+    W_tee = world_mask(poly("tee"))
+    W_fair_osm = world_mask(poly("fairway"))
+    W_bunker = world_mask(poly("bunker"))
+    W_water = world_mask(poly("water"))
+    W_wood = world_mask(poly("wood"))
+    # other holes: OSM has their playing lines but (mostly) no fairway shapes, so give them a generated one
+    nf, nc = [], []
+    for f in feats.get("hole", []):
+        if str(f.get("ref")) == str(H["hole"]): continue
+        P = frame(f["pts"]); Ln = np.linalg.norm(np.diff(P, axis=0), axis=1).sum()
+        if Ln < 200: continue                                   # par 3: tee, rough and green only
+        nf.append(polyline_cut(P, 75, Ln - 22)); nc.append(polyline_cut(P, 62, Ln - 8))
+    W_nfair = gaussian_filter(world_mask(nf, 28), 2 / WC) + 0.06 * NBW
+    W_ncut = gaussian_filter(world_mask(nc, 46), 2 / WC) + 0.06 * NBW
+    W_nfair = (W_nfair > 0.5) & (W_wood < 0.5); W_ncut = (W_ncut > 0.5) & (W_wood < 0.5)
+    W_play = np.maximum.reduce([W_tee, W_fair_osm, W_bunker, W_water, W_green_oth, W_nfair.astype(float), W_ncut.astype(float)]
+                               + ([W_green_own] if W_green_own is not None else []))
+    S_ = lambda Wm: world_sample(np.asarray(Wm, float), X, Y) > 0.5
+    wood, water, bunker = S_(W_wood), S_(W_water), S_(W_bunker)
+    ogreen, otee = S_(W_green_oth), S_(W_tee)
+    ofair = S_(W_fair_osm) | S_(W_nfair); ocut = S_(W_ncut)
+
 # ---------------- centreline + shapes ----------------
 C = 2 * L - (T + G) / 2
 t = np.linspace(0, 1, 3000)[:, None]
@@ -80,30 +136,148 @@ total = arc[-1]
 dist, idx = cKDTree(curve).query(np.stack([X.ravel(), Y.ravel()], 1))
 dist, sarc = dist.reshape(X.shape), arc[idx].reshape(X.shape)
 
-green_len = np.linalg.norm(GB - GF); ga = (GB - GF) / green_len
-gc = (GF + GB) / 4 + G / 2
-a_ax = green_len / 2 + 3.0; b_ax = a_ax * 0.8
+# Standard-size green: a rounded oval centred on the GPS green point, long axis along the approach.
+# (The GPS front/back points vary too much to use for the size; only the centre and direction are kept.)
+_gr = np.random.default_rng((sum(map(ord, H.get("course", ""))) * 131 + H["hole"] * 7919 + 1) % 2**32)
+_j = int(np.searchsorted(arc, total - 30)); ga = (G - curve[min(_j, len(curve) - 1)]); ga = ga / (np.linalg.norm(ga) + 1e-9)
+gc = G.copy()
+a_ax = _gr.uniform(13, 16); b_ax = _gr.uniform(10, 12.5)
+green_len = 2 * a_ax
+_gph = _gr.uniform(0, 6.3, 2)
+def green_r(du, dv):
+    gu_ = du * ga[0] + dv * ga[1]; gv_ = -du * ga[1] + dv * ga[0]; th_ = np.arctan2(gv_, gu_)
+    return gu_, gv_, np.sqrt((gu_ / a_ax) ** 2 + (gv_ / b_ax) ** 2) - (0.05 * np.sin(2 * th_ + _gph[0]) + 0.03 * np.sin(3 * th_ + _gph[1]))
 du, dv = X - gc[0], Y - gc[1]
-gu = du * ga[0] + dv * ga[1]; gv = -du * ga[1] + dv * ga[0]
-thg = np.arctan2(gv, gu)
-gr = np.sqrt((gu / a_ax) ** 2 + (gv / b_ax) ** 2) - (0.07 * np.sin(3 * thg + 1) + 0.04 * np.sin(5 * thg))
+gu, gv, gr = green_r(du, dv)
 green = gr < 1.0
+if OSM_ON and W_green_own is not None:
+    green = world_sample(W_green_own, X, Y) > 0.5
+    GD = distance_transform_edt(W_green_own < 0.5) * WC          # metres outside the real green
+    gdist = world_sample(GD, X, Y)
+else:
+    gdist = (gr - 1.0) * a_ax                                     # roughly metres outside the generated green
 
 fw_start = 80.0
 half_w = 15 + 4 * np.exp(-((sarc - 230) / 60) ** 2) - 4 * np.clip((sarc - (total - 60)) / 50, 0, 1) + 2.0 * nb
 fairway = (dist < half_w * np.clip((sarc - fw_start) / 8, 0, 1)) & (sarc < total - 2)
-fairway |= gr < 1.25
-cut = (dist < (half_w + 10) * np.clip((sarc - fw_start + 10) / 10, 0, 1)) | (gr < 1.0 + 9 / a_ax)
+if D < 200: fairway &= sarc > total - 45                         # par 3: just a short approach
+fairway |= gdist < 2.5
+cut = (dist < (half_w + 10) * np.clip((sarc - fw_start + 10) / 10, 0, 1)) | (gdist < 9)
 cut &= sarc > fw_start - 12
 tu, tv = X - T[0], Y - (T[1] - 4)
 teebox = (np.abs(tu) < 6) & (np.abs(tv) < 9)
 teepad = (np.abs(tu) < 10) & (np.abs(tv) < 13)
+if OSM_ON:
+    hazard = water | bunker
+    fairway &= ~wood & ~hazard; cut &= ~wood
+    ofair &= ~hazard; ocut &= ~hazard & ~wood
+    cut |= ocut
+else:
+    # ---- procedural hazards: standard bunkers, a pond or a stream, placed from the hole's own shape ----
+    # Seeded by course + hole number, so a hole always comes out the same.
+    hr = np.random.default_rng((sum(map(ord, H.get("course", ""))) * 131 + H["hole"] * 7919) % 2**32)
+    def at_arc(sa):                      # point and unit normal (to the right) on the centre line
+        j = int(np.clip(np.searchsorted(arc, sa), 1, len(arc) - 1))
+        tg = curve[j] - curve[j - 1]; tg = tg / (np.linalg.norm(tg) + 1e-9)
+        return curve[j], np.array([tg[1], -tg[0]])
+    def blob(cx_, cy_, ra, rb, rot, wob=0.14):
+        ph = hr.uniform(0, 6.3, 2); th_ = np.linspace(0, 2 * np.pi, 48, endpoint=False)
+        rr_ = 1 + wob * np.sin(2 * th_ + ph[0]) + wob * 0.6 * np.sin(3 * th_ + ph[1])
+        x_, y_ = ra * rr_ * np.cos(th_), rb * rr_ * np.sin(th_)
+        c_, s_ = math.cos(rot), math.sin(rot)
+        return np.stack([cx_ + c_ * x_ - s_ * y_, cy_ + s_ * x_ + c_ * y_], 1)
+    bunkers, ponds, streams = [], [], []
+    par = H["par"]
+    # greenside: 1-3 bunkers hugging the green (front-left, front-right, sides, back)
+    p_in, _ = at_arc(total - 30); appr = (G - p_in) / (np.linalg.norm(G - p_in) + 1e-9)
+    gR = max(a_ax, b_ax) + 3.5
+    for ang in hr.choice([150, -150, 95, -95, 25], size=int(hr.integers(1, 4)), replace=False):
+        a_ = math.radians(ang); d_ = np.array([appr[0] * math.cos(a_) - appr[1] * math.sin(a_), appr[0] * math.sin(a_) + appr[1] * math.cos(a_)])
+        # the green's real edge in this direction, then a 3 m strip of fringe before the sand starts
+        edge = next(t_ for t_ in np.arange(4, 40, 0.25) if green_r(d_[0] * t_, d_[1] * t_)[2] >= 1.0)
+        rb_ = hr.uniform(3, 4.2)
+        c_ = gc + d_ * (edge + 3.0 + rb_ * 1.25)
+        bunkers.append(blob(c_[0], c_[1], hr.uniform(5, 7.5), rb_, math.atan2(d_[1], d_[0]) + math.pi / 2))
+    # fairway bunkers in the landing zone (par 4/5)
+    if par >= 4 and total > 260:
+        side = hr.choice([-1, 1])
+        for k in range(int(hr.integers(1, 3))):
+            sa = min(225 + 28 * k, total - 100) + hr.uniform(-10, 10)
+            pt, nrm = at_arc(sa); c_ = pt + nrm * side * (13 + hr.uniform(0, 4))
+            tgt = np.array([-nrm[1], nrm[0]])
+            bunkers.append(blob(c_[0], c_[1], hr.uniform(8, 11), hr.uniform(3.5, 5), math.atan2(tgt[1], tgt[0])))
+            side = -side
+    # water: par 3s may carry over a pond; longer holes get a pond beside the fairway or a stream across it
+    roll = hr.random()
+    if par == 3 and roll < 0.5:
+        pt, nrm = at_arc(max(total - gR - 20, total * 0.45)); tgt = np.array([-nrm[1], nrm[0]])
+        ponds.append(blob(pt[0], pt[1], 30, 11, math.atan2(nrm[1], nrm[0]), 0.1))
+    elif par >= 4 and roll < 0.35:
+        sa = hr.uniform(0.38, 0.6) * total if total > 300 else total - gR - 35
+        pt, nrm = at_arc(sa); tgt = np.array([-nrm[1], nrm[0]])
+        ts_ = np.linspace(-140, 140, 90); wig = 7 * np.sin(ts_ / 23 + hr.uniform(0, 6)) + 4 * np.sin(ts_ / 9 + hr.uniform(0, 6))
+        streams.append(pt + np.outer(ts_, nrm) + np.outer(wig, tgt))
+    elif par >= 4 and roll < 0.7:
+        side = hr.choice([-1, 1]); sa = hr.uniform(0.5, 0.8) * total
+        pt, nrm = at_arc(sa); c_ = pt + nrm * side * (36 + hr.uniform(0, 8))
+        tgt = np.array([-nrm[1], nrm[0]])
+        ponds.append(blob(c_[0], c_[1], hr.uniform(26, 40), hr.uniform(13, 18), math.atan2(tgt[1], tgt[0]), 0.12))
+    W_bunker = world_mask(bunkers)
+    W_water = np.maximum(world_mask(ponds), world_mask(streams, 6, round_ends=False))
+    W_play = np.maximum(W_bunker, gaussian_filter(W_water, 3 / WC) > 0.05)
+    # blurred a little before thresholding so sand and water edges are smooth, not stair-stepped
+    S_ = lambda Wm: world_sample(gaussian_filter(np.asarray(Wm, float), 0.8 / WC), X, Y) > 0.5
+    water = S_(W_water) & ~green & ~teepad
+    bunker = S_(W_bunker) & ~green & ~teepad & ~water
+    wood = ogreen = otee = ofair = np.zeros_like(green)
+    fairway &= ~water & ~bunker
+
+# ---------------- smooth fairway + first cut ----------------
+# Built in world space and blurred before thresholding, so ends are rounded, the edges flow, and hazards
+# leave a soft grass margin instead of sharp notches. The blurred field is sampled per pixel and only then
+# thresholded, so edges stay smooth at any zoom (and detail tiles match the base picture).
+WXw, WYw = np.meshgrid(bx[0] + np.arange(wnx) * WC, by[0] + np.arange(wny) * WC)
+_wd, _wi = cKDTree(curve).query(np.stack([WXw.ravel(), WYw.ravel()], 1))
+WDst, WSarc = _wd.reshape(WXw.shape), arc[_wi].reshape(WXw.shape)
+Whw = 15 + 4 * np.exp(-((WSarc - 230) / 60) ** 2) - 4 * np.clip((WSarc - (total - 60)) / 50, 0, 1) + 2.0 * NBW
+if OSM_ON and W_green_own is not None:
+    WGd = GD
+else:
+    WGd = (green_r(WXw - gc[0], WYw - gc[1])[2] - 1.0) * a_ax
+Wfr = (WDst < Whw) & (WSarc > fw_start) & (WSarc < total - 2)
+if D < 200: Wfr &= WSarc > total - 45
+Wfr |= WGd < 2.5
+Wcr = ((WDst < Whw + 10) & (WSarc > fw_start - 12)) | (WGd < 9)
+Whaz = np.maximum(W_bunker, W_water)
+if OSM_ON: Whaz = np.maximum(Whaz, W_wood)
+near_haz = distance_transform_edt(Whaz < 0.5) * WC < 2.5          # keep a grass margin round hazards
+Wfr &= ~near_haz
+# the first cut wraps round bunkers by the fairway or green, so its outline never runs through the sand
+Wcr |= (distance_transform_edt(W_bunker < 0.5) * WC < 3.0) & ((WDst < Whw + 30) | (WGd < 25))
+FairF = gaussian_filter(Wfr.astype(float), 3.0 / WC)
+CutF = gaussian_filter(Wcr.astype(float), 4.0 / WC)
+# the blur would fill small gaps back in, so the grass margin round each hazard is cut out again afterwards
+HazF = gaussian_filter((distance_transform_edt(Whaz < 0.5) * WC < 2.5).astype(float), 0.6 / WC)
+fairway = (world_sample(FairF, X, Y) > 0.5) & (world_sample(HazF, X, Y) < 0.5)
+cut = world_sample(CutF, X, Y) > 0.5
+if OSM_ON:
+    cut &= ~wood; cut |= ocut
+else:
+    cut &= ~water
 
 # ---------------- elevation -> toon hill shading ----------------
-grid = np.array(H["grid"]).reshape(12, 21)
-ACROSS = 10.0
+# Same layout as the Pure Golf app's generateHoleGrid: rows every total/(rows-1) metres from the tee to 20 m
+# past the green, columns 18 m apart either side of the tee->green line (positive = right of the line).
+GSTEP, gtotal = 18.0, D + 20.0
+garr = np.array(H["grid"], float)
+half = min(max(math.floor(gtotal / 2 / GSTEP + 0.5), 1), 12)
+for h_ in (half, half - 1, half + 1):                # distances differ slightly from the app's: try neighbours
+    if h_ >= 1 and len(garr) % (2 * h_ + 1) == 0 and len(garr) // (2 * h_ + 1) >= 3: half = h_; break
+gcols = 2 * half + 1; grows = len(garr) // gcols
+grid = garr[:grows * gcols].reshape(grows, gcols)
 WXg, WYg = np.meshgrid(bx[0] + np.arange(wnx) * WC, by[0] + np.arange(wny) * WC)
-ZW = map_coordinates(grid, [np.clip((WYg - T[1]) / D * 11, 0, 11), np.clip((WXg - T[0]) / ACROSS + 10, 0, 20)], order=1)
+ZW = map_coordinates(grid, [np.clip((WYg - T[1]) / (gtotal / (grows - 1)), 0, grows - 1),
+                            np.clip((WXg - T[0]) / GSTEP + half, 0, gcols - 1)], order=1)
 ZW = gaussian_filter(ZW, 14 / WC) + 0.35 * NBW
 gyw, gxw = np.gradient(ZW * 6, WC)
 lx, ly = cR.T @ np.array([-0.7, 0.7])          # light from top-left of the *screen*
@@ -117,17 +291,28 @@ rough = np.stack([c("#4f9e2a"), c("#62b434"), c("#74c63e")])
 img = rough[band].copy()
 def fill(mask, colr): img[mask] = colr
 cutc = np.stack([c("#3f8a24"), c("#4b9a2b"), c("#56a831")])
+woodc = np.stack([c("#3a7a22"), c("#438727"), c("#4c912b")])        # forest floor
+img[wood] = woodc[band][wood]
 img[cut] = cutc[band][cut]
 stripe = (np.floor(sarc / 9) % 2).astype(bool)
 fwc = np.where(stripe[..., None], c("#8fd64a"), c("#7cc83c"))
-img[fairway] = fwc[fairway]
+allfair = fairway | ofair
+img[allfair] = fwc[allfair]
 gstripe = (np.floor(gu / 2.5) % 2).astype(bool)
 gcol = np.where(gstripe[..., None], c("#b2ec66"), c("#a5e25c"))
+img[ogreen] = gcol[ogreen]
 img[green] = gcol[green]
-img[teepad] = c("#4b9a2b")
 tstripe = (np.floor(tv / 3) % 2).astype(bool)
 tcol = np.where(tstripe[..., None], c("#9ee056"), c("#8ad24a"))
+img[otee & ~green] = tcol[otee & ~green]
+img[teepad] = c("#4b9a2b")
 img[teebox] = tcol[teebox]
+# sand: warm, lighter towards the lit side; water: blue with soft noise ripples
+sandc = np.stack([c("#e2c46e"), c("#efd486"), c("#f7e3a0")])
+img[bunker] = sandc[band][bunker]
+rip = (np.sin((X * 0.7 + Y * 0.35) + 3 * nb) > 0.75)
+waterc = np.where(rip[..., None], c("#7ad2f5"), c("#45aee6"))
+img[water] = waterc[water]
 
 # outlines: edge of each region in a darker ink
 ink = c("#2d5f1a")
@@ -137,14 +322,18 @@ def outline(mask, width_px, colr=ink, alpha=1.0):
     e = mask & ~binary_erosion(mask, iterations=int(round(width_px)), border_value=1 if DETAIL else 0)
     img[e] = img[e] * (1 - alpha) + colr * alpha
 outline(cut, 4 * U, alpha=0.95)
-outline(fairway, 3 * U, c("#3c7e22"), 0.85)
+outline(allfair, 3 * U, c("#3c7e22"), 0.85)
 outline(green, 2 * U, c("#4f9a2b"), 0.9)
+outline(ogreen, 2 * U, c("#4f9a2b"), 0.9)
+outline(otee, 2 * U, c("#3c7e22"), 0.8)
+outline(bunker, 3 * U, c("#b48a3c"), 0.95)
+outline(water, 3 * U, c("#2a6aa0"), 0.95)
 outline(teepad, 2 * U, alpha=0.8)
 outline(teebox, 2 * U, c("#3c7e22"), 0.8)
 # soft ink along hill-band boundaries in the rough (cartoon contours)
 bedge = (np.abs(np.diff(band, axis=0, prepend=band[:1])) + np.abs(np.diff(band, axis=1, prepend=band[:, :1]))) > 0
 bedge = gaussian_filter(bedge.astype(float), 1.2 * U) > 0.2
-bedge &= ~cut
+bedge &= ~cut & ~bunker & ~water & ~ogreen & ~ofair
 img[bedge] = img[bedge] * 0.86
 
 base = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).filter(ImageFilter.SMOOTH)
@@ -157,20 +346,45 @@ def zone_at(p):          # (tree-zone value, clump noise) at a world point, or N
     if not (0 <= q[0] < W and 0 <= q[1] < Hh): return None, None
     d_, i_ = _kd.query(p); sa = arc[i_]; n_ = float(nbw([p[0]], [p[1]])[0])
     hw = 15 + 4 * math.exp(-((sa - 230) / 60) ** 2) - 4 * min(max((sa - (total - 60)) / 50, 0), 1) + 2.0 * n_
-    return d_ - hw - 30 - 8 * n_, n_
+    return d_ - hw - 13 - 3 * n_, n_          # 0 = just past the first cut
 props = []
-for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (1500, 2)):
+if OSM_ON:
+    # real trees: OSM single trees and tree rows, plus woods filled with trees about 7.5 m apart
+    def clear_of_play(p):
+        d_, i_ = _kd.query(p); sa = arc[i_]
+        if d_ < 29 and fw_start - 15 < sa < total + 5: return False      # this hole's fairway and first cut
+        if np.hypot(*(p - T)) < 14 or np.hypot(*(p - G)) < a_ax + 12: return False
+        return not in_world(W_play, p)
+    singles = [frame([t_])[0] for t_ in OSMF["trees"]]
+    for f in feats.get("tree_row", []):
+        P = frame(f["pts"]); Ln = np.linalg.norm(np.diff(P, axis=0), axis=1).sum()
+        singles += list(polyline_cut(P, 0, Ln)[::max(1, int(60 * 7 / max(Ln, 1)))])
+    rw = np.random.default_rng(11)
+    fill = rw.uniform([bx[0], by[0]], [bx[1], by[1]], (int((bx[1] - bx[0]) * (by[1] - by[0]) / 14), 2))
+    fill = fill[world_sample(W_wood, fill[:, 0], fill[:, 1]) > 0.5]
+    cells = {}                                  # spatial hash for the spacing check
+    def too_close(p, gap):
+        cx_, cy_ = int(p[0] // 8), int(p[1] // 8)
+        return any(np.hypot(*(p - o)) < gap for i in (-1, 0, 1) for j in (-1, 0, 1) for o in cells.get((cx_ + i, cy_ + j), ()))
+    for gap, pts_ in ((3.0, singles), (7.5, fill)):
+        for p in pts_:
+            q = to_abs(p)
+            if not (-80 <= q[0] < W + 80 and -80 <= q[1] < Hh + 80): continue
+            if too_close(p, gap) or not clear_of_play(p): continue
+            cells.setdefault((int(p[0] // 8), int(p[1] // 8)), []).append(p); props.append(("tree", p))
+for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (2600, 2)):
     z, clump = zone_at(p)
     if z is None: continue
     nearG = np.hypot(*(p - gc)) < a_ax + 16; nearT = np.hypot(*(p - T)) < 18
     if nearG or nearT: continue
-    if z > 0 and rng.random() < (0.15 + 0.75 * min(z / 25, 1)) * (clump > -0.2):
+    if in_world(W_play, p) or (OSM_ON and in_world(W_wood, p)): continue
+    if z > 0 and not OSM_ON and rng.random() < (0.35 + 0.6 * min(z / 12, 1)) * (clump > -0.6):   # tight treeline
         props.append(("tree", p))
-    elif z > -14 and rng.random() < 0.05:
+    elif z > -3 and rng.random() < 0.05:
         props.append(("bush", p))
-    elif z > -16 and rng.random() < 0.05:
+    elif z > -3.5 and rng.random() < 0.05:
         props.append(("rock", p))
-    elif z > -18 and rng.random() < 0.09:
+    elif z > -4 and rng.random() < 0.09:
         props.append(("tuft", p))
 props.sort(key=lambda it: to_screen(it[1])[1])
 trees_out = []
@@ -286,7 +500,20 @@ if len(sys.argv) > 3 and not DETAIL:
     inb = (sx >= 0) & (sx < W) & (sy >= 0) & (sy < Hh)
     sxc, syc = np.clip(sx, 0, W - 1), np.clip(sy, 0, Hh - 1)
     lie = np.zeros(CX.shape, np.uint8)
-    lie[cut[syc, sxc]] = 1; lie[teebox[syc, sxc]] = 4; lie[fairway[syc, sxc]] = 2; lie[green[syc, sxc]] = 3
+    # 0 rough, 1 first cut, 2 fairway, 3 green, 4 tee, 5 trees/woods, 6 bunker, 7 water, 9 off the map
+    at = lambda m: m[syc, sxc]
+    lie[at(cut)] = 1; lie[at(wood)] = 5
+    lie[at(fairway | ofair | ogreen | otee)] = 2
+    lie[at(bunker)] = 6; lie[at(water)] = 7
+    lie[at(teebox)] = 4; lie[at(green)] = 3
+    # trees are baked in too (the game no longer checks every tree for every step of a putt)
+    for tx, ty, tr in trees_out:
+        rr = tr * 0.75
+        i0, i1 = int((tx - rr - gx0) / CELL), int((tx + rr - gx0) / CELL) + 1
+        j0, j1 = int((ty - rr - gy0) / CELL), int((ty + rr - gy0) / CELL) + 1
+        for j in range(max(j0, 0), min(j1 + 1, ny_)):
+            for i in range(max(i0, 0), min(i1 + 1, nx_)):
+                if math.hypot(cxs[i] - tx, cys[j] - ty) < rr and lie[j, i] in (0, 1, 2): lie[j, i] = 5
     lie[~inb] = 9
     A = np.diag([s, -s * TILT]) @ cR / SS
     b = (np.array([W / 2, Hh / 2 + 25 * SS]) - np.diag([s, -s * TILT]) @ cR @ mid) / SS
