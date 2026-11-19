@@ -18,13 +18,23 @@ cd game && python3 -m http.server 8765
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Pass-and-play:** pick 1–4 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
 
+7. **Online:** enter your name and tap *Create match* to get a 5-letter code and a link to share; friends join with the code or link (up to 4). Everyone plays their own round on their own phone whenever they like. Other players' shots replay on your screen as ghost balls, the scoreboard updates live, and the final scorecard appears once everyone has holed out. Closing the app is fine: opening the link again picks up where you left off.
+
 The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, trees 90. Off the map costs a penalty stroke.
+
+## Online play and the phone app
+
+Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running `supabase/migrations/20261119120000_battlegolf_online.sql` in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
+
+The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.js`). Once it's served over HTTPS, "Add to Home Screen" on iPhone or "Install app" on Android gives it an icon and full-screen play, and the game itself works offline. Bump `VERSION` in `game/sw.js` whenever game files change so installed copies pick up the new files.
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
 | `game/` | The playable game: `index.html` plus generated course images, detail tiles, heat maps and game data (portrait and landscape) |
+| `game/config.js`, `game/sw.js`, `game/manifest.webmanifest`, `game/icons/` | Online-play settings and the installable-app files |
+| `supabase/migrations/` | Database setup for online matches |
 | `data/` | Hole input data exported from the Pure Golf `holes` table |
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
 | `tools/build_course.sh` | Rebuilds every asset in `game/` from a hole in `data/` |

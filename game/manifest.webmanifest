@@ -1,0 +1,16 @@
+{
+  "name": "BattleGolf",
+  "short_name": "BattleGolf",
+  "description": "Tap-timing golf on cartoon holes. Play solo, pass the phone, or challenge friends online.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#2d5f1a",
+  "theme_color": "#2d5f1a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
