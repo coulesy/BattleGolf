@@ -130,6 +130,9 @@
   .pulist li.on { background: #fff1e6; border-radius: 10px; }
   .pulist li.on select { border-color: #ff8a3d; }
   .pupair { font-size: 13px; color: #4b7a32; font-weight: 700; margin-top: 6px; }
+  .card h1.logo { margin: -8px 0 2px; line-height: 0; }
+  .card h1.logo img { width: 150px; height: 150px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.2)); }
+  @media (max-height: 640px) { .card h1.logo img { width: 104px; height: 104px; } }
   /* install as an app */
   .card button.install { display: none; margin: 2px auto 6px; padding: 6px 14px; font-size: 14px; background: #ffe14a; box-shadow: 0 3px 0 #2d5f1a; }
   .card button.install.show { display: inline-block; }
@@ -178,7 +181,7 @@
   <button id="again">Play again</button><button class="alt" id="changePlayers">Players</button>
 </div></div>
 <div class="modal" id="setup"><div class="card">
-  <h2>BattleGolf</h2>
+  <h1 class="logo"><img src="logo.webp" alt="BattleGolf" width="150" height="150"></h1>
   <button class="install" id="installBtn">📲 Install app</button>
   <div class="pick"><select id="sCourse" aria-label="Course"></select><select id="sRound" aria-label="Holes to play"></select></div>
   <p id="sHole" class="hint"></p>
