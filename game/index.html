@@ -281,6 +281,7 @@
     cr = Math.cos(-D.north_rot); sr = Math.sin(-D.north_rot);
     CL = D.centreline; CLarc = [0];
     for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
+    yardMarks = findYardMarks();
     for (const k in arrowCache) delete arrowCache[k];
     zoom = 0; resize();
     $("loading").classList.add("hide");
@@ -1551,6 +1552,38 @@
       ctx.strokeText(label, sx, sy - r - 6); ctx.fillStyle = col; ctx.fillText(label, sx, sy - r - 6); ctx.restore();
     }
   }
+  // 100/150/200 yd markers: the hole picture has the coloured discs, but its labels are too small to read, so the
+  // game draws readable ones over them. Same spots as the renderer: on the centre line, that far from the green point.
+  let yardMarks = [];
+  function findYardMarks() {
+    const G = CL[CL.length - 1], total = CLarc[CLarc.length - 1], len = Math.hypot(G[0] - CL[0][0], G[1] - CL[0][1]), out = [];
+    for (const yd of [100, 150, 200]) {
+      const r = yd * YD; if (r >= len - 10) continue;
+      let best = null, bestErr = Infinity;
+      for (let i = 1; i < CL.length; i++) for (let k = 0; k <= 8; k++) {
+        const f = k / 8, x = CL[i - 1][0] + (CL[i][0] - CL[i - 1][0]) * f, y = CL[i - 1][1] + (CL[i][1] - CL[i - 1][1]) * f;
+        if (CLarc[i - 1] + (CLarc[i] - CLarc[i - 1]) * f > total - 20) continue;
+        const e = Math.abs(Math.hypot(x - G[0], y - G[1]) - r);
+        if (e < bestErr) { bestErr = e; best = [x, y]; }
+      }
+      if (best) out.push({ yd, x: best[0], y: best[1] });
+    }
+    return out;
+  }
+  function drawYardMarks() {
+    if (!yardMarks.length || putting()) return;
+    // at least 13 px, and growing with the zoom so it always covers the picture's own (tiny) label
+    const fs = Math.max(13, 11 * zoom), h = fs + 5, pad = fs * 0.4;
+    ctx.save(); ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textBaseline = "middle";
+    for (const m of yardMarks) {
+      const [ix, iy] = toImg(m.x, m.y), [sx, sy] = toScreen(ix, iy);
+      if (sx < -80 || sy < -40 || sx > VW + 40 || sy > VH + 40) continue;
+      const t = String(m.yd), w = ctx.measureText(t).width + 2 * pad, x0 = sx + Math.max(5, 6 * zoom);
+      ctx.fillStyle = "rgba(30,55,25,.88)"; ctx.beginPath(); ctx.roundRect(x0, sy - h / 2, w, h, h / 2); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillText(t, x0 + pad, sy + 0.5);
+    }
+    ctx.restore();
+  }
   function drawOtherBalls() {
     players.forEach((p, i) => { if (i !== cur && !p.st.done) drawBall(p.st.ball.x, p.st.ball.y, 0, p.col, p.name); });
     if (ON.active) for (const p of ON.roster.values()) {   // online: the other phones' balls, replaying their shots
@@ -1722,6 +1755,7 @@
     drawImg(detailImg, D.detail.x, D.detail.y, D.detail.w, D.detail.h);   // 4x sharper tile around the green
     drawGreenRead(dt);
     drawGimmeRings();
+    drawYardMarks();
     drawOtherBalls();
 
     if (S.anim) {
