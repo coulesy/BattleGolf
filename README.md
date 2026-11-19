@@ -24,6 +24,14 @@ cd game && python3 -m http.server 8765
 
 The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
 
+## Hosting
+
+The game is live at **https://battlegolf.party** (also https://battlegolf.puregolfai-website.workers.dev), served by Cloudflare as static files from `game/` (Cloudflare Pages, now part of Workers; settings in `wrangler.jsonc`). To publish changes:
+
+```bash
+npx wrangler@4 deploy
+```
+
 ## Online play and the phone app
 
 Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running the files in `supabase/migrations/` in order in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
