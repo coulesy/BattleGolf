@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes generated from Pure Golf's own course data (tee, layup, green front/centre/back and elevation grids). The test hole is Abbey Hill hole 13 (par 4, 369 yds).
+A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The first full course is **Tilgate Forest** (18 holes); Abbey Hill hole 13 is kept as a single test hole.
 
 ## Play
 
@@ -16,15 +16,17 @@ cd game && python3 -m http.server 8765
 3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg.
 4. **Putting:** the green shows a slope heat map (blue low → red high, 5 cm contours) with downhill arrows. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
-6. **Pass-and-play:** pick 1–4 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
+6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
+7. **Hazards:** bunkers are a sand lie (short, wilder shots), and water (ponds and streams) costs a stroke with a drop back along the line the ball came in on.
+8. **Pass-and-play:** pick 1–4 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
 
-7. **Online:** enter your name and tap *Create match* to get a 5-letter code and a link to share; friends join with the code or link (up to 4). Everyone plays their own round on their own phone whenever they like. Other players' shots replay on your screen as ghost balls, the scoreboard updates live, and the final scorecard appears once everyone has holed out. Closing the app is fine: opening the link again picks up where you left off.
+9. **Online:** enter your name and tap *Create match* to get a 5-letter code and a link to share; friends join with the code or link (up to 4). The match uses the course and holes picked on the start screen. Everyone plays their own round on their own phone whenever they like. Other players' shots replay on your screen as ghost balls, the scoreboard updates live, and the final scorecard appears once everyone has holed out. Closing the app is fine: opening the link again picks up where you left off.
 
-The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, trees 90. Off the map costs a penalty stroke.
+The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
 
 ## Online play and the phone app
 
-Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running `supabase/migrations/20261119120000_battlegolf_online.sql` in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
+Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running the files in `supabase/migrations/` in order in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
 
 The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.js`). Once it's served over HTTPS, "Add to Home Screen" on iPhone or "Install app" on Android gives it an icon and full-screen play, and the game itself works offline. Bump `VERSION` in `game/sw.js` whenever game files change so installed copies pick up the new files.
 
@@ -32,12 +34,14 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 
 | Path | What it is |
 | --- | --- |
-| `game/` | The playable game: `index.html` plus generated course images, detail tiles, heat maps and game data (portrait and landscape) |
+| `game/` | The playable game (`index.html`) |
+| `game/courses/` | `courses.json` (the course list) and one folder per hole: course picture, 4× detail tile around the green, heat map, contours and game data, in portrait and landscape |
 | `game/config.js`, `game/sw.js`, `game/manifest.webmanifest`, `game/icons/` | Online-play settings and the installable-app files |
 | `supabase/migrations/` | Database setup for online matches |
-| `data/` | Hole input data exported from the Pure Golf `holes` table |
+| `data/` | Hole input data exported from the Pure Golf `holes` table, one file per hole (`<course>-<NN>.json`) |
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
-| `tools/build_course.sh` | Rebuilds every asset in `game/` from a hole in `data/` |
+| `tools/build_course.sh` | Builds one hole's assets from a file in `data/` |
+| `tools/build_round.sh` | Builds every hole of a course into `game/courses/<course>/` and updates `courses.json` |
 | `tools/render_hole.py` | The earlier top-down (non-cartoon) renderer |
 | `tools/playtest.py` | Headless Playwright playtest that taps through rounds and screenshots the green |
 
@@ -46,12 +50,14 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 Needs Python 3 with `numpy`, `scipy` and `Pillow`.
 
 ```bash
-bash tools/build_course.sh                        # uses data/abbey-hill-13.json
-HOLE=my-hole bash tools/build_course.sh           # uses data/my-hole.json
+bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~3 min each, 4 at a time
+bash tools/build_round.sh abbey-hill "Abbey Hill"
 ```
+
+Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.
 
 ## Assumptions to check
 
-- **Hole elevation grid:** read as 12 rows from tee to green × 21 columns across the hole, with 10 m between columns.
-- **Green elevation grid:** 41 × 41 at 2 m, int16 centimetres, assumed **north-up**. If it's actually aligned with the hole, every green break is rotated.
-- **Fairway, trees and rough:** generated, not mapped. There are no bunkers or water, because the data has none yet.
+- **Hole elevation grid:** read the way the Pure Golf app builds it (`generateHoleGrid`): columns 18 m apart either side of the tee→green line, rows evenly spaced from the tee to 20 m past the green.
+- **Layout is approximate on purpose:** fairways follow a curve from the tee through the layup point to the green; greens are a standard rounded oval (26–32 m long) centred on the GPS green point, because the GPS front/back points vary too much; bunkers, water and trees are procedural, not mapped.
+- **Green grid:** read as north-up. If it's actually aligned with the hole, every green break is rotated.

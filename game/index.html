@@ -83,7 +83,11 @@
   .board li i { flex: none; width: 11px; height: 11px; border-radius: 50%; border: 2px solid #2d5f1a; }
   .board li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .board li small { color: #c9ee96; font-weight: 600; }
-  .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; background: rgba(45,95,26,.6); z-index: 5; }
+  .loading.hide { display: none; }
+  .pick { display: flex; gap: 8px; margin: 10px 0 4px; }
+  .pick select { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 700; color: #23461a; padding: 8px 10px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; }
+  .scores b.tp { min-width: 34px; text-align: right; }
 </style>
 </head>
 <body>
@@ -91,6 +95,7 @@
 <div class="loading" id="loading">Loading course…</div>
 <div class="hud">
   <div class="chip player" id="hPlayerChip"><b id="hPlayer">–</b><span>To play</span></div>
+  <div class="chip"><b id="hHole">1</b><span id="hPar">Par 4</span></div>
   <div class="chip"><b id="hStroke">0</b><span>Strokes</span></div>
   <div class="chip"><b id="hPin">–</b><span>To pin</span></div>
   <div class="chip"><b id="hLie">Tee</b><span>Lie</span></div>
@@ -116,13 +121,14 @@
 </div></div>
 <div class="modal" id="setup"><div class="card">
   <h2>BattleGolf</h2>
-  <p id="sHole"></p>
+  <div class="pick"><select id="sCourse" aria-label="Course"></select><select id="sRound" aria-label="Holes to play"></select></div>
+  <p id="sHole" class="hint"></p>
   <p style="margin-top:12px"><b>How many players?</b></p>
   <div class="seg" id="sCount"></div>
   <div id="sNames"></div>
   <button id="start">Tee off</button>
   <div class="online">
-    <p><b>Play online</b><br><span class="hint">Everyone plays the hole on their own phone, whenever suits them</span></p>
+    <p><b>Play online</b><br><span class="hint">Everyone plays the round on their own phone, whenever suits them</span></p>
     <div class="row"><input id="onName" maxlength="16" placeholder="Your name" aria-label="Your name for online play" style="text-transform:none;letter-spacing:0;font-weight:700"></div>
     <button class="wide" id="onCreate">New online match</button>
     <div class="row"><input id="onCode" maxlength="5" placeholder="CODE" aria-label="Match code" autocapitalize="characters" autocomplete="off"><button class="small" id="onJoin">Join</button></div>
@@ -151,38 +157,60 @@
 <script>
 (async function () {
   const portrait = innerHeight > innerWidth;
-  const D = await (await fetch(portrait ? "game_data_portrait.json" : "game_data.json")).json();
-  const img = new Image();
-  img.src = portrait ? "course_portrait.jpg" : "course.jpg";
-  await img.decode();
-  const heatImg = new Image(); heatImg.src = D.heat.file;
-  const contImg = new Image(); contImg.src = D.heat.contours;
-  const detailImg = new Image(); detailImg.src = D.detail.file;
-  await Promise.all([heatImg.decode(), contImg.decode(), detailImg.decode()]);
-  document.getElementById("loading").remove();
+  const $ = id => document.getElementById(id);
+  const COURSES = await (await fetch("courses/courses.json")).json();
+  const courseById = id => COURSES.find(c => c.id === id) || COURSES[0];
+
+  // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
+  // Everything below that depends on the hole is reassigned by useHole(), so the rest of the game just reads it.
+  let D, img, heatImg, contImg, detailImg, lieBytes, IW, IH, A, B, ppm, pin, GG, gn, gstep, gcm, cr, sr, CL, CLarc;
+  const holeCache = new Map();
+  function fetchHole(courseId, dir) {               // starts the downloads (cached, so the next hole can preload)
+    const key = `${courseId}/${dir}`;
+    if (!holeCache.has(key)) {
+      const base = `courses/${key}/`;
+      const job = fetch(base + (portrait ? "game_data_portrait.json" : "game_data.json")).then(r => { if (!r.ok) throw new Error("hole"); return r.json(); })
+        .then(async d => {
+          const ims = [portrait ? "course_portrait.jpg" : "course.jpg", d.heat.file, d.heat.contours, d.detail.file].map(f => { const im = new Image(); im.src = base + f; return im; });
+          await Promise.all(ims.map(im => im.decode()));
+          return { d, ims };
+        });
+      job.catch(() => holeCache.delete(key));
+      holeCache.set(key, job);
+    }
+    return holeCache.get(key);
+  }
+  async function useHole(courseId, dir) {
+    $("loading").classList.remove("hide");
+    const { d, ims } = await fetchHole(courseId, dir);
+    D = d; [img, heatImg, contImg, detailImg] = ims;
+    lieBytes = Uint8Array.from(atob(D.lie), ch => ch.charCodeAt(0));
+    [IW, IH] = D.img; A = D.A; B = D.b;
+    ppm = Math.sqrt(Math.abs(A[0][0] * A[1][1] - A[0][1] * A[1][0]));   // image px per metre (approx)
+    pin = { x: D.pin[0], y: D.pin[1] };
+    GG = D.green_grid; gn = GG.n; gstep = GG.step; gcm = GG.cm;
+    cr = Math.cos(-D.north_rot); sr = Math.sin(-D.north_rot);
+    CL = D.centreline; CLarc = [0];
+    for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
+    for (const k in arrowCache) delete arrowCache[k];
+    zoom = 0; resize();
+    $("loading").classList.add("hide");
+  }
 
   // ---------- data ----------
-  const lieBytes = Uint8Array.from(atob(D.lie), ch => ch.charCodeAt(0));
-  const LIE = { 0: "Rough", 1: "First cut", 2: "Fairway", 3: "Green", 4: "Tee", 5: "Trees", 9: "OB" };
+  const LIE = { 0: "Rough", 1: "First cut", 2: "Fairway", 3: "Green", 4: "Tee", 5: "Trees", 6: "Bunker", 7: "Water", 9: "OB" };
   const YD = 0.9144;
-  const [IW, IH] = D.img;
-  const A = D.A, B = D.b;
   const toImg = (x, y) => [A[0][0] * x + A[0][1] * y + B[0], A[1][0] * x + A[1][1] * y + B[1]];
-  const ppm = Math.sqrt(Math.abs(A[0][0] * A[1][1] - A[0][1] * A[1][0])); // image px per metre (approx)
-  const pin = { x: D.pin[0], y: D.pin[1] };
 
-  function lieAt(x, y) {
-    for (const t of D.trees) if (Math.hypot(x - t[0], y - t[1]) < t[2] * 0.75) return 5;
+  function lieAt(x, y) {      // trees, woods, bunkers and water are all baked into the lie grid
     const i = Math.floor((x - D.gx0) / D.cell), j = Math.floor((y - D.gy0) / D.cell);
     if (i < 0 || j < 0 || i >= D.nx || j >= D.ny) return 9;
     return lieBytes[j * D.nx + i];
   }
 
   // ---------- green slope (from the green elevation grid, 2 m cells, cm) ----------
-  const GG = D.green_grid, gn = GG.n, gstep = GG.step, gcm = GG.cm;
-  const cr = Math.cos(-D.north_rot), sr = Math.sin(-D.north_rot);
   function heightAt(x, y) {
-    const xg = x - D.pin[0], yg = y - D.pin[1];
+    const c0 = D.gcen || D.pin, xg = x - c0[0], yg = y - c0[1];   // the slope grid is centred on the GPS green point
     const E = cr * xg - sr * yg, N = sr * xg + cr * yg;
     const gi = Math.min(gn - 1.001, Math.max(0, (gn - 1) / 2 - N / gstep));
     const gj = Math.min(gn - 1.001, Math.max(0, (gn - 1) / 2 + E / gstep));
@@ -226,7 +254,7 @@
         } else prevD = dc;
       } else inCup = false;
       const lie = lieAt(p.x, p.y);
-      if (lie === 9) break;
+      if (lie === 9 || lie === 7) break;          // off the map, or into the water
       const fr = lie === 3 ? FRICTION_GREEN : FRICTION_OFF;
       const [gx, gy] = gradAt(p.x, p.y), ax_ = -G_ROLL * gx, ay_ = -G_ROLL * gy;
       const sp = Math.hypot(vx, vy);
@@ -251,19 +279,20 @@
     1: { max: 205, sweep: 1.55, spread: 0.11, lat: 0.95 },
     0: { max: 175, sweep: 1.45, spread: 0.14, lat: 0.8 },
     5: { max: 90, sweep: 1.3, spread: 0.20, lat: 0.7 },
+    6: { max: 110, sweep: 1.35, spread: 0.18, lat: 0.75 },    // bunker: short and a bit wild
   };
-  const ROLL = { 2: 0.10, 1: 0.05, 0: 0.02, 3: 0.05, 4: 0.08, 5: 0 };
+  const ROLL = { 2: 0.10, 1: 0.05, 0: 0.02, 3: 0.05, 4: 0.08, 5: 0, 6: 0, 7: 0 };
 
   // ---------- canvas / camera ----------
   const cv = document.getElementById("c"), ctx = cv.getContext("2d");
-  let VW, VH, DPR, zoom, baseZoom, cam = { x: IW / 2, y: IH / 2 };
+  let VW, VH, DPR, zoom, baseZoom, cam = { x: 0, y: 0 };
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2);
     VW = innerWidth; VH = innerHeight;
     cv.width = VW * DPR; cv.height = VH * DPR;
-    baseZoom = Math.max(VW / IW, VH / IH); zoom = zoom || baseZoom;
+    if (IW) { baseZoom = Math.max(VW / IW, VH / IH); zoom = zoom || baseZoom; }
   }
-  addEventListener("resize", resize); resize();
+  addEventListener("resize", resize);
   const toScreen = (ix, iy) => [(ix - cam.x) * zoom + VW / 2, (iy - cam.y) * zoom + VH / 2];
   // draw an image placed at (ix, iy, iw, ih) in course-image px, cropped to what's on screen:
   // zoomed in on the green, scaling the whole picture every frame was most of the lag
@@ -285,19 +314,66 @@
   // ---------- state ----------
   // pass-and-play: each player has their own shot state; S always points at the player whose turn it is
   const PCOLS = ["#ff5a5f", "#3fa7ff", "#ffd43b", "#c77dff"];
-  const setup = { n: 1, names: ["Player 1", "Player 2", "Player 3", "Player 4"] };
+  const setup = { n: 1, names: ["Player 1", "Player 2", "Player 3", "Player 4"], course: COURSES[0].id, round: "" };
   try { Object.assign(setup, JSON.parse(localStorage.getItem("bgPlayers") || "{}")); } catch (e) {}
   let S, players = [], cur = 0, overlay = false;     // overlay: setup / handover / scorecard is up, so taps don't hit
   const multi = () => players.length > 1;
+
+  // ---------- the round: a course and the holes being played, e.g. "tilgate-forest:1-18" or "abbey-hill:13" ----------
+  const round = { spec: "", course: null, holes: [], i: 0, awaitNext: false };
+  function parseRound(spec) {
+    let [cid, part] = String(spec || "").split(":");
+    if (!part) { const m = /^(.*)-(\d+)$/.exec(cid || ""); if (m) [cid, part] = [m[1], m[2]]; }   // old matches: "abbey-hill-13"
+    const course = courseById(cid);
+    const [a, b] = String(part || "").split("-").map(Number);
+    let holes = course.holes.filter(h => h.n >= (a || 1) && h.n <= (b || a || 99));
+    if (!holes.length) holes = course.holes;
+    return { course, holes };
+  }
+  const roundOptions = c => {
+    const ns = c.holes.map(h => h.n), lo = Math.min(...ns), hi = Math.max(...ns), opts = [];
+    if (ns.length > 1) opts.push([`${lo}-${hi}`, `${ns.length} holes`]);
+    if (ns.length === 18) opts.push(["1-9", "Front 9"], ["10-18", "Back 9"]);
+    for (const h of c.holes) opts.push([`${h.n}`, `Hole ${h.n} · par ${h.par}`]);
+    return opts;
+  };
+  const tp = n => n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;                 // score to par
+  const cardDone = cards => cards.map((v, i) => [v, i]).filter(([v]) => v != null);
+  const cardStrokes = cards => cardDone(cards).reduce((a, [v]) => a + v, 0);
+  const cardToPar = cards => cardDone(cards).reduce((a, [v, i]) => a + v - round.holes[i].par, 0);
+  const cardThru = cards => cardDone(cards).length;
+  const lastHole = () => round.i >= round.holes.length - 1;
+  const holeEntry = () => round.holes[round.i];
+  function setRound(spec) {
+    const r = parseRound(spec);
+    Object.assign(round, { spec, course: r.course, holes: r.holes, i: 0, awaitNext: false });
+  }
+  async function goToHole(i) {
+    await useHole(round.course.id, round.holes[i].dir);
+    round.i = i; round.awaitNext = false;
+    const nx = round.holes[i + 1]; if (nx) fetchHole(round.course.id, nx.dir).catch(() => {});   // preload the next hole
+  }
+  async function startRound(spec) { setRound(spec); await goToHole(0); reset(); }
+  async function nextHole() {
+    $("modal").classList.remove("show");
+    await goToHole(round.i + 1);
+    beginHole();
+    if (ON.active) renderBoard();
+  }
   function newState() {
     return { ball: { x: D.tee[0], y: D.tee[1] }, prev: null, strokes: 0, lie: 4, phase: "dist", t: 0,
              aim: 0, aimDelta: 0, curve: true, dist: 0, latv: 0, anim: null, done: false, shotNo: 0 };
   }
   function reset() {
-    players = setup.names.slice(0, setup.n).map((name, i) => ({ name: name.trim() || `Player ${i + 1}`, col: setup.n > 1 ? PCOLS[i] : "#fff", st: newState() }));
-    for (const p of players) { S = p.st; aimAtPin(); }
+    players = setup.names.slice(0, setup.n).map((name, i) => ({ name: name.trim() || `Player ${i + 1}`, col: setup.n > 1 ? PCOLS[i] : "#fff", st: newState(), cards: [] }));
+    beginHole();
+  }
+  // everyone back on the tee of the current hole; the best score on the last hole has the honour
+  function beginHole() {
+    if (round.i > 0) players.sort((a, b) => (a.cards[round.i - 1] ?? 99) - (b.cards[round.i - 1] ?? 99));
+    for (const p of players) { p.st = newState(); S = p.st; aimAtPin(); }
     switchTo(0);
-    cam = clampCam({ ...midTarget() });
+    zoom = baseZoom; cam = clampCam({ ...midTarget() });
     document.getElementById("modal").classList.remove("show");
     if (multi()) showHandover(); else overlay = false;
   }
@@ -311,7 +387,7 @@
   // who plays next: anyone yet to tee off (in order), otherwise whoever is furthest from the hole
   function nextTurn() {
     const left = players.map((p, i) => i).filter(i => !players[i].st.done);
-    if (!left.length) return showScorecard();
+    if (!left.length) { for (const p of players) p.cards[round.i] = p.st.strokes; return showScorecard(); }
     const d = i => Math.hypot(pin.x - players[i].st.ball.x, pin.y - players[i].st.ball.y);
     const fresh = left.find(i => players[i].st.strokes === 0);
     const pick = fresh ?? left.reduce((a, b) => d(b) > d(a) + 1e-6 ? b : a);
@@ -333,6 +409,14 @@
 
   // setup screen: number of players and names (remembered on this device)
   function renderSetup() {
+    const sc = $("sCourse"), sr_ = $("sRound");
+    if (!COURSES.some(c => c.id === setup.course)) setup.course = COURSES[0].id;
+    sc.innerHTML = COURSES.map(c => `<option value="${c.id}">${c.name}</option>`).join(""); sc.value = setup.course;
+    const opts = roundOptions(courseById(setup.course));
+    if (!opts.some(o => o[0] === setup.round)) setup.round = opts[0][0];
+    sr_.innerHTML = opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join(""); sr_.value = setup.round;
+    const r = parseRound(roundSpec()), par = r.holes.reduce((a, h) => a + h.par, 0), yds = r.holes.reduce((a, h) => a + h.yards, 0);
+    $("sHole").textContent = r.holes.length === 1 ? `${r.course.name} · Hole ${r.holes[0].n} · Par ${par} · ${yds} yds` : `${r.course.name} · Par ${par} · ${yds} yds`;
     const seg = document.getElementById("sCount"); seg.innerHTML = "";
     for (let n = 1; n <= 4; n++) {
       const b = document.createElement("button"); b.textContent = n; b.setAttribute("aria-pressed", n === setup.n);
@@ -348,24 +432,26 @@
     }
   }
   function readNames() { document.querySelectorAll("#sNames input").forEach(inp => setup.names[+inp.dataset.i] = inp.value); }
+  const roundSpec = () => `${setup.course}:${setup.round}`;
+  $("sCourse").addEventListener("change", e => { readNames(); setup.course = e.target.value; setup.round = ""; renderSetup(); });
+  $("sRound").addEventListener("change", e => { readNames(); setup.round = e.target.value; renderSetup(); });
   function openSetup() {
     if (ON.active) leaveOnline();
     document.getElementById("lobby").classList.remove("show");
     document.getElementById("modal").classList.remove("show"); document.getElementById("handover").classList.remove("show");
-    document.getElementById("sHole").textContent = `Hole ${D.hole} · Par ${D.par} · ${D.yards} yds`;
     renderSetup(); document.getElementById("setup").classList.add("show"); overlay = true;
   }
-  document.getElementById("start").addEventListener("click", () => {
-    readNames();
-    try { localStorage.setItem("bgPlayers", JSON.stringify(setup)); } catch (e) {}
-    document.getElementById("setup").classList.remove("show"); reset();
+  const saveSetup = () => { try { localStorage.setItem("bgPlayers", JSON.stringify(setup)); } catch (e) {} };
+  document.getElementById("start").addEventListener("click", async () => {
+    readNames(); saveSetup();
+    document.getElementById("setup").classList.remove("show");
+    await startRound(roundSpec());
   });
   document.getElementById("changePlayers").addEventListener("click", openSetup);
 
   // ---------- online: play your own round, see everyone else's shots replayed live ----------
   // Each phone sends its finished shots to Supabase; the other phones replay them (putts are re-simulated
   // from the same inputs, so they roll exactly the same way). Your seat's secret lives only on your phone.
-  const $ = id => document.getElementById(id);
   const CFG = window.BG_CONFIG || {};
   const ON = { active: false, db: null, chan: null, me: null, code: "", matchId: "", roster: new Map(), outbox: [], sending: false };
   const sb = () => ON.db || (ON.db = (CFG.supabaseUrl && CFG.supabaseKey && window.supabase)
@@ -376,7 +462,8 @@
   const shareUrl = () => `${location.origin}${location.pathname}?m=${ON.code}`;
   const newSecret = () => (crypto.randomUUID ? crypto.randomUUID()
     : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
-  const errText = e => /full/.test(e?.message) ? "That match is full (4 players)." : /not found/.test(e?.message) ? "No match with that code."
+  const errText = e => /bg_create_match|function|schema cache/.test(e?.message) ? "Online rounds need the latest database update."
+    : /full/.test(e?.message) ? "That match is full (4 players)." : /not found/.test(e?.message) ? "No match with that code."
     : /name/.test(e?.message) ? "Type your name first." : "Couldn't reach the server. Check your connection and try again.";
 
   function setOnlineMsg(t) { $("onMsg").textContent = t || ""; }
@@ -393,7 +480,8 @@
     const name = $("onName").value.trim(); if (!name) return setOnlineMsg("Type your name first.");
     setOnlineMsg("Creating match…");
     const secret = newSecret();
-    const { data, error } = await sb().rpc("bg_create_match", { p_name: name, p_secret: secret });
+    readNames(); saveSetup();
+    const { data, error } = await sb().rpc("bg_create_match", { p_name: name, p_secret: secret, p_round: roundSpec() });
     if (error) return setOnlineMsg(errText(error));
     const cred = { code: data.code, matchId: data.match_id, id: data.player_id, seat: data.seat, name, secret };
     saveCred(cred); setOnlineMsg("");
@@ -417,11 +505,12 @@
   $("onCreate").addEventListener("click", createMatch);
   $("onJoin").addEventListener("click", () => joinMatch($("onCode").value, $("onName").value));
 
+  // other players: their shots in order (n = hole index * 100 + shot number on that hole), their card, where they are
   function rosterEntry(row) {
     let p = ON.roster.get(row.id);
     if (!p) {
-      p = { id: row.id, seat: row.seat, name: row.name, col: PCOLS[row.seat] || "#fff", shots: {}, played: 0,
-            ball: { x: D.tee[0], y: D.tee[1] }, strokes: 0, done: false, lie: 4, anim: null };
+      p = { id: row.id, seat: row.seat, name: row.name, col: PCOLS[row.seat] || "#fff", shots: {}, order: [], played: 0,
+            ball: { x: D.tee[0], y: D.tee[1] }, strokes: 0, done: false, lie: 4, anim: null, hole: 0, cards: [] };
       ON.roster.set(row.id, p);
     }
     return p;
@@ -430,25 +519,30 @@
   function takeShot(row, instant) {
     const p = ON.roster.get(row.player_id); if (!p || p.id === ON.me.id || p.shots[row.n]) return;
     p.shots[row.n] = row.data;
-    if (instant) while (p.shots[p.played + 1]) settleGhost(p, p.shots[++p.played], true);
+    let k = p.order.length; while (k > p.played && p.order[k - 1] > row.n) k--;
+    p.order.splice(k, 0, row.n);
+    if (instant) while (p.played < p.order.length) settleGhost(p, p.shots[p.order[p.played++]], true);
   }
   function settleGhost(p, d, quiet) {
-    const was = p.lie;
-    p.ball = { x: d.b[0], y: d.b[1] }; p.strokes = d.s; p.done = !!d.d; p.lie = d.lie;
+    const was = p.lie, h = d.h ?? 0;
+    p.hole = h; p.ball = { x: d.b[0], y: d.b[1] }; p.strokes = d.s; p.done = !!d.d; p.lie = d.lie;
+    if (p.done) p.cards[h] = d.s;
     if (!quiet) {
-      if (p.done) toast(`${p.name} holed out · ${scoreName(p.strokes).replace("!", "")}`);
-      else if (p.lie === 3 && was !== 3) toast(`${p.name} is on the green`);
+      const hd = round.holes[h];
+      if (p.done) toast(`${p.name}${round.holes.length > 1 ? ` · hole ${hd.n}` : ""}: ${scoreNameFor(p.strokes, hd.par).replace("!", "")}`);
+      else if (h === round.i && p.lie === 3 && was !== 3) toast(`${p.name} is on the green`);
     }
     renderBoard();
-    if (S.done) showOnlineScorecard();
+    if (S.done && lastHole()) showOnlineScorecard();
   }
   function stepGhosts(dt) {
     for (const p of ON.roster.values()) {
       if (p.id === ON.me.id) continue;
       // fallen behind (phone was asleep, tab hidden)? jump to their latest position and only replay the newest shot
-      if (!p.anim) while (p.shots[p.played + 2]) settleGhost(p, p.shots[++p.played], true);
-      if (!p.anim && p.shots[p.played + 1]) {     // start replaying their next shot
-        const d = p.shots[p.played + 1];
+      if (!p.anim) while (p.played < p.order.length - 1) settleGhost(p, p.shots[p.order[p.played++]], true);
+      if (!p.anim && p.played < p.order.length) {     // their next shot
+        const d = p.shots[p.order[p.played]];
+        if ((d.h ?? 0) !== round.i) { p.played++; settleGhost(p, d, false); continue; }   // on another hole: just move them on
         if (d.k === "roll") {
           const sim = simulatePutt({ x: d.f[0], y: d.f[1] }, d.ang, d.fd);
           p.anim = { kind: "roll", pts: sim.pts, dur: Math.min(sim.time, 9), t: 0, d };
@@ -472,10 +566,10 @@
   function sendShot() {
     if (!ON.active || !lastAnim) return;
     const a = lastAnim, r2 = p => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100];
-    const data = { k: a.kind, s: S.strokes, d: S.done, lie: S.lie, b: r2(S.ball) };
+    const data = { k: a.kind, s: S.strokes, d: S.done, lie: S.lie, b: r2(S.ball), h: round.i };
     if (a.kind === "roll") Object.assign(data, { f: [a.from.x, a.from.y], ang: a.ang, fd: a.fd });   // exact, for an identical replay
     else Object.assign(data, { f: r2(a.from), l: r2(a.land), r: r2(a.rest), pk: Math.round(a.peak * 10) / 10, du: Math.round(a.dur * 100) / 100 });
-    ON.outbox.push({ n: ++S.shotNo, data }); flushOutbox(); renderBoard();
+    ON.outbox.push({ n: round.i * 100 + (++S.shotNo), data }); flushOutbox(); renderBoard();
   }
   async function flushOutbox() {
     if (ON.sending || !ON.outbox.length) return;
@@ -490,26 +584,32 @@
   async function enterMatch(cred, isNew) {
     leaveOnline();
     ON.me = cred; ON.code = cred.code; ON.matchId = cred.matchId; ON.roster = new Map(); ON.outbox = [];
-    const [pl, sh] = await Promise.all([
+    const [mt, pl, sh] = await Promise.all([
+      sb().from("bg_matches").select("hole").eq("id", cred.matchId).single(),
       sb().from("bg_players").select("id,seat,name").eq("match_id", cred.matchId).order("seat"),
       sb().from("bg_shots").select("player_id,n,data").eq("match_id", cred.matchId).order("n"),
     ]);
-    if (pl.error || sh.error) return setOnlineMsg(errText(pl.error || sh.error));
+    if (mt.error || pl.error || sh.error) return setOnlineMsg(errText(mt.error || pl.error || sh.error));
+    // the match's course and holes; where you are in it comes from the shots you've already sent (if rejoining)
+    setRound(mt.data.hole);
+    const mine = sh.data.filter(r => r.player_id === cred.id), cards = [];
+    for (const r of mine) if (r.data.d) cards[r.data.h ?? 0] = r.data.s;
+    const lastMine = mine[mine.length - 1], ld = lastMine?.data, lh = ld?.h ?? 0;
+    const myHole = !ld ? 0 : ld.d && lh < round.holes.length - 1 ? lh + 1 : lh;
+    setOnlineMsg("Loading the course…");
+    await goToHole(myHole); setOnlineMsg("");
     pl.data.forEach(rosterEntry);
     if (!ON.roster.has(cred.id)) { try { localStorage.removeItem(credKey(cred.code)); } catch (e) {} return setOnlineMsg("That match no longer has your seat."); }
     ON.active = true;
-    // your ball: one local player, rebuilt from the shots you've already sent (if you're rejoining)
-    players = [{ name: cred.name, col: PCOLS[cred.seat], st: newState() }];
+    players = [{ name: cred.name, col: PCOLS[cred.seat], st: newState(), cards }];
     S = players[0].st; aimAtPin(); switchTo(0);
-    const mine = sh.data.filter(r => r.player_id === cred.id);
-    if (mine.length) {
-      const d = mine[mine.length - 1].data;
-      Object.assign(S, { ball: { x: d.b[0], y: d.b[1] }, strokes: d.s, done: !!d.d, lie: d.lie, shotNo: mine[mine.length - 1].n, prev: { ...S.ball } });
+    if (ld && lh === myHole) {          // part-way through this hole (or finished the round)
+      Object.assign(S, { ball: { x: ld.b[0], y: ld.b[1] }, strokes: ld.s, done: !!ld.d, lie: ld.lie, shotNo: lastMine.n % 100, prev: { ...S.ball } });
       if (S.done) S.phase = "done";
       S.curve = S.lie === 4; aimAtPin(); updateHud(); setPrompt();
     }
     sh.data.forEach(r => takeShot(r, true));
-    cam = clampCam({ ...midTarget() });
+    zoom = baseZoom; cam = clampCam({ ...midTarget() });
     // live: new players and new shots
     ON.chan = sb().channel(`bg-${cred.matchId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bg_players", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => {
@@ -521,7 +621,7 @@
     $("board").classList.add("show"); renderBoard();
     if (isNew) { renderLobby(); $("lobby").classList.add("show"); overlay = true; }
     else if (S.done) showOnlineScorecard();
-    else { overlay = false; toast(mine.length ? `Welcome back, ${cred.name}` : `Joined ${ON.code} · tee off when ready`); }
+    else { overlay = false; toast(mine.length ? `Welcome back, ${cred.name} · hole ${holeEntry().n}` : `Joined ${ON.code} · tee off when ready`); }
   }
   function leaveOnline() {
     if (ON.chan) { sb()?.removeChannel(ON.chan); ON.chan = null; }
@@ -552,14 +652,22 @@
   $("lbGo").addEventListener("click", () => { $("lobby").classList.remove("show"); overlay = false; S.t = 0; });
 
   const sortedRoster = () => [...ON.roster.values()].sort((a, b) => a.seat - b.seat);
-  const meEntry = () => ({ ...ON.roster.get(ON.me.id), strokes: S.strokes, done: S.done, lie: S.lie });
+  const meEntry = () => {
+    const cards = players[0].cards.slice(); if (S.done) cards[round.i] = S.strokes;
+    return { ...ON.roster.get(ON.me.id), strokes: S.strokes, done: S.done, lie: S.lie, hole: round.i, cards };
+  };
+  const finishedRound = p => cardThru(p.cards) >= round.holes.length;
   function playerRow(p, parent, bigScore) {
     const li = document.createElement("li"), dot = document.createElement("i"), nm = document.createElement("span"), st = document.createElement("small");
     dot.style.background = p.col; nm.textContent = p.name + (p.id === ON.me.id ? " (you)" : "");
-    st.textContent = p.done ? scoreName(p.strokes).replace("!", "") : p.strokes ? `${p.strokes} · ${p.lie === 3 ? "on green" : "playing"}` : "not started";
+    const thru = cardThru(p.cards), multiHole = round.holes.length > 1;
+    if (!multiHole) st.textContent = p.done ? scoreName(p.strokes).replace("!", "") : p.strokes ? `${p.strokes} · ${p.lie === 3 ? "on green" : "playing"}` : "not started";
+    else st.textContent = finishedRound(p) ? `${cardStrokes(p.cards)} strokes` : thru ? `thru ${thru}` : p.strokes ? `hole ${round.holes[p.hole].n}` : "not started";
     li.append(dot, nm, st);
-    if (bigScore) { const b = document.createElement("b"); b.textContent = p.done ? p.strokes : "–"; li.appendChild(b); }
-    else if (p.done) { const b = document.createElement("b"); b.textContent = " " + p.strokes; li.appendChild(b); }
+    const b = document.createElement("b");
+    if (!multiHole) b.textContent = p.done ? (bigScore ? p.strokes : " " + p.strokes) : bigScore ? "–" : "";
+    else b.textContent = thru ? " " + tp(cardToPar(p.cards)) : bigScore ? "–" : "";
+    if (b.textContent) li.appendChild(b);
     parent.appendChild(li); return li;
   }
   function renderBoard() {
@@ -574,20 +682,24 @@
     const ul = $("lbPlayers"); ul.innerHTML = "";
     for (const p of sortedRoster()) playerRow(p, ul, false);
   }
+  // end of your round: waiting for the others, then the result
   function showOnlineScorecard() {
     const all = sortedRoster().map(p => p.id === ON.me.id ? meEntry() : p);
-    const finished = all.filter(p => p.done).sort((a, b) => a.strokes - b.strokes), waiting = all.filter(p => !p.done);
-    const low = finished.length ? finished[0].strokes : 0, over = !waiting.length;
-    const winners = finished.filter(p => p.strokes === low);
+    const total = p => cardStrokes(p.cards);
+    const finished = all.filter(finishedRound).sort((a, b) => total(a) - total(b)), waiting = all.filter(p => !finishedRound(p));
+    const low = finished.length ? total(finished[0]) : 0, over = !waiting.length;
+    const winners = finished.filter(p => total(p) === low), me = meEntry();
     $("mTitle").textContent = !over ? "Waiting for others…" : winners.length > 1 ? "It's a tie!" : `${winners[0].id === ON.me.id ? "You win" : winners[0].name + " wins"}!`;
-    $("mText").textContent = over ? `Match ${ON.code} · Hole ${D.hole} · Par ${D.par}` : `You finished in ${S.strokes} · ${waiting.length} still playing`;
+    const where = round.holes.length > 1 ? `${round.course.name} · ${round.holes.length} holes` : `Hole ${D.hole} · Par ${D.par}`;
+    $("mText").textContent = over ? `Match ${ON.code} · ${where}` : `You finished in ${total(me)} · ${waiting.length} still playing`;
     const ul = $("mScores"); ul.innerHTML = "";
-    for (const p of [...finished, ...waiting]) { const li = playerRow(p, ul, true); if (over && p.done && p.strokes === low) li.querySelector("span").textContent = "🏆 " + li.querySelector("span").textContent; }
+    for (const p of [...finished, ...waiting]) { const li = playerRow(p, ul, true); if (over && total(p) === low) li.querySelector("span").textContent = "🏆 " + li.querySelector("span").textContent; }
     $("mBest").textContent = over ? "" : "This updates as they play";
+    round.awaitNext = false;
     $("again").textContent = "New match"; $("changePlayers").style.display = "none";
     setPrompt(); $("modal").classList.add("show"); overlay = true;
   }
-  $("again").addEventListener("click", e => { if (ON.active) { e.stopImmediatePropagation(); leaveOnline(); openSetup(); } }, true);
+  $("again").addEventListener("click", e => { if (ON.active && !round.awaitNext) { e.stopImmediatePropagation(); leaveOnline(); openSetup(); } }, true);
   function aimAtPin() { S.aim = Math.atan2(pin.y - S.ball.y, pin.x - S.ball.x); }
   const toPin = () => Math.hypot(pin.x - S.ball.x, pin.y - S.ball.y);
   const putting = () => S.lie === 3;
@@ -605,9 +717,7 @@
   }
   const tri = u => { const f = u % 2; return f < 1 ? f : 2 - f; };
   function dirs() { const u = [Math.cos(S.aim), Math.sin(S.aim)]; return { u, v: [u[1], -u[0]] }; }
-  // fairway centre line (tee shots follow it, so the shot curves with the dogleg)
-  const CL = D.centreline, CLarc = [0];
-  for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
+  // fairway centre line CL (per hole, see useHole): tee shots follow it, so the shot curves with the dogleg
   function pathFrame(d) {   // point, forward and sideways directions at distance d along the shot path
     if (!S.curve) { const { u, v } = dirs(); return { p: [S.ball.x + u[0] * d, S.ball.y + u[1] * d], u, v }; }
     let i = 1; while (i < CL.length - 1 && CLarc[i] < d) i++;
@@ -667,7 +777,7 @@
     for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => holdEnd(s));
     b.addEventListener("contextmenu", e => e.preventDefault());   // long-press on phones would open a menu
   });
-  document.getElementById("again").addEventListener("click", reset);
+  document.getElementById("again").addEventListener("click", () => round.awaitNext ? nextHole() : startRound(round.spec));
 
   // ---------- shot ----------
   function hit() {
@@ -707,7 +817,11 @@
     if (lie === 9) {
       S.strokes++; S.ball = { ...S.prev }; lie = lieAt(S.ball.x, S.ball.y);
       toast("Out of bounds  +1");
+    } else if (lie === 7) {
+      S.strokes++; S.ball = dropFromWater(S.prev, S.ball); lie = lieAt(S.ball.x, S.ball.y);
+      toast("In the water  +1");
     } else if (lie === 5) toast("In the trees!");
+    else if (lie === 6) toast("In the bunker!");
     else if (a.kind === "fly" && lie === 3) toast("On the green");
     else if (a.lipped) toast("Lipped out!");
     else if (a.kind === "roll" && toPin() < 1.2) toast("So close!");
@@ -723,40 +837,75 @@
     if (multi()) { S.phase = "wait"; setPrompt(); setTimeout(() => { S.phase = "dist"; nextTurn(); }, 900); }   // let the ball settle before passing on
   }
 
+  // penalty drop: back along the line the ball came in on, a couple of metres clear of the water
+  function dropFromWater(from, at) {
+    const dx = from.x - at.x, dy = from.y - at.y, L = Math.hypot(dx, dy) || 1;
+    for (let d = 1; d < L; d += 1) {
+      const x = at.x + dx / L * d, y = at.y + dy / L * d, l = lieAt(x, y);
+      if (l !== 7 && l !== 9) { const e = Math.min(d + 2, L); return { x: at.x + dx / L * e, y: at.y + dy / L * e }; }
+    }
+    return { ...from };
+  }
   const SCORE_NAMES = { "-3": "Albatross!", "-2": "Eagle!", "-1": "Birdie!", "0": "Par", "1": "Bogey", "2": "Double bogey", "3": "Triple bogey" };
-  const scoreName = n => n === 1 ? "Hole in one!" : (SCORE_NAMES[n - D.par] || `+${n - D.par}`);
+  const scoreNameFor = (n, par) => n === 1 ? "Hole in one!" : (SCORE_NAMES[n - par] || `+${n - par}`);
+  const scoreName = n => scoreNameFor(n, D.par);
   function holeOut(msg) {
     S.done = true; S.phase = "done"; S.ball = { ...pin }; updateHud(); setPrompt();
     sendShot();
     toast(multi() ? `${players[cur].name}: ${msg ? msg + " · " : ""}${scoreName(S.strokes).replace("!", "")}` : (msg || "In the hole!"));
     setTimeout(nextTurn, multi() ? 1500 : 1100);
   }
+  function scoreRow(list, col, name, label, big, bigCls) {
+    const li = document.createElement("li"), dot = document.createElement("i"), nm = document.createElement("span"), sc = document.createElement("b"), lbl = document.createElement("small");
+    dot.style.background = col; nm.textContent = name; lbl.textContent = label; sc.textContent = big; if (bigCls) sc.className = bigCls;
+    li.append(dot, nm, lbl, sc); list.appendChild(li); return li;
+  }
   function showScorecard() {
-    if (ON.active) return showOnlineScorecard();
-    document.getElementById("again").textContent = "Play again"; document.getElementById("changePlayers").style.display = "";
-    const m = document.getElementById("modal"), list = document.getElementById("mScores"); list.innerHTML = "";
-    const best1 = document.getElementById("mBest");
-    if (!multi()) {
-      const n = players[0].st.strokes;
-      let best = null;
-      try { best = +localStorage.getItem("pg_h13_best") || null; if (!best || n < best) localStorage.setItem("pg_h13_best", n); } catch (e) {}
-      document.getElementById("mTitle").textContent = scoreName(n);
-      document.getElementById("mText").textContent = `${n} stroke${n > 1 ? "s" : ""} on a par ${D.par}`;
-      best1.textContent = best ? (n < best ? "New best score!" : `Best: ${best}`) : "";
-    } else {
-      const order = [...players].sort((a, b) => a.st.strokes - b.st.strokes), low = order[0].st.strokes;
-      const winners = order.filter(p => p.st.strokes === low);
-      document.getElementById("mTitle").textContent = winners.length > 1 ? "It's a tie!" : `${winners[0].name} wins!`;
-      document.getElementById("mText").textContent = `Hole ${D.hole} · Par ${D.par}`;
-      for (const p of order) {
-        const li = document.createElement("li"), dot = document.createElement("i"), nm = document.createElement("span"), sc = document.createElement("b"), lbl = document.createElement("small");
-        dot.style.background = p.col; nm.textContent = (p.st.strokes === low ? "🏆 " : "") + p.name;
-        sc.textContent = p.st.strokes; lbl.textContent = scoreName(p.st.strokes).replace("!", "");
-        li.append(dot, nm, lbl, sc); list.appendChild(li);
+    const final = lastHole();
+    if (ON.active && final) return showOnlineScorecard();
+    const $t = $("mTitle"), $x = $("mText"), list = $("mScores"), best1 = $("mBest");
+    list.innerHTML = ""; best1.textContent = "";
+    const h = holeEntry(), single = round.holes.length === 1;
+    round.awaitNext = !final;
+    $("again").textContent = final ? "Play again" : `Next hole ›`;
+    $("changePlayers").textContent = final ? "Players" : "Quit";
+    $("changePlayers").style.display = ON.active && !final ? "none" : "";
+    if (!final) {                       // between holes: this hole's result + the running totals
+      const me = players[0];
+      if (!multi() && !ON.active) {
+        $t.textContent = scoreName(me.cards[round.i]);
+        $x.textContent = `Hole ${h.n} · ${me.cards[round.i]} on a par ${h.par}`;
+        best1.textContent = `${tp(cardToPar(me.cards))} after ${cardThru(me.cards)} · next: hole ${round.holes[round.i + 1].n}, par ${round.holes[round.i + 1].par}`;
+      } else {
+        $t.textContent = `Hole ${h.n} done`;
+        $x.textContent = `Par ${h.par} · next: hole ${round.holes[round.i + 1].n}, par ${round.holes[round.i + 1].par}`;
+        const rows = ON.active ? sortedRoster().map(p => p.id === ON.me.id ? meEntry() : p) : players.map(p => ({ ...p, cards: p.cards }));
+        rows.sort((a, b) => cardToPar(a.cards) - cardToPar(b.cards) || cardThru(b.cards) - cardThru(a.cards));
+        for (const p of rows) {
+          const v = p.cards[round.i];
+          scoreRow(list, p.col, p.name + (ON.active && p.id === ON.me.id ? " (you)" : ""),
+                   v != null ? `${scoreNameFor(v, h.par).replace("!", "")} · thru ${cardThru(p.cards)}` : `thru ${cardThru(p.cards)}`,
+                   cardThru(p.cards) ? tp(cardToPar(p.cards)) : "–", "tp");
+        }
       }
-      best1.textContent = "";
+    } else if (!multi()) {              // end of a solo round
+      const n = cardStrokes(players[0].cards), key = `bg_best_${round.spec}`;
+      let best = null;
+      try { best = +localStorage.getItem(key) || null; if (!best || n < best) localStorage.setItem(key, n); } catch (e) {}
+      $t.textContent = single ? scoreName(n) : `${tp(cardToPar(players[0].cards))} · ${n}`;
+      $x.textContent = single ? `${n} stroke${n > 1 ? "s" : ""} on a par ${D.par}` : `${round.course.name} · ${round.holes.length} holes · par ${round.holes.reduce((a, x) => a + x.par, 0)}`;
+      best1.textContent = best ? (n < best ? "New best score!" : `Best: ${best}`) : "";
+    } else {                            // end of a pass-and-play round
+      const order = [...players].sort((a, b) => cardStrokes(a.cards) - cardStrokes(b.cards)), low = cardStrokes(order[0].cards);
+      const winners = order.filter(p => cardStrokes(p.cards) === low);
+      $t.textContent = winners.length > 1 ? "It's a tie!" : `${winners[0].name} wins!`;
+      $x.textContent = single ? `Hole ${h.n} · Par ${h.par}` : `${round.course.name} · ${round.holes.length} holes`;
+      for (const p of order) {
+        const n = cardStrokes(p.cards);
+        scoreRow(list, p.col, (n === low ? "🏆 " : "") + p.name, single ? scoreName(n).replace("!", "") : tp(cardToPar(p.cards)), n);
+      }
     }
-    setPrompt(); m.classList.add("show"); overlay = true;
+    setPrompt(); $("modal").classList.add("show"); overlay = true;
   }
 
   // ---------- UI ----------
@@ -766,6 +915,7 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 1400);
   }
   function updateHud() {
+    $("hHole").textContent = D.hole; $("hPar").textContent = `Par ${D.par}`;
     document.getElementById("hStroke").textContent = S.strokes;
     const d = toPin();
     document.getElementById("hPin").textContent = putting() ? `${(d * 3.281).toFixed(0)} ft` : `${Math.round(d / YD)} yd`;
@@ -808,7 +958,7 @@
       if (p.id === ON.me.id) continue;
       const g = p.anim && ghostPos(p.anim);
       if (g) drawBall(g.x, g.y, g.h, p.col, p.name);
-      else if (!p.done) drawBall(p.ball.x, p.ball.y, 0, p.col, p.name);
+      else if (!p.done && p.hole === round.i && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, p.name);
     }
   }
   function drawTarget(t, phase) {
@@ -997,7 +1147,8 @@
     }
     requestAnimationFrame(frame);
   }
-  reset();                 // course renders behind the setup screen
+  renderSetup();
+  await startRound(roundSpec());          // course renders behind the setup screen
   openSetup();
   if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
   // opened from a match link (?m=CODE): rejoin straight away if this phone is already in it, else ask for a name
