@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The course is **Tilgate Forest** (18 holes).
+A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The courses are **Tilgate Forest** and **Ifield** (18 holes each).
 
 ## Play
 
@@ -13,7 +13,7 @@ cd game && python3 -m http.server 8765
 
 1. **Distance:** the target moves out from the ball and back, speeding up the further out it goes. Tap to lock it.
 2. **Direction:** the target swings side to side. Tap when it's on the line.
-3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg.
+3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg; on par 3s they aim straight at the flag.
 4. **Putting:** the green shows a slope heat map (blue low → red high, 5 cm contours) with downhill arrows. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
