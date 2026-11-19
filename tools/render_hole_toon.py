@@ -132,7 +132,9 @@ img[teebox] = tcol[teebox]
 # outlines: edge of each region in a darker ink
 ink = c("#2d5f1a")
 def outline(mask, width_px, colr=ink, alpha=1.0):
-    e = mask & ~binary_erosion(mask, iterations=int(round(width_px)))
+    # a detail tile is a window onto the full picture: regions that run off its edge carry on,
+    # so the tile border must not count as a region edge (that drew a hard line across the fairway)
+    e = mask & ~binary_erosion(mask, iterations=int(round(width_px)), border_value=1 if DETAIL else 0)
     img[e] = img[e] * (1 - alpha) + colr * alpha
 outline(cut, 4 * U, alpha=0.95)
 outline(fairway, 3 * U, c("#3c7e22"), 0.85)
@@ -306,21 +308,29 @@ if len(sys.argv) > 3:
     hz = map_coordinates(gcm, [(n - 1) / 2 - N / step, (n - 1) / 2 + E / step], order=3, mode="nearest") / 100.0
     gm = green[y0_:y1_, x0_:x1_]
     lo, hi = np.percentile(hz[gm], [3, 97]); tt = np.clip((hz - lo) / (hi - lo + 1e-6), 0, 1)
-    stops = np.array([[40, 90, 220], [40, 190, 230], [90, 215, 90], [250, 225, 60], [235, 70, 50]], float)
-    pos = tt * (len(stops) - 1); i0 = np.clip(pos.astype(int), 0, len(stops) - 2); fr = (pos - i0)[..., None]
+    # cartoon palette: saturated flat bands (posterised), low = blue, high = red
+    stops = np.array([[30, 80, 255], [0, 200, 255], [60, 230, 90], [190, 245, 40],
+                      [255, 220, 0], [255, 140, 0], [255, 40, 70]], float)
+    BANDS = 9
+    tq = np.round(tt * (BANDS - 1)) / (BANDS - 1)
+    pos = tq * (len(stops) - 1); i0 = np.clip(pos.astype(int), 0, len(stops) - 2); fr = (pos - i0)[..., None]
     rgb = stops[i0] * (1 - fr) + stops[i0 + 1] * fr
-    lv = np.floor(hz / 0.05)                                  # 5 cm contour lines
-    edge = (np.abs(np.diff(lv, axis=0, prepend=lv[:1])) + np.abs(np.diff(lv, axis=1, prepend=lv[:, :1]))) > 0
-    edge = gaussian_filter(edge.astype(float), 0.6 * U) > 0.15 / K
-    rgb[edge] *= 0.55
-    alpha = gaussian_filter(gm.astype(float), 0.5 * U) * 0.62 * 255
-    alpha[edge & gm] = 200
+    soft = gaussian_filter(gm.astype(float), 0.5 * U)
+    alpha = soft * 0.78 * 255
     heat = Image.fromarray(np.dstack([rgb, alpha]).clip(0, 255).astype(np.uint8), "RGBA")
+    # 5 cm contour lines, as their own layer so the game can switch them on/off; thin and anti-aliased
+    lv = np.floor(hz / 0.05)
+    edge = (np.abs(np.diff(lv, axis=0, prepend=lv[:1])) + np.abs(np.diff(lv, axis=1, prepend=lv[:, :1]))) > 0
+    ca = np.clip(gaussian_filter(edge.astype(float), 0.1 * U) * 2.2, 0, 1) * soft * 0.7 * 255
+    cont = Image.fromarray(np.dstack([np.full(hz.shape + (3,), (18, 40, 28), float), ca]).clip(0, 255).astype(np.uint8), "RGBA")
     hw, hh = heat.size
     heat = heat.resize((max(1, hw // SS), max(1, hh // SS)), Image.LANCZOS)
+    cont = cont.resize(heat.size, Image.LANCZOS)
     heat_name = out.rsplit(".", 1)[0] + "_heat.png"
-    heat.save(heat_name)
-    heat_entry = dict(file=heat_name.split("/")[-1], x=(x0_ + OFFX) / U, y=(y0_ + OFFY) / U, w=hw / U, h=hh / U)
+    cont_name = out.rsplit(".", 1)[0] + "_contours.png"
+    heat.save(heat_name); cont.save(cont_name)
+    heat_entry = dict(file=heat_name.split("/")[-1], contours=cont_name.split("/")[-1],
+                      x=(x0_ + OFFX) / U, y=(y0_ + OFFY) / U, w=hw / U, h=hh / U)
     if DETAIL:
         json.dump(dict(tile=dict(file=out.split("/")[-1], x=dx_, y=dy_, w=dw_, h=dh_), heat=heat_entry), open(sys.argv[3], "w"))
         print("detail tile", out, img_out.size, "heat", heat.size); sys.exit()
