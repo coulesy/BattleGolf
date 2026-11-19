@@ -47,6 +47,13 @@ Turn on **Battle mode** on the setup screen for a 1 v 1 fight over 9 or 18 holes
 The rules engine (`battlePlay` in `game/index.html`) is a straight port of Pure Golf's `BattleScoring.play`. It was cross-checked against the Dart code on thousands of random cards.
 
 Online battles are always 1 v 1 and need `supabase/migrations/20261119180000_battlegolf_battles.sql`. That migration deals power-ups in the database and checks picked sets.
+## Hosting
+
+The game is live at **https://battlegolf.party** (also https://battlegolf.puregolfai-website.workers.dev), served by Cloudflare as static files from `game/` (Cloudflare Pages, now part of Workers; settings in `wrangler.jsonc`). To publish changes:
+
+```bash
+npx wrangler@4 deploy
+```
 
 ## Online play and the phone app
 
