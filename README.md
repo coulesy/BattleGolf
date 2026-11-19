@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The first full course is **Tilgate Forest** (18 holes); Abbey Hill hole 13 is kept as a single test hole.
+A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The course is **Tilgate Forest** (18 holes).
 
 ## Play
 
@@ -51,7 +51,6 @@ Needs Python 3 with `numpy`, `scipy` and `Pillow`.
 
 ```bash
 bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~3 min each, 4 at a time
-bash tools/build_round.sh abbey-hill "Abbey Hill"
 ```
 
 Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.

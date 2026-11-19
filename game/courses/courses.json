@@ -130,18 +130,5 @@
     "si": 11
    }
   ]
- },
- {
-  "id": "abbey-hill",
-  "name": "Abbey Hill",
-  "holes": [
-   {
-    "n": 13,
-    "dir": "13",
-    "par": 4,
-    "yards": 369,
-    "si": null
-   }
-  ]
  }
 ]

@@ -1,6 +1,6 @@
 set -e
 # HOLE=<data file name>  OUT=<folder for the game assets>
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"; export ROOT; BUILD="$ROOT/build/${HOLE:-abbey-hill-13}"; mkdir -p "$BUILD"; cd "$BUILD"; cp "$ROOT/data/${HOLE:-abbey-hill-13}.json" hole.json
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"; export ROOT; BUILD="$ROOT/build/${HOLE:-tilgate-forest-01}"; mkdir -p "$BUILD"; cd "$BUILD"; cp "$ROOT/data/${HOLE:-tilgate-forest-01}.json" hole.json
 for O in portrait land; do
   P=0; DATA=game_data.json; [ $O = portrait ] && P=1 && DATA=game_data_portrait.json
   GAME=1 PORTRAIT=$P python3 "$ROOT/tools/render_hole_toon.py" hole.json course_$O.png $DATA
