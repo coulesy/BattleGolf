@@ -146,6 +146,24 @@
   .steps li:last-child { border-bottom: none; }
   .steps li::before { content: counter(st); flex: none; width: 26px; height: 26px; border-radius: 50%; background: #8fd64a; border: 2px solid #2d5f1a; display: flex; align-items: center; justify-content: center; font-size: 14px; }
   .steps svg { flex: none; width: 22px; height: 22px; vertical-align: -5px; }
+  /* accounts and leaderboards */
+  .acct { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 2px 0 8px; }
+  .card .acct button { margin: 0; padding: 6px 9px; font-size: 13px; box-shadow: 0 3px 0 #2d5f1a; }
+  .card .acct button.alt { margin: 0; background: #e3f3cf; border-width: 3px; }
+  .acct .who { width: 100%; font-weight: 800; font-size: 14px; color: #4b7a32; }
+  .card input.field { display: block; width: 100%; margin: 8px 0; font: inherit; font-size: 16px; font-weight: 700; color: #23461a; padding: 9px 12px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; -webkit-user-select: text; user-select: text; }
+  .card input.field:focus { outline: none; border-color: #2d5f1a; }
+  .seg.tabs { flex-wrap: wrap; gap: 6px; }
+  .seg.tabs { gap: 5px; }
+  .seg.tabs button { width: auto; padding: 6px 9px; font-size: 14px; }
+  .card button.link { display: block; margin: 8px auto 0; padding: 4px; background: none; border: none; box-shadow: none; font-size: 14px; font-weight: 700; color: #4b7a32; text-decoration: underline; }
+  .card button.link:active { transform: none; }
+  .scores li.me { background: #fff6c9; border-radius: 10px; }
+  .scores .rk { flex: none; min-width: 24px; font-style: normal; font-weight: 900; text-align: center; color: #4b7a32; }
+  .scores li > div { flex: 1; min-width: 0; }
+  .scores li > div span, .scores li > div small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #mSave { margin-top: 8px; }
+  #mSave button { margin: 6px 0 0; padding: 7px 14px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -183,12 +201,14 @@
   <p id="mText"></p>
   <ul class="scores" id="mScores"></ul>
   <p id="mBest"></p>
+  <div class="hint" id="mSave"></div>
   <div class="ad" id="mAd"></div>
   <button id="again">Play again</button><button class="alt" id="changePlayers">Players</button>
 </div></div>
 <div class="modal" id="setup"><div class="card">
   <h1 class="logo"><img src="logo.webp" alt="BattleGolf" width="150" height="150"></h1>
   <button class="install" id="installBtn">📲 Install app</button>
+  <div class="acct" id="acctBar"></div>
   <div class="pick"><select id="sCourse" aria-label="Course"></select><select id="sRound" aria-label="Holes to play"></select></div>
   <p id="sHole" class="hint"></p>
   <p style="margin-top:12px"><b>How many players?</b></p>
@@ -222,6 +242,36 @@
   <button class="small" id="lbShare">Share link</button>
   <ul class="scores" id="lbPlayers"></ul>
   <button id="lbGo">Start playing</button>
+</div></div>
+<div class="modal" id="auth"><div class="card">
+  <h2 id="auTitle" style="font-size:28px">Sign in</h2>
+  <div class="seg tabs" id="auTabs"><button data-m="in">Sign in</button><button data-m="up">Register</button></div>
+  <p class="hint" id="auWhy"></p>
+  <form id="auForm" novalidate>
+    <input class="field" id="auEmail" type="email" autocomplete="email" placeholder="Email" aria-label="Email">
+    <input class="field" id="auUser" maxlength="16" autocomplete="nickname" autocapitalize="off" placeholder="Username" aria-label="Username">
+    <input class="field" id="auPass" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password">
+    <p class="err" id="auMsg"></p>
+    <button type="submit" id="auGo">Sign in</button>
+  </form>
+  <button class="link" id="auForgot">Forgot your password?</button>
+  <button class="alt" id="auClose" style="margin-left:0">Close</button>
+</div></div>
+<div class="modal" id="ldr"><div class="card">
+  <h2 style="font-size:28px">🏆 Leaderboards</h2>
+  <div class="seg tabs" id="ldrPeriod"></div>
+  <div class="pick"><select id="ldrCourse" aria-label="Course"></select><select id="ldrKind" aria-label="Holes"></select></div>
+  <p class="hint" id="ldrWhen"></p>
+  <ul class="scores" id="ldrList"></ul>
+  <p class="hint" id="ldrMsg"></p>
+  <button id="ldrClose">Close</button>
+</div></div>
+<div class="modal" id="mine"><div class="card">
+  <h2 id="miName" style="font-size:28px">My scores</h2>
+  <p class="hint" id="miStats"></p>
+  <ul class="scores" id="miList"></ul>
+  <p class="hint" id="miMsg"></p>
+  <button id="miClose">Close</button><button class="alt" id="miOut">Sign out</button>
 </div></div>
 <div class="modal" id="installHelp"><div class="card">
   <h2 style="font-size:28px">Install BattleGolf</h2>
@@ -281,6 +331,7 @@
     cr = Math.cos(-D.north_rot); sr = Math.sin(-D.north_rot);
     CL = D.centreline; CLarc = [0];
     for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
+    yardMarks = findYardMarks();
     for (const k in arrowCache) delete arrowCache[k];
     zoom = 0; resize();
     $("loading").classList.add("hide");
@@ -435,7 +486,7 @@
   const holeEntry = () => round.holes[round.i];
   function setRound(spec) {
     const r = parseRound(spec);
-    Object.assign(round, { spec, course: r.course, holes: r.holes, i: 0, awaitNext: false });
+    Object.assign(round, { spec, course: r.course, holes: r.holes, i: 0, awaitNext: false, uid: newSecret() });
   }
   async function goToHole(i) {
     await useHole(round.course.id, round.holes[i].dir);
@@ -527,6 +578,7 @@
       row.append(dot, inp); box.appendChild(row);
     }
     renderBattleSetup(r);
+    renderAcctBar();
   }
   // battle options: 1 v 1 over 9 or 18 holes (online battles are always 1 v 1, whatever the count above)
   function renderFormatSetup() {
@@ -1457,6 +1509,7 @@
 
   function showScorecard() {
     const final = lastHole() || matchDecided();
+    showSaveStatus(final);
     if (ON.active && final) return showOnlineScorecard();
     const $t = $("mTitle"), $x = $("mText"), list = $("mScores"), best1 = $("mBest");
     list.innerHTML = ""; best1.textContent = "";
@@ -1550,6 +1603,38 @@
       ctx.save(); ctx.font = "800 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
       ctx.strokeText(label, sx, sy - r - 6); ctx.fillStyle = col; ctx.fillText(label, sx, sy - r - 6); ctx.restore();
     }
+  }
+  // 100/150/200 yd markers: the hole picture has the coloured discs, but its labels are too small to read, so the
+  // game draws readable ones over them. Same spots as the renderer: on the centre line, that far from the green point.
+  let yardMarks = [];
+  function findYardMarks() {
+    const G = CL[CL.length - 1], total = CLarc[CLarc.length - 1], len = Math.hypot(G[0] - CL[0][0], G[1] - CL[0][1]), out = [];
+    for (const yd of [100, 150, 200]) {
+      const r = yd * YD; if (r >= len - 10) continue;
+      let best = null, bestErr = Infinity;
+      for (let i = 1; i < CL.length; i++) for (let k = 0; k <= 8; k++) {
+        const f = k / 8, x = CL[i - 1][0] + (CL[i][0] - CL[i - 1][0]) * f, y = CL[i - 1][1] + (CL[i][1] - CL[i - 1][1]) * f;
+        if (CLarc[i - 1] + (CLarc[i] - CLarc[i - 1]) * f > total - 20) continue;
+        const e = Math.abs(Math.hypot(x - G[0], y - G[1]) - r);
+        if (e < bestErr) { bestErr = e; best = [x, y]; }
+      }
+      if (best) out.push({ yd, x: best[0], y: best[1] });
+    }
+    return out;
+  }
+  function drawYardMarks() {
+    if (!yardMarks.length || putting()) return;
+    // at least 13 px, and growing with the zoom so it always covers the picture's own (tiny) label
+    const fs = Math.max(13, 11 * zoom), h = fs + 5, pad = fs * 0.4;
+    ctx.save(); ctx.font = `800 ${fs}px system-ui, sans-serif`; ctx.textBaseline = "middle";
+    for (const m of yardMarks) {
+      const [ix, iy] = toImg(m.x, m.y), [sx, sy] = toScreen(ix, iy);
+      if (sx < -80 || sy < -40 || sx > VW + 40 || sy > VH + 40) continue;
+      const t = String(m.yd), w = ctx.measureText(t).width + 2 * pad, x0 = sx + Math.max(5, 6 * zoom);
+      ctx.fillStyle = "rgba(30,55,25,.88)"; ctx.beginPath(); ctx.roundRect(x0, sy - h / 2, w, h, h / 2); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillText(t, x0 + pad, sy + 0.5);
+    }
+    ctx.restore();
   }
   function drawOtherBalls() {
     players.forEach((p, i) => { if (i !== cur && !p.st.done) drawBall(p.st.ball.x, p.st.ball.y, 0, p.col, p.name); });
@@ -1722,6 +1807,7 @@
     drawImg(detailImg, D.detail.x, D.detail.y, D.detail.w, D.detail.h);   // 4x sharper tile around the green
     drawGreenRead(dt);
     drawGimmeRings();
+    drawYardMarks();
     drawOtherBalls();
 
     if (S.anim) {
@@ -1779,6 +1865,219 @@
     $("installHelp").classList.add("show");
   });
   $("installOk").addEventListener("click", () => $("installHelp").classList.remove("show"));
+
+
+  // ---------- accounts: register with email, username and password; saved rounds; daily / weekly / monthly boards ----------
+  // A separate Supabase client that keeps the sign-in on this phone (the online-match client keeps nothing).
+  // Signed in, your finished rounds are saved (in pass-and-play, Player 1 is you).
+  const AU = { db: null, user: null, name: "", pending: null, saved: new Set(), mode: "in" };
+  const acct = () => AU.db || (AU.db = (CFG.supabaseUrl && CFG.supabaseKey && window.supabase)
+    ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, storageKey: "bgAuth", autoRefreshToken: true, detectSessionInUrl: true } }) : null);
+  const authErr = e => {
+    const m = e?.message || String(e || "");
+    return /invalid login/i.test(m) ? "That email and password don't match."
+      : /not confirmed/i.test(m) ? "Confirm your email first: we sent you a link."
+      : /already registered|already exists/i.test(m) ? "There's already an account with that email. Sign in instead."
+      : /rate limit|too many/i.test(m) ? "Too many tries. Wait a few minutes and try again."
+      : /password/i.test(m) && /least|short|weak/i.test(m) ? "Pick a longer password (8 characters or more)."
+      : /bg_|function|schema cache|relation/i.test(m) ? "Accounts need the latest database update."
+      : /fetch|network/i.test(m) ? "Can't reach the server. Check your connection."
+      : m || "Something went wrong. Try again.";
+  };
+  async function loadProfile(user) {
+    AU.user = user || null; AU.name = "";
+    if (user) {
+      AU.name = user.user_metadata?.username || user.email.split("@")[0];
+      const { data } = await acct().from("bg_profiles").select("username").eq("id", user.id).maybeSingle();
+      if (data?.username) AU.name = data.username;
+      if (/^Player 1$/.test(setup.names[0])) setup.names[0] = AU.name.slice(0, 12);
+      if (!$("onName").value) $("onName").value = AU.name.slice(0, 16);
+    }
+    if ($("setup").classList.contains("show")) renderSetup();
+  }
+  function renderAcctBar() {
+    const bar = $("acctBar");
+    if (!acct()) { bar.innerHTML = ""; return; }
+    bar.innerHTML = AU.user
+      ? `<span class="who">👤 ${esc(AU.name)}${setup.n > 1 ? " · Player 1's scores are saved" : ""}</span><button id="abBoard">🏆 Leaderboards</button><button class="alt" id="abMine">My scores</button>`
+      : `<button id="abBoard">🏆 Leaderboards</button><button class="alt" id="abSign">Sign in / Register</button>`;
+    $("abBoard").onclick = openBoards;
+    if (AU.user) $("abMine").onclick = openMine; else $("abSign").onclick = () => openAuth("in");
+  }
+
+  // sign in / register / forgotten password / new password (from the reset email's link)
+  function openAuth(mode, why) {
+    AU.mode = mode; $("auMsg").textContent = ""; $("auWhy").textContent = why || "";
+    renderAuth(); $("auth").classList.add("show"); overlay = true;
+  }
+  function renderAuth() {
+    const m = AU.mode;
+    $("auTitle").textContent = { in: "Sign in", up: "Register", forgot: "Reset password", reset: "New password" }[m];
+    $("auTabs").style.display = m === "in" || m === "up" ? "" : "none";
+    $("auTabs").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.m === m));
+    $("auEmail").style.display = m === "reset" ? "none" : "";
+    $("auUser").style.display = m === "up" ? "" : "none";
+    $("auPass").style.display = m === "forgot" ? "none" : "";
+    $("auPass").placeholder = m === "reset" ? "New password" : "Password";
+    $("auPass").autocomplete = m === "in" ? "current-password" : "new-password";
+    $("auGo").textContent = { in: "Sign in", up: "Create account", forgot: "Send reset link", reset: "Save password" }[m];
+    $("auForgot").textContent = m === "forgot" ? "Back to sign in" : "Forgot your password?";
+    $("auForgot").style.display = m === "in" || m === "forgot" ? "" : "none";
+    if (!$("auWhy").textContent) $("auWhy").textContent = m === "up" ? "Save your rounds and get on the daily, weekly and monthly leaderboards"
+      : m === "forgot" ? "We'll email you a link to pick a new password" : "";
+  }
+  $("auTabs").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { AU.mode = b.dataset.m; $("auMsg").textContent = ""; $("auWhy").textContent = ""; renderAuth(); }));
+  $("auForgot").addEventListener("click", () => { AU.mode = AU.mode === "forgot" ? "in" : "forgot"; $("auMsg").textContent = ""; $("auWhy").textContent = ""; renderAuth(); });
+  const closeAuth = () => { $("auth").classList.remove("show"); $("auPass").value = ""; overlay = anyModal(); };
+  $("auClose").addEventListener("click", closeAuth);
+  const anyModal = () => [...document.querySelectorAll(".modal")].some(m => m.classList.contains("show"));
+  const redirectTo = () => location.origin + location.pathname;
+  $("auForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const db = acct(), msg = $("auMsg"), go = $("auGo"), m = AU.mode;
+    if (!db) return msg.textContent = "Accounts need an internet connection.";
+    const email = $("auEmail").value.trim(), pass = $("auPass").value, user = $("auUser").value.trim();
+    if (m !== "reset" && !/^\S+@\S+\.\S+$/.test(email)) return msg.textContent = "Enter your email address.";
+    if (m === "up" && !/^[A-Za-z0-9_]{3,16}$/.test(user)) return msg.textContent = "Usernames are 3–16 letters, numbers or underscores.";
+    if ((m === "up" || m === "reset") && pass.length < 8) return msg.textContent = "Pick a password of 8 characters or more.";
+    if (m === "in" && !pass) return msg.textContent = "Enter your password.";
+    msg.textContent = ""; go.disabled = true;
+    try {
+      if (m === "in") {
+        const { error } = await db.auth.signInWithPassword({ email, password: pass }); if (error) throw error;
+        closeAuth(); toast("Signed in");
+      } else if (m === "up") {
+        const { data: free, error: e1 } = await db.rpc("bg_username_free", { p_username: user }); if (e1) throw e1;
+        if (!free) { msg.textContent = "That username is taken. Try another."; return; }
+        const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { username: user }, emailRedirectTo: redirectTo() } });
+        if (error) throw error;
+        if (data.session) { closeAuth(); toast(`Welcome, ${user}`); }
+        else if (data.user && !data.user.identities?.length) msg.textContent = "There's already an account with that email. Sign in instead.";
+        else { AU.mode = "in"; renderAuth(); $("auWhy").textContent = `Nearly there: open the link we sent to ${email}, then sign in here.`; }
+      } else if (m === "forgot") {
+        const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() }); if (error) throw error;
+        $("auWhy").textContent = `If there's an account for ${email}, a reset link is on its way.`;
+      } else {
+        const { error } = await db.auth.updateUser({ password: pass }); if (error) throw error;
+        closeAuth(); toast("Password saved");
+      }
+    } catch (err) { msg.textContent = authErr(err); }
+    finally { go.disabled = false; }
+  });
+
+  // saving a finished round
+  function roundPayload() {
+    const me = players.find(p => p.side === 0) || players[0];
+    if (!me || !round.course || round.holes.some((h, i) => me.cards[i] == null)) return null;
+    const ns = round.holes.map(h => h.n), lo = Math.min(...ns), hi = Math.max(...ns);
+    let id = round.uid;
+    if (ON.active) { const k = `bgRid_${ON.code}`; try { id = localStorage.getItem(k) || id; localStorage.setItem(k, id); } catch (e) {} }
+    return { p_id: id, p_course: round.course.id, p_holes: lo === hi ? `${lo}` : `${lo}-${hi}`,
+             p_cards: round.holes.map((h, i) => me.cards[i]), p_pars: round.holes.map(h => h.par),
+             p_mode: BT ? "battle" : ON.active ? "online" : multi() ? "local" : "solo" };
+  }
+  const onBoards = p => /^(1-18|1-9|10-18)$/.test(p.p_holes);
+  async function saveRound(p) {
+    if (AU.saved.has(p.p_id)) return true;
+    const { error } = await acct().rpc("bg_save_round", p);
+    if (error) throw error;
+    AU.saved.add(p.p_id); return true;
+  }
+  function showSaveStatus(final) {
+    const box = $("mSave"); box.innerHTML = "";
+    if (!final || !acct()) return;
+    const p = roundPayload(); if (!p) return;
+    const who = multi() ? `${(players.find(x => x.side === 0) || players[0]).name}'s round` : "this round";
+    if (!AU.user) {
+      AU.pending = p;
+      box.innerHTML = `Sign in to save ${esc(who)}${onBoards(p) ? " and get on the leaderboards" : ""}<br><button id="msSign">Sign in / Register</button>`;
+      $("msSign").onclick = () => openAuth("up", `Register or sign in to save ${who}`);
+      return;
+    }
+    box.textContent = "Saving to your scores…";
+    saveRound(p).then(() => {
+      box.innerHTML = `✓ Saved to your scores${onBoards(p) ? ' · <button id="msBoard">🏆 Leaderboard</button>' : ""}`;
+      if (onBoards(p)) $("msBoard").onclick = () => openBoards(p.p_course, kindOf(p.p_holes));
+    }).catch(err => { box.textContent = `Couldn't save: ${authErr(err)}`; });
+  }
+  const kindOf = h => h === "1-18" ? "18" : h === "1-9" ? "front9" : h === "10-18" ? "back9" : h.includes("-") ? "other" : "hole";
+
+  // leaderboards: each player's best round today / this week / this month (UK time)
+  const PERIODS = [["day", "Today"], ["week", "This week"], ["month", "This month"]];
+  const LB = { period: "day", course: "", kind: "18", seq: 0 };
+  const kindsFor = c => c.holes.length === 18 ? [["18", "18 holes"], ["front9", "Front 9"], ["back9", "Back 9"]] : [["other", `${c.holes.length} holes`]];
+  function openBoards(course, kind) {
+    LB.course = typeof course === "string" ? course : LB.course || setup.course;
+    if (typeof kind === "string") LB.kind = kind;
+    else if (typeof course !== "string") { const k = kindOf(setup.round); if (["18", "front9", "back9"].includes(k)) LB.kind = k; }
+    $("ldr").classList.add("show"); overlay = true; renderBoards();
+  }
+  async function renderBoards() {
+    const per = $("ldrPeriod"); per.innerHTML = "";
+    for (const [v, t] of PERIODS) {
+      const b = document.createElement("button"); b.textContent = t; b.setAttribute("aria-pressed", v === LB.period);
+      b.addEventListener("click", () => { LB.period = v; renderBoards(); }); per.appendChild(b);
+    }
+    if (!COURSES.some(c => c.id === LB.course)) LB.course = COURSES[0].id;
+    const c = courseById(LB.course), kinds = kindsFor(c);
+    if (!kinds.some(k => k[0] === LB.kind)) LB.kind = kinds[0][0];
+    $("ldrCourse").innerHTML = COURSES.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("ldrCourse").value = LB.course;
+    $("ldrKind").innerHTML = kinds.map(([v, t]) => `<option value="${v}">${t}</option>`).join(""); $("ldrKind").value = LB.kind;
+    const now = new Date(), fmt = o => now.toLocaleDateString("en-GB", { timeZone: "Europe/London", ...o });
+    $("ldrWhen").textContent = LB.period === "day" ? fmt({ weekday: "long", day: "numeric", month: "long" })
+      : LB.period === "week" ? "Monday to Sunday" : fmt({ month: "long", year: "numeric" });
+    const list = $("ldrList"), msg = $("ldrMsg"), seq = ++LB.seq;
+    list.innerHTML = ""; msg.textContent = "Loading…";
+    const db = acct(); if (!db) return msg.textContent = "Leaderboards need an internet connection.";
+    const { data, error } = await db.rpc("bg_leaderboard", { p_period: LB.period, p_course: LB.course, p_kind: LB.kind, p_limit: 50 });
+    if (seq !== LB.seq) return;           // a newer choice has been made since
+    if (error) return msg.textContent = authErr(error);
+    msg.textContent = !data.length ? `No rounds yet ${LB.period === "day" ? "today" : `this ${LB.period}`}. Play one and you're top!`
+      : AU.user ? (data.some(r => r.me) ? "" : "Your best round will show here once you finish one") : "Sign in to put your rounds on the board";
+    for (const r of data) {
+      const li = document.createElement("li"); if (r.me) li.className = "me";
+      const when = new Date(r.played_at).toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short" });
+      li.innerHTML = `<em class="rk">${r.rank}</em><div><span>${esc(r.username)}${r.me ? " (you)" : ""}</span><small>${r.strokes} strokes · ${when}${r.rounds > 1 ? ` · ${r.rounds} rounds` : ""}</small></div><b class="tp">${tp(r.to_par)}</b>`;
+      list.appendChild(li);
+    }
+  }
+  $("ldrCourse").addEventListener("change", e => { LB.course = e.target.value; renderBoards(); });
+  $("ldrKind").addEventListener("change", e => { LB.kind = e.target.value; renderBoards(); });
+  $("ldrClose").addEventListener("click", () => { $("ldr").classList.remove("show"); overlay = anyModal(); });
+
+  // my scores: best rounds and the last 30 played
+  async function openMine() {
+    $("mine").classList.add("show"); overlay = true;
+    $("miName").textContent = AU.name; $("miStats").textContent = ""; $("miList").innerHTML = ""; $("miMsg").textContent = "Loading…";
+    const { data, error } = await acct().from("bg_rounds").select("course,holes,kind,strokes,to_par,mode,played_at").order("played_at", { ascending: false }).limit(200);
+    if (error) return $("miMsg").textContent = authErr(error);
+    $("miMsg").textContent = data.length ? "" : "No rounds saved yet. Finish a round and it shows up here.";
+    const full = data.filter(r => r.kind === "18"), best = full.length ? full.reduce((a, b) => b.to_par < a.to_par ? b : a) : null;
+    $("miStats").textContent = data.length ? `${data.length}${data.length === 200 ? "+" : ""} round${data.length > 1 ? "s" : ""} saved`
+      + (full.length ? ` · best 18: ${tp(best.to_par)} (${best.strokes}) at ${courseById(best.course).name}` : "")
+      + (full.length > 1 ? ` · average 18: ${(full.reduce((a, r) => a + r.strokes, 0) / full.length).toFixed(1)}` : "") : "";
+    for (const r of data.slice(0, 30)) {
+      const li = document.createElement("li");
+      const what = { "18": "18 holes", front9: "Front 9", back9: "Back 9", hole: `Hole ${r.holes}`, other: `Holes ${r.holes}` }[r.kind];
+      const when = new Date(r.played_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      li.innerHTML = `<div><span>${esc(courseById(r.course).name)} · ${what}</span><small>${when} · ${r.strokes} strokes${r.mode === "solo" ? "" : ` · ${r.mode === "local" ? "pass-and-play" : r.mode}`}</small></div><b class="tp">${tp(r.to_par)}</b>`;
+      $("miList").appendChild(li);
+    }
+  }
+  $("miClose").addEventListener("click", () => { $("mine").classList.remove("show"); overlay = anyModal(); });
+  $("miOut").addEventListener("click", async () => { await acct().auth.signOut().catch(() => {}); $("mine").classList.remove("show"); overlay = anyModal(); toast("Signed out"); });
+
+  if (acct()) acct().auth.onAuthStateChange((ev, session) => setTimeout(async () => {   // (no awaiting inside the callback itself)
+    if (ev === "PASSWORD_RECOVERY") openAuth("reset", "Pick a new password for your account");
+    if (ev === "SIGNED_OUT") return loadProfile(null);
+    if (!["INITIAL_SESSION", "SIGNED_IN", "USER_UPDATED"].includes(ev) || (session?.user?.id || null) === (AU.user?.id || null) && ev !== "USER_UPDATED") return;
+    await loadProfile(session?.user || null).catch(() => {});
+    if (AU.user && AU.pending) {                 // a round finished before signing in
+      const p = AU.pending; AU.pending = null;
+      try { await saveRound(p); toast("Round saved"); if ($("modal").classList.contains("show")) showSaveStatus(true); }
+      catch (err) { toast("Couldn't save the round"); }
+    }
+  }, 0));
 
   // test hook, local dev server only: finish the current hole with given strokes per side (pass-and-play)
   if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__bg = {

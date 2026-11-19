@@ -24,6 +24,8 @@ cd game && python3 -m http.server 8765
 
 The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
 
+10. **Accounts and leaderboards:** tap *Sign in / Register* on the start screen to make an account with an email, a username and a password. Signed in, every finished round is saved to *My scores* (in pass-and-play, Player 1's round is yours). The 🏆 *Leaderboards* show each player's best round **today**, **this week** (Monday to Sunday) and **this month**, per course, for 18 holes, the front 9 and the back 9 (UK time). Anyone can view them; only signed-in players appear. Needs `supabase/migrations/20261120090000_battlegolf_accounts.sql`.
+
 ## Formats
 
 With 2 or more players, choose the format on the setup screen:
@@ -58,6 +60,8 @@ npx wrangler@4 deploy
 ## Online play and the phone app
 
 Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running the files in `supabase/migrations/` in order in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
+
+Player accounts (for saved scores and leaderboards) use Supabase Auth with email and password. In the Supabase dashboard, under Authentication → URL Configuration, set the Site URL to `https://battlegolf.party` and add it as a redirect URL, so confirmation and password-reset links come back to the game. Supabase's built-in email sender only sends a few emails an hour; set up your own SMTP (Authentication → Emails) before many people sign up. Usernames live in `bg_profiles`; saved rounds in `bg_rounds`, readable only by their owner; the leaderboards come from `bg_leaderboard`, which shows usernames and scores, never emails.
 
 The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.js`). Once it's served over HTTPS, "Add to Home Screen" on iPhone or "Install app" on Android gives it an icon and full-screen play, and the game itself works offline. Bump `VERSION` in `game/sw.js` whenever game files change so installed copies pick up the new files.
 
@@ -101,7 +105,7 @@ python3 tools/course_editor.py
 - **Save & rebuild** writes `data/<course>-NN.json` and rebuilds that hole into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`. The picture on the right refreshes when it's done, and *Play the game* opens it at `/game/`.
 - The first save of a hole keeps the original data in `build/editor-backups/<hole>.orig.json`; *Restore original* puts it back.
 - The elevation grid is laid along the original tee→green line (the orange box). Moving the tee or green more than about 15 m stretches the hills and green slopes, and the editor warns you.
-- Bunkers, water and trees are still placed by the renderer's rules, so they follow the new line automatically.
+- **Features:** by default the fairway, bunkers, water and treeline are placed by the renderer's rules (they aren't read from the photo, so a rule-made stream can land on a cart path). To set them yourself, choose *Start from automatic layout* (loads the rule-made shapes so you can fix them) or *Start empty*, then draw fairway, green, bunker, water and woods shapes and place single trees. *Reshape*, *Move* and *Delete* edit what's drawn. Once a hole has a drawn map, only the drawn bunkers and water are used; a drawn fairway replaces the generated one (the first cut is a band round it), a drawn green replaces the standard oval, and woods are filled with trees. *Automatic treeline as well* keeps the rule-made treeline beside the fairway. The map is saved as `map` in the hole's data file; *Go back to automatic features* removes it.
 
 Bump `VERSION` in `game/sw.js` before deploying rebuilt holes.
 
