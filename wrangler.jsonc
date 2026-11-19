@@ -1,0 +1,12 @@
+// Cloudflare hosting: the game folder is served as static files (Cloudflare Pages, now part of Workers).
+// Deploy with:  npx wrangler@4 deploy
+{
+  "name": "battlegolf",
+  "compatibility_date": "2026-11-18",
+  "workers_dev": true,
+  "routes": [{ "pattern": "battlegolf.party", "custom_domain": true }],
+  "assets": {
+    "directory": "./game",
+    "not_found_handling": "404-page"
+  }
+}
