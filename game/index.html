@@ -57,7 +57,7 @@
   .pname i { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #2d5f1a; }
   .pname input { flex: 1; min-width: 0; font: inherit; font-size: 17px; font-weight: 700; color: #23461a; padding: 8px 12px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; -webkit-user-select: text; user-select: text; }
   .pname input:focus { outline: none; border-color: #2d5f1a; }
-  .handover h2 { color: var(--pc); -webkit-text-stroke: 1.5px #2d5f1a; }
+  .handover h2 { color: var(--pc); -webkit-text-stroke: 3px #2d5f1a; paint-order: stroke fill; }   /* stroke under the fill: no lines inside the letters */
   .handover .ballicon { width: 54px; height: 54px; margin: 0 auto 8px; border-radius: 50%; background: var(--pc); border: 4px solid #2d5f1a; box-shadow: 0 4px 0 rgba(0,0,0,.2); }
   .scores { list-style: none; padding: 0; margin: 12px 0 4px; text-align: left; }
   .scores li { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 2px dashed #cfe8b4; font-weight: 700; }
@@ -101,9 +101,9 @@
   <div class="chip"><b id="hLie">Tee</b><span>Lie</span></div>
 </div>
 <div class="bottom">
-  <button class="aim" id="aimL" aria-label="Aim left (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 17a9 9 0 0 0-14-9"/><path d="M5 3v5.5h5.5"/></svg><span>AIM</span></button>
+  <button class="aim" id="aimL" aria-label="Aim left (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22.4 13.3A10.5 10.5 0 0 0 4.4 12"/><path d="M9.5 10.8L4.4 12L3.8 6.8"/></svg><span>AIM</span></button>
   <div class="prompt" id="prompt">Tap to set distance<small>Target moves toward the hole</small></div>
-  <button class="aim" id="aimR" aria-label="Aim right (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a9 9 0 0 1 14-9"/><path d="M19 3v5.5h-5.5"/></svg><span>AIM</span></button>
+  <button class="aim" id="aimR" aria-label="Aim right (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.6 13.3A10.5 10.5 0 0 1 19.6 12"/><path d="M14.5 10.8L19.6 12L20.2 6.8"/></svg><span>AIM</span></button>
 </div>
 <div class="layers" id="layers">
   <button class="layer" data-layer="heat" aria-pressed="true" aria-label="Slope heat map"><svg viewBox="0 0 26 18"><rect x="1" y="2" width="6" height="14" rx="2" fill="#1e50ff"/><rect x="7" y="2" width="6" height="14" fill="#3ce65a"/><rect x="13" y="2" width="6" height="14" fill="#ffdc00"/><rect x="19" y="2" width="6" height="14" rx="2" fill="#ff2846"/></svg>Heat</button>
@@ -948,7 +948,7 @@
     ctx.beginPath(); ctx.ellipse(sx + h * 0.15 * ppm * zoom, sy, r * 1.1, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
     circle(sx, sy - h * ppm * zoom, r, col, "#2d5f1a", 2);
     if (label) {   // name tag over the other players' balls
-      ctx.save(); ctx.font = "800 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3.5; ctx.strokeStyle = "#23461a";
+      ctx.save(); ctx.font = "800 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
       ctx.strokeText(label, sx, sy - r - 6); ctx.fillStyle = col; ctx.fillText(label, sx, sy - r - 6); ctx.restore();
     }
   }
@@ -985,7 +985,7 @@
     circle(tx, ty, r, "rgba(255,255,255,.18)", "#fff", 3);
     circle(tx, ty, r * 0.35, "#e8383d", "#fff", 2);
     const label = putting() ? `${(t.d * 3.281).toFixed(0)} ft` : `${Math.round(t.d / YD)} yd`;
-    ctx.font = "800 15px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 4; ctx.strokeStyle = "#23461a";
+    ctx.font = "800 15px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
     ctx.strokeText(label, tx, ty - r - 8); ctx.fillStyle = "#fff"; ctx.fillText(label, tx, ty - r - 8);
     ctx.restore();
   }
@@ -1065,7 +1065,7 @@
     const pxPerM = ppm * zoom;
     if (pxPerM > 7) {   // labels only once zoomed in enough to read
       ctx.font = `800 ${Math.round(Math.min(14, pxPerM * 0.9))}px system-ui, sans-serif`;
-      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.strokeStyle = "#23461a";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
       const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];      // world direction that points down the screen
       let dn = [-A[0][1] / det, A[0][0] / det]; const dl = Math.hypot(...dn); dn = [dn[0] / dl, dn[1] / dl];
       for (const [r, txt, col] of [[1.5, "+2", "#ffe14a"], [0.55, "+1", "#fff"]]) {
