@@ -24,6 +24,30 @@ cd game && python3 -m http.server 8765
 
 The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
 
+## Formats
+
+With 2 or more players, choose the format on the setup screen:
+
+- **Stroke play:** fewest strokes over the round wins.
+- **Match play** (1 v 1): each hole goes to the lower score, and a tie halves it. The match ends as soon as one player is more holes up than there are holes left (for example "won 3&2"). Online, the first two to join play the match.
+- **Skins:** each hole is worth a skin. The lowest score on its own takes it, plus any skins carried over; a tie carries the skin to the next hole. Most skins wins.
+
+Online formats need `supabase/migrations/20261119190000_battlegolf_formats.sql`.
+
+## Battle mode
+
+Turn on **Battle mode** on the setup screen for a 1 v 1 fight over 9 or 18 holes, with the same rules as Pure Golf's battles:
+
+- The round is split into **three bouts** of equal length (6 holes each over 18, 3 over 9). Both players start every bout on full health: one point per hole of the bout.
+- Each hole is scored in **Stableford points** (2 for par, 1 more per stroke under, 0 at double bogey or worse). The difference is the damage the loser takes. Hitting 0 health loses the bout on the spot (a knockout); otherwise the healthier player takes it.
+- **Most bouts wins**; total damage dealt breaks a tie.
+- **Power-ups** (3 to 8 each) are fixed to holes before the round. **Dealt** gives both players the same kinds, spread evenly over the bouts, each on their own random holes. **Pick your own** lets each player choose kinds and holes, one per hole, before their first shot.
+- The 11 power-ups are Double Down, Shield, Heal, Critical Hit, Leech, Sniper, Poison, Block, Last Stand, Counter and Second Wind. Each one is explained in the game.
+
+The rules engine (`battlePlay` in `game/index.html`) is a straight port of Pure Golf's `BattleScoring.play`. It was cross-checked against the Dart code on thousands of random cards.
+
+Online battles are always 1 v 1 and need `supabase/migrations/20261119180000_battlegolf_battles.sql`. That migration deals power-ups in the database and checks picked sets.
+
 ## Online play and the phone app
 
 Online matches use the BattleGolf Supabase project (URL and publishable key in `game/config.js`). Set it up once by running the files in `supabase/migrations/` in order in that project's SQL editor. There are no accounts: each phone keeps a random secret per match, the tables are read-only to the app, and the only writes are the `bg_create_match`, `bg_join_match` and `bg_add_shot` functions. Never put the service_role key in `config.js`.
