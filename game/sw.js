@@ -3,7 +3,7 @@
 // The game's own files (page, course list, hole pictures) are network-first: a rebuilt hole keeps its file
 // names, so serving the cache first would show the old one. The cache is the offline fallback, and hole
 // pictures are added to it as each hole is played.
-const VERSION = "bg-v12";
+const VERSION = "bg-v14";
 const CORE = [
   "./", "index.html", "config.js", "manifest.webmanifest", "courses/courses.json", "logo.webp",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
@@ -29,6 +29,7 @@ self.addEventListener("fetch", e => {
     e.respondWith(fetch(req).then(r => store(req, r)).catch(() => caches.match(req, { ignoreSearch: true })));
     return;
   }
+  if (url.hostname !== "cdn.jsdelivr.net") return;         // ads and anything else: straight to the network
   // the pinned CDN library never changes: cache first
   e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => store(req, r))));
 });

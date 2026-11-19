@@ -6,6 +6,7 @@
 <title>BattleGolf</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2d5f1a">
+<meta name="google-adsense-account" content="ca-pub-6303118447520739">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,6 +54,10 @@
   .card p { margin: 4px 0; font-size: 16px; }
   .card button { margin-top: 14px; font: inherit; font-weight: 800; font-size: 18px; padding: 12px 26px; border-radius: 14px; border: 3px solid #2d5f1a; background: #8fd64a; color: #1d3a12; box-shadow: 0 4px 0 #2d5f1a; }
   .card button:active { transform: translateY(3px); box-shadow: 0 1px 0 #2d5f1a; }
+  .ad { margin: 12px -10px 0; display: none; }
+  .ad.show { display: block; }
+  .ad::before { content: "Advertisement"; display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #6f8f5c; margin-bottom: 4px; }
+  .ad:has(ins[data-ad-status="unfilled"]) { display: none; }   /* nothing to show: no empty box */
   .card .alt { background: transparent; box-shadow: none; border-width: 2px; font-size: 15px; padding: 8px 16px; margin-left: 6px; }
   .chip.player { border-color: var(--pc, #9fd06e); display: none; }
   .chip.player.show { display: block; }
@@ -178,6 +183,7 @@
   <p id="mText"></p>
   <ul class="scores" id="mScores"></ul>
   <p id="mBest"></p>
+  <div class="ad" id="mAd"></div>
   <button id="again">Play again</button><button class="alt" id="changePlayers">Players</button>
 </div></div>
 <div class="modal" id="setup"><div class="card">
@@ -844,7 +850,7 @@
       if (BT) showBattleCard(true); else showFormatCard(true);
       round.awaitNext = false;
       $("again").textContent = "New match"; $("changePlayers").style.display = "none";
-      setPrompt(); $("modal").classList.add("show"); overlay = true; return;
+      adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true; return;
     }
     const all = sortedRoster().map(p => p.id === ON.me.id ? meEntry() : p);
     const total = p => cardStrokes(p.cards);
@@ -859,7 +865,7 @@
     $("mBest").textContent = over ? "" : "This updates as they play";
     round.awaitNext = false;
     $("again").textContent = "New match"; $("changePlayers").style.display = "none";
-    setPrompt(); $("modal").classList.add("show"); overlay = true;
+    adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true;
   }
   $("again").addEventListener("click", e => { if (ON.active && !round.awaitNext) { e.stopImmediatePropagation(); leaveOnline(); openSetup(); } }, true);
   function aimAtPin() { S.aim = Math.atan2(pin.y - S.ball.y, pin.x - S.ball.x); }
@@ -1420,6 +1426,33 @@
     dot.style.background = col; nm.textContent = name; lbl.textContent = label; sc.textContent = big; if (bigCls) sc.className = bigCls;
     li.append(dot, nm, lbl, sc); list.appendChild(li); return li;
   }
+  // ---------- ads (Google AdSense, set up in config.js) ----------
+  // Only on the scorecard at the turn and at the end, never while a shot is being played. The online
+  // scorecard redraws as other players finish, so an ad is kept for as long as it is the same card.
+  let adKey = null, adLoaded = false;
+  function adBreak(show) {
+    const box = $("mAd"), cfg = window.BG_CONFIG || {};
+    if (!show || !cfg.adsenseClient || !cfg.adsenseSlot || !navigator.onLine) { box.classList.remove("show"); return; }
+    const key = `${round.spec}|${round.i}|${players.length}`;
+    box.classList.add("show");
+    if (key === adKey && box.firstChild) return;
+    adKey = key;
+    if (!adLoaded) {
+      adLoaded = true;
+      const sc = document.createElement("script");
+      sc.async = true; sc.crossOrigin = "anonymous";
+      sc.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(cfg.adsenseClient)}`;
+      document.head.appendChild(sc);
+    }
+    const ins = document.createElement("ins");          // AdSense fills each <ins> once, so every card gets a new one
+    ins.className = "adsbygoogle"; ins.style.display = "block";
+    ins.dataset.adClient = cfg.adsenseClient; ins.dataset.adSlot = cfg.adsenseSlot;
+    ins.dataset.adFormat = "auto"; ins.dataset.fullWidthResponsive = "true";
+    box.replaceChildren(ins);
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { box.classList.remove("show"); }
+  }
+  const atTheTurn = () => round.holes.length > 9 && round.i === 8;
+
   function showScorecard() {
     const final = lastHole() || matchDecided();
     if (ON.active && final) return showOnlineScorecard();
@@ -1467,6 +1500,7 @@
         scoreRow(list, p.col, (n === low ? "🏆 " : "") + p.name, single ? scoreName(n).replace("!", "") : tp(cardToPar(p.cards)), n);
       }
     }
+    adBreak(final || atTheTurn());
     setPrompt(); $("modal").classList.add("show"); overlay = true;
   }
 
