@@ -18,13 +18,13 @@ cd game && python3 -m http.server 8765
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
 7. **Hazards:** bunkers are a sand lie (short, wilder shots), and water (ponds and streams) costs a stroke with a drop back along the line the ball came in on.
-8. **Pass-and-play:** pick 1–4 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
+8. **Pass-and-play:** pick 1–8 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
 
-9. **Online:** enter your name and tap *Create match* to get a 5-letter code and a link to share; friends join with the code or link (up to 4). The match uses the course and holes picked on the start screen. Everyone plays their own round on their own phone whenever they like. Other players' shots replay on your screen as ghost balls, the scoreboard updates live, and the final scorecard appears once everyone has holed out. Closing the app is fine: opening the link again picks up where you left off.
-
-The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
+9. **Online:** enter your name and tap *Create match* to get a 5-letter code and a link to share; friends join with the code or link (up to 8). The match uses the course and holes picked on the start screen. Everyone plays their own round on their own phone whenever they like. Other players' shots replay on your screen as ghost balls, the scoreboard updates live, and the final scorecard appears once everyone has holed out. Closing the app is fine: opening the link again picks up where you left off. Finished before the others? Tap a name under *Watch* on the scorecard to follow them hole by hole as their shots replay; tap the course to go back to the scores.
 
 10. **Accounts and leaderboards:** tap *Sign in / Register* on the start screen to make an account with an email, a username and a password. Signed in, every finished round is saved to *My scores* (in pass-and-play, Player 1's round is yours). The 🏆 *Leaderboards* show each player's best round **today**, **this week** (Monday to Sunday) and **this month**, per course, for 18 holes, the front 9 and the back 9 (UK time). Anyone can view them; only signed-in players appear. Needs `supabase/migrations/20261120090000_battlegolf_accounts.sql`.
+
+The lie changes the maximum carry and the side-to-side swing: tee 260 yds, fairway 230, first cut 205, rough 175, bunker 120, trees 90. Off the map costs a penalty stroke.
 
 ## Formats
 
@@ -34,7 +34,7 @@ With 2 or more players, choose the format on the setup screen:
 - **Match play** (1 v 1): each hole goes to the lower score, and a tie halves it. The match ends as soon as one player is more holes up than there are holes left (for example "won 3&2"). Online, the first two to join play the match.
 - **Skins:** each hole is worth a skin. The lowest score on its own takes it, plus any skins carried over; a tie carries the skin to the next hole. Most skins wins.
 
-Online formats need `supabase/migrations/20261119190000_battlegolf_formats.sql`.
+Online formats need `supabase/migrations/20261119190000_battlegolf_formats.sql`. Online matches of more than 4 players need `supabase/migrations/20261119210000_battlegolf_8_players.sql`.
 
 ## Battle mode
 
