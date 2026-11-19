@@ -13,7 +13,7 @@ cd game && python3 -m http.server 8765
 
 1. **Distance:** the target moves out from the ball and back, speeding up the further out it goes. Tap to lock it.
 2. **Direction:** the target swings side to side. Tap when it's on the line.
-3. **Aim:** ◀ ▶ adjust aim before the first tap. Tee shots follow the fairway centre line, so they curve with the dogleg.
+3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg.
 4. **Putting:** the green shows a slope heat map (blue low → red high, 5 cm contours) with downhill arrows. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 

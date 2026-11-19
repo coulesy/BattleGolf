@@ -34,5 +34,5 @@ for f,o in [('game_data.json','land'),('game_data_portrait.json','portrait')]:
 print('merged')
 PY
 ls -la *.jpg *heat*.png
-cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg detail_land_heat.png detail_portrait_heat.png game_data.json game_data_portrait.json "$ROOT/game/"
+cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg detail_land_heat.png detail_portrait_heat.png detail_land_contours.png detail_portrait_contours.png game_data.json game_data_portrait.json "$ROOT/game/"
 echo "copied assets to game/"

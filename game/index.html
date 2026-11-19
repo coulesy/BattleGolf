@@ -15,9 +15,19 @@
   .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; justify-content: center; pointer-events: none; }
   .prompt { background: rgba(32,64,26,.9); border: 2px solid #9fd06e; border-radius: 16px; padding: 10px 16px; font-weight: 700; font-size: 16px; text-align: center; flex: 0 1 320px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
   .prompt small { display: block; font-weight: 500; font-size: 12px; color: #c9ee96; margin-top: 2px; }
-  .aim { pointer-events: auto; width: 54px; height: 54px; border-radius: 50%; border: 2px solid #9fd06e; background: rgba(32,64,26,.9); color: #fff; font-size: 22px; font-weight: 800; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
-  .aim:active { transform: translateY(2px); box-shadow: none; }
-  .aim[disabled] { opacity: .35; }
+  .aim { pointer-events: auto; flex: none; width: 66px; height: 66px; border-radius: 50%; border: 3px solid #2d5f1a; background: #ffe14a; color: #23461a; font: inherit; font-weight: 900; box-shadow: 0 4px 0 #2d5f1a, 0 0 0 0 rgba(255,225,74,.6); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; touch-action: none; animation: aimPulse 1.8s ease-in-out infinite; }
+  .aim svg { width: 26px; height: 26px; }
+  .aim span { font-size: 10px; letter-spacing: .08em; margin-top: 2px; }
+  .aim:active, .aim.held { transform: translateY(3px); box-shadow: 0 1px 0 #2d5f1a; background: #fff3a6; animation: none; }
+  .aim[disabled] { opacity: .35; background: rgba(32,64,26,.9); color: #c9ee96; border-color: #9fd06e; box-shadow: 0 3px 0 rgba(0,0,0,.25); animation: none; }
+  @keyframes aimPulse { 50% { box-shadow: 0 4px 0 #2d5f1a, 0 0 0 7px rgba(255,225,74,0); } 0%, 100% { box-shadow: 0 4px 0 #2d5f1a, 0 0 0 0 rgba(255,225,74,.6); } }
+  @media (prefers-reduced-motion: reduce) { .aim { animation: none; } }
+  .layers { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); display: none; flex-direction: column; gap: 8px; }
+  .layers.show { display: flex; }
+  .layer { width: 58px; padding: 7px 0 5px; border-radius: 14px; border: 2px solid #9fd06e; background: rgba(32,64,26,.9); color: #c9ee96; font: inherit; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; box-shadow: 0 3px 0 rgba(0,0,0,.25); opacity: .55; }
+  .layer svg { display: block; margin: 0 auto 3px; width: 26px; height: 18px; }
+  .layer[aria-pressed="true"] { opacity: 1; background: #f4fbe9; color: #23461a; border-color: #2d5f1a; }
+  .layer:active { transform: translateY(2px); box-shadow: none; }
   .toast { position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%) scale(.9); background: #fff; color: #23461a; font-weight: 900; font-size: 26px; padding: 10px 22px; border-radius: 18px; border: 3px solid #2d5f1a; box-shadow: 0 5px 0 rgba(0,0,0,.25); opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; white-space: nowrap; }
   .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   .modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(10,25,8,.55); }
@@ -39,9 +49,14 @@
   <div class="chip"><b id="hLie">Tee</b><span>Lie</span></div>
 </div>
 <div class="bottom">
-  <button class="aim" id="aimL" aria-label="Aim left">◀</button>
+  <button class="aim" id="aimL" aria-label="Aim left (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 17a9 9 0 0 0-14-9"/><path d="M5 3v5.5h5.5"/></svg><span>AIM</span></button>
   <div class="prompt" id="prompt">Tap to set distance<small>Target moves toward the hole</small></div>
-  <button class="aim" id="aimR" aria-label="Aim right">▶</button>
+  <button class="aim" id="aimR" aria-label="Aim right (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a9 9 0 0 1 14-9"/><path d="M19 3v5.5h-5.5"/></svg><span>AIM</span></button>
+</div>
+<div class="layers" id="layers">
+  <button class="layer" data-layer="heat" aria-pressed="true" aria-label="Slope heat map"><svg viewBox="0 0 26 18"><rect x="1" y="2" width="6" height="14" rx="2" fill="#1e50ff"/><rect x="7" y="2" width="6" height="14" fill="#3ce65a"/><rect x="13" y="2" width="6" height="14" fill="#ffdc00"/><rect x="19" y="2" width="6" height="14" rx="2" fill="#ff2846"/></svg>Heat</button>
+  <button class="layer" data-layer="arrows" aria-pressed="true" aria-label="Slope arrows"><svg viewBox="0 0 26 18" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h9m-3-3 3 3-3 3" stroke="#ffdc00"/><path d="M12 13h11m-3-3 3 3-3 3" stroke="#ff2846"/></svg>Arrows</button>
+  <button class="layer" data-layer="contours" aria-pressed="true" aria-label="Contour lines"><svg viewBox="0 0 26 18" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="13" cy="9" rx="11" ry="7"/><ellipse cx="14" cy="9" rx="6.5" ry="4"/><ellipse cx="15" cy="9" rx="2.5" ry="1.5"/></svg>Lines</button>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="card">
@@ -59,8 +74,9 @@
   img.src = portrait ? "course_portrait.jpg" : "course.jpg";
   await img.decode();
   const heatImg = new Image(); heatImg.src = D.heat.file;
+  const contImg = new Image(); contImg.src = D.heat.contours;
   const detailImg = new Image(); detailImg.src = D.detail.file;
-  await Promise.all([heatImg.decode(), detailImg.decode()]);
+  await Promise.all([heatImg.decode(), contImg.decode(), detailImg.decode()]);
   document.getElementById("loading").remove();
 
   // ---------- data ----------
@@ -211,11 +227,28 @@
     else if (S.phase === "lat") { S.latv = currentTarget().lat; hit(); }
   }
   cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
-  addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); tap(); }
-    if (e.code === "ArrowLeft") nudge(1); if (e.code === "ArrowRight") nudge(-1); });
   function nudge(s) { if (S.phase !== "dist") return; if (S.curve) S.aimDelta += s * 0.02; else S.aim += s * (putting() ? 0.02 : 0.035); }
-  document.getElementById("aimL").addEventListener("pointerdown", e => { e.stopPropagation(); nudge(1); });
-  document.getElementById("aimR").addEventListener("pointerdown", e => { e.stopPropagation(); nudge(-1); });
+  // aim: a tap nudges once; holding (button or ←/→ key) keeps turning slowly after a short pause
+  const hold = { dir: 0, t: 0 };
+  const heldCls = () => { document.getElementById("aimL").classList.toggle("held", hold.dir === 1); document.getElementById("aimR").classList.toggle("held", hold.dir === -1); };
+  function holdStart(s) { if (hold.dir === s) return; hold.dir = s; hold.t = 0; nudge(s); heldCls(); }
+  function holdEnd(s) { if (s === undefined || hold.dir === s) { hold.dir = 0; heldCls(); } }
+  function holdTick(dt) {
+    if (!hold.dir || S.phase !== "dist") return;
+    hold.t += dt; if (hold.t < 0.3) return;
+    const rate = S.curve ? 0.1 : putting() ? 0.1 : 0.17;     // rad/s ≈ 6°/s, 10°/s
+    if (S.curve) S.aimDelta += hold.dir * rate * dt; else S.aim += hold.dir * rate * dt;
+  }
+  addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); tap(); }
+    if (e.code === "ArrowLeft") { e.preventDefault(); holdStart(1); } if (e.code === "ArrowRight") { e.preventDefault(); holdStart(-1); } });
+  addEventListener("keyup", e => { if (e.code === "ArrowLeft") holdEnd(1); if (e.code === "ArrowRight") holdEnd(-1); });
+  addEventListener("blur", () => holdEnd());
+  [["aimL", 1], ["aimR", -1]].forEach(([id, s]) => {
+    const b = document.getElementById(id);
+    b.addEventListener("pointerdown", e => { e.stopPropagation(); e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} holdStart(s); });
+    for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, () => holdEnd(s));
+    b.addEventListener("contextmenu", e => e.preventDefault());   // long-press on phones would open a menu
+  });
   document.getElementById("again").addEventListener("click", reset);
 
   // ---------- shot ----------
@@ -299,7 +332,8 @@
     const p = document.getElementById("prompt");
     const aimOn = S.phase === "dist";
     document.getElementById("aimL").disabled = !aimOn; document.getElementById("aimR").disabled = !aimOn;
-    if (S.phase === "dist") p.innerHTML = (putting() ? `Tap to set putt strength<small>Ball breaks downhill · ◀ ▶ to aim</small>` : `Tap to set distance<small>◀ ▶ to adjust aim</small>`);
+    document.getElementById("layers").classList.toggle("show", S.lie === 3 && !S.done);
+    if (S.phase === "dist") p.innerHTML = (putting() ? `Tap to set putt strength<small>Ball breaks downhill · hold AIM to turn</small>` : `Tap to set distance<small>Tap or hold AIM to turn</small>`);
     else if (S.phase === "lat") p.innerHTML = `Tap to set direction<small>Stop it on the line</small>`;
     else if (S.phase === "anim") p.innerHTML = putting() ? "Rolling…" : "Ball in flight…";
     else p.innerHTML = "Holed out!";
@@ -311,9 +345,11 @@
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
     if (stroke) { ctx.lineWidth = lw || 2; ctx.strokeStyle = stroke; ctx.stroke(); }
   }
+  // drawn sizes in metres (exaggerated so they read on screen, ball a bit smaller than the cup)
+  const BALL_R = 0.18, CUP_R = 0.4;
   function drawBall(gx, gy, h) {
     const [sx, sy] = toScreen(...toImg(gx, gy));
-    const r = Math.max(4, 0.55 * ppm * zoom);
+    const r = Math.max(4, BALL_R * ppm * zoom);
     ctx.fillStyle = "rgba(20,50,15,.35)";
     ctx.beginPath(); ctx.ellipse(sx + h * 0.15 * ppm * zoom, sy, r * 1.1, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
     circle(sx, sy - h * ppm * zoom, r, "#fff", "#2d5f1a", 2);
@@ -356,16 +392,29 @@
     if (fill) { ctx.fillStyle = fill; ctx.fill(); }
     ctx.setLineDash(dash); ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke(); ctx.setLineDash([]);
   }
-  let heatA = 0;
+  // green-reading layers: each can be switched on/off independently (remembered between visits)
+  const layers = { heat: true, arrows: true, contours: true }, layerA = { heat: 0, arrows: 0, contours: 0 };
+  try { Object.assign(layers, JSON.parse(localStorage.getItem("bgLayers") || "{}")); } catch (e) {}
+  document.querySelectorAll(".layer").forEach(b => {
+    const k = b.dataset.layer; b.setAttribute("aria-pressed", layers[k]);
+    b.addEventListener("pointerdown", e => {
+      e.stopPropagation(); layers[k] = !layers[k]; b.setAttribute("aria-pressed", layers[k]);
+      try { localStorage.setItem("bgLayers", JSON.stringify(layers)); } catch (e) {}
+    });
+  });
+  const SLOPE_COLS = [[0.02, "#8dff5a"], [0.04, "#ffe11a"], [0.07, "#ff9a1a"], [Infinity, "#ff3355"]];   // gentle → steep (this green's median slope is ~4%)
   function drawGreenRead(dt) {
     const on = S && S.lie === 3 && !S.done;
-    heatA += ((on ? 1 : 0) - heatA) * Math.min(1, dt * 3);
-    if (heatA < 0.02) return;
-    ctx.save(); ctx.globalAlpha = heatA;
+    let any = false;
+    for (const k in layerA) { layerA[k] += ((on && layers[k] ? 1 : 0) - layerA[k]) * Math.min(1, dt * 3); any = any || layerA[k] > 0.02; }
+    if (!any) return;
+    ctx.save();
     const [hx, hy] = toScreen(D.heat.x, D.heat.y);
-    ctx.drawImage(heatImg, hx, hy, D.heat.w * zoom, D.heat.h * zoom);
+    if (layerA.heat > 0.02) { ctx.globalAlpha = layerA.heat; ctx.drawImage(heatImg, hx, hy, D.heat.w * zoom, D.heat.h * zoom); }
+    if (layerA.contours > 0.02) { ctx.globalAlpha = layerA.contours; ctx.drawImage(contImg, hx, hy, D.heat.w * zoom, D.heat.h * zoom); }
+    ctx.globalAlpha = layerA.arrows;
     const pxPerM = ppm * zoom;
-    if (pxPerM > 6) {   // downhill arrows
+    if (layerA.arrows > 0.02 && pxPerM > 6) {   // downhill arrows, coloured by steepness
       ctx.lineCap = "round"; ctx.lineJoin = "round";
       const R0 = 22, sp = pxPerM > 14 ? 2.0 : 3.0;
       for (let gx = -R0; gx <= R0; gx += sp) for (let gy = -R0; gy <= R0; gy += sp) {
@@ -380,8 +429,8 @@
         const arrow = () => { ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ax1, ay1);
           ctx.moveTo(ax1 - hl * Math.cos(ang - 0.6), ay1 - hl * Math.sin(ang - 0.6)); ctx.lineTo(ax1, ay1);
           ctx.lineTo(ax1 - hl * Math.cos(ang + 0.6), ay1 - hl * Math.sin(ang + 0.6)); ctx.stroke(); };
-        ctx.strokeStyle = "rgba(20,40,15,.55)"; ctx.lineWidth = 3.6; arrow();
-        ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.8; arrow();
+        ctx.strokeStyle = "rgba(20,40,15,.8)"; ctx.lineWidth = 4; arrow();
+        ctx.strokeStyle = SLOPE_COLS.find(c => slope < c[0])[1]; ctx.lineWidth = 2.2; arrow();
       }
     }
     ctx.restore();
@@ -405,7 +454,9 @@
     // flag on top of the overlays
     const [fx, fy] = toScreen(...toImg(pin.x, pin.y)), ph = Math.min(70, Math.max(26, 6 * ppm * zoom));
     ctx.save(); ctx.lineCap = "round";
-    ctx.fillStyle = "#151515"; ctx.beginPath(); ctx.ellipse(fx, fy, 4, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+    const cr = Math.max(putting() ? 9 : 4, CUP_R * ppm * zoom);
+    ctx.fillStyle = "#151515"; ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = Math.max(1.5, cr * 0.12);
+    ctx.beginPath(); ctx.ellipse(fx, fy, cr, cr * 0.62, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = "#23461a"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - ph); ctx.stroke();
     ctx.strokeStyle = "#f5f5f5"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - ph); ctx.stroke();
     ctx.fillStyle = "#e4282f"; ctx.strokeStyle = "#23461a"; ctx.lineWidth = 2; ctx.lineJoin = "round";
@@ -417,6 +468,7 @@
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    holdTick(dt);
     if (S.phase === "dist" || S.phase === "lat") S.t += dt;
 
     // camera follow
