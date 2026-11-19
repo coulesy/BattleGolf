@@ -104,6 +104,9 @@
   .loading.hide { display: none; }
   .pick { display: flex; gap: 8px; margin: 10px 0 4px; }
   .pick select { flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 700; color: #23461a; padding: 8px 10px; border: 2px solid #9fd06e; border-radius: 12px; background: #fff; }
+  #mWatch p { margin: 10px 0 6px; font-size: 14px; font-weight: 700; }
+  #mWatch button.watch { display: inline-flex; align-items: center; gap: 7px; margin: 3px; padding: 7px 13px; font-size: 15px; background: #e3f3cf; box-shadow: 0 3px 0 #2d5f1a; }
+  #mWatch button.watch i { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #2d5f1a; }
   .scores b.tp { min-width: 34px; text-align: right; }
   /* battle mode */
   .bopts { margin: 10px 0 0; padding: 10px 0 0; border-top: 2px dashed #cfe8b4; }
@@ -188,6 +191,7 @@
   <p id="mText"></p>
   <ul class="scores" id="mScores"></ul>
   <p id="mBest"></p>
+  <div id="mWatch"></div>
   <div class="ad" id="mAd"></div>
   <button id="again">Play again</button><button class="alt" id="changePlayers">Players</button>
 </div></div>
@@ -593,6 +597,10 @@
   // Each phone sends its finished shots to Supabase; the other phones replay them (putts are re-simulated
   // from the same inputs, so they roll exactly the same way). Your seat's secret lives only on your phone.
   const CFG = window.BG_CONFIG || {};
+  // spectating: once your round is over you can follow someone still playing (see watch()). You stay on your own
+  // last hole (round.i and S don't change); only the picture switches to their hole and follows their ball.
+  let SPEC = null;            // { id, hole, loading: promise while their next hole loads }
+  const viewHole = () => SPEC ? SPEC.hole : round.i;
   const ON = { active: false, db: null, chan: null, me: null, code: "", matchId: "", roster: new Map(), outbox: [], sending: false };
   const sb = () => ON.db || (ON.db = (CFG.supabaseUrl && CFG.supabaseKey && window.supabase)
     ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: false } }) : null);
@@ -678,7 +686,12 @@
       else if (h === round.i && p.lie === 3 && was !== 3) toast(`${p.name} is on the green`);
     }
     renderBoard();
-    if (S.done && lastHole()) showOnlineScorecard();
+    if (SPEC) {
+      updateHud();
+      // back to the scores a moment after the one you're watching finishes (or everyone has)
+      const all = sortedRoster().every(q => finishedRound(q.id === ON.me.id ? meEntry() : q));
+      if (all || (p.id === SPEC.id && finishedRound(p))) { const id = SPEC.id; setTimeout(() => { if (SPEC && SPEC.id === id) stopWatching(); }, 1500); }
+    } else if (S.done && lastHole()) showOnlineScorecard();
   }
   function stepGhosts(dt) {
     for (const p of ON.roster.values()) {
@@ -687,7 +700,10 @@
       if (!p.anim) while (p.played < p.order.length - 1) settleGhost(p, p.shots[p.order[p.played++]], true);
       if (!p.anim && p.played < p.order.length) {     // their next shot
         const d = p.shots[p.order[p.played]];
-        if ((d.h ?? 0) !== round.i) { p.played++; settleGhost(p, d, false); continue; }   // on another hole: just move them on
+        if ((d.h ?? 0) !== viewHole()) {
+          if (SPEC && p.id === SPEC.id) { if (!SPEC.loading) watchHole(d.h ?? 0); continue; }   // watching them: follow them to the next hole
+          p.played++; settleGhost(p, d, false); continue;                                       // on another hole: just move them on
+        }
         if (d.k === "roll") {
           const sim = simulatePutt({ x: d.f[0], y: d.f[1] }, d.ang, d.fd);
           p.anim = { kind: "roll", pts: sim.pts, dur: Math.min(sim.time, 9), t: 0, d };
@@ -761,7 +777,7 @@
     // live: new players and new shots
     ON.chan = sb().channel(`bg-${cred.matchId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bg_players", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => {
-        if (ON.roster.has(r.id)) return; rosterEntry(r); toast(`${r.name} joined`); renderBoard(); renderLobby(); if (S.done) showOnlineScorecard(); })
+        if (ON.roster.has(r.id)) return; rosterEntry(r); toast(`${r.name} joined`); renderBoard(); renderLobby(); if (S.done && !SPEC) showOnlineScorecard(); })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "bg_shots", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => takeShot(r, false))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bg_players", filter: `match_id=eq.${cred.matchId}` }, ({ new: r }) => {
         rosterEntry(r); if (BT && r.id !== ON.me.id && r.power_ups) toast(`${r.name} picked their power-ups`); renderBoard(); })
@@ -859,7 +875,7 @@
       if (BT) showBattleCard(true); else showFormatCard(true);
       round.awaitNext = false;
       $("again").textContent = "New match"; $("changePlayers").style.display = "none";
-      adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true; return;
+      renderWatch(); adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true; return;
     }
     const all = sortedRoster().map(p => p.id === ON.me.id ? meEntry() : p);
     const total = p => cardStrokes(p.cards);
@@ -874,7 +890,42 @@
     $("mBest").textContent = over ? "" : "This updates as they play";
     round.awaitNext = false;
     $("again").textContent = "New match"; $("changePlayers").style.display = "none";
-    adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true;
+    renderWatch(); adBreak(true); setPrompt(); $("modal").classList.add("show"); overlay = true;
+  }
+  function renderWatch() {
+    const box = $("mWatch"); box.innerHTML = "";
+    if (!ON.active || !S.done || !lastHole()) return;
+    const others = sortedRoster().filter(p => p.id !== ON.me.id && !finishedRound(p));
+    if (!others.length) return;
+    const h = document.createElement("p"); h.textContent = others.length > 1 ? "Watch someone still playing:" : "Watch them play:"; box.appendChild(h);
+    for (const p of others) {
+      const b = document.createElement("button"), dot = document.createElement("i");
+      b.className = "watch"; dot.style.background = p.col; b.append(dot, p.name);
+      b.addEventListener("click", () => watch(p.id)); box.appendChild(b);
+    }
+  }
+  async function watch(id) {
+    const p = ON.roster.get(id); if (!p) return;
+    $("modal").classList.remove("show"); overlay = false;
+    SPEC = { id, hole: p.hole, loading: null };
+    watchHole(p.hole, true);
+    setPrompt();
+  }
+  function watchHole(h, first) {        // show hole h of the round for the player being watched
+    const s = SPEC;
+    s.loading = useHole(round.course.id, round.holes[h].dir).then(() => {
+      if (SPEC !== s) return;
+      s.hole = h; s.loading = null;
+      if (!first) toast(`${ON.roster.get(s.id)?.name} · hole ${round.holes[h].n}`);
+      updateHud(); setPrompt();
+    });
+  }
+  async function stopWatching() {
+    const s = SPEC; if (!s) return;
+    SPEC = null;
+    if (s.loading) await s.loading;
+    await useHole(round.course.id, round.holes[round.i].dir);    // back to your own last hole
+    updateHud(); setPrompt(); showOnlineScorecard();
   }
   $("again").addEventListener("click", e => { if (ON.active && !round.awaitNext) { e.stopImmediatePropagation(); leaveOnline(); openSetup(); } }, true);
   function aimAtPin() { S.aim = Math.atan2(pin.y - S.ball.y, pin.x - S.ball.x); }
@@ -1322,6 +1373,7 @@
 
   // ---------- input ----------
   function tap() {
+    if (SPEC && !overlay) return void stopWatching();
     if (S.done || overlay) return;
     if (S.phase === "dist") { S.dist = currentTarget().d; S.phase = "lat"; S.t = 0; setPrompt(); }
     else if (S.phase === "lat") { S.latv = currentTarget().lat; hit(); }
@@ -1520,6 +1572,15 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 1400);
   }
   function updateHud() {
+    if (SPEC) {
+      const p = ON.roster.get(SPEC.id); if (!p) return;
+      const here = p.hole === SPEC.hole, d = Math.hypot(pin.x - p.ball.x, pin.y - p.ball.y);
+      $("hHole").textContent = D.hole; $("hPar").textContent = `Par ${D.par}`;
+      $("hStroke").textContent = here ? p.strokes : 0;
+      $("hPin").textContent = here && p.done ? "In" : !here ? `${Math.round(Math.hypot(pin.x - D.tee[0], pin.y - D.tee[1]) / YD)} yd` : p.lie === 3 ? `${(d * 3.281).toFixed(0)} ft` : `${Math.round(d / YD)} yd`;
+      $("hLie").textContent = here ? (p.done ? "Holed" : LIE[p.lie]) : "Tee";
+      return;
+    }
     $("hHole").textContent = D.hole; $("hPar").textContent = `Par ${D.par}`;
     document.getElementById("hStroke").textContent = S.strokes;
     const d = toPin();
@@ -1529,6 +1590,12 @@
   }
   function setPrompt() {
     const p = document.getElementById("prompt");
+    if (SPEC) {
+      const w = ON.roster.get(SPEC.id);
+      $("aimL").disabled = true; $("aimR").disabled = true; $("layers").classList.remove("show");
+      p.textContent = ""; p.append(`Watching ${w ? w.name : ""}`); const sm = document.createElement("small"); sm.textContent = "Tap to go back to the scores"; p.appendChild(sm);
+      return;
+    }
     const aimOn = S.phase === "dist";
     document.getElementById("aimL").disabled = !aimOn; document.getElementById("aimR").disabled = !aimOn;
     document.getElementById("layers").classList.toggle("show", S.lie === 3 && !S.done);
@@ -1592,13 +1659,14 @@
   }
   function drawOtherBalls() {
     // balls sharing your spot (everyone on the tee) get no name tag, or up to 7 tags pile up on top of each other
-    const tag = (x, y, name) => Math.hypot(x - S.ball.x, y - S.ball.y) < 3 ? null : name;
+    const tag = (x, y, name) => !SPEC && Math.hypot(x - S.ball.x, y - S.ball.y) < 3 ? null : name;
     players.forEach((p, i) => { if (i !== cur && !p.st.done) drawBall(p.st.ball.x, p.st.ball.y, 0, p.col, tag(p.st.ball.x, p.st.ball.y, p.name)); });
     if (ON.active) for (const p of ON.roster.values()) {   // online: the other phones' balls, replaying their shots
       if (p.id === ON.me.id) continue;
       const g = p.anim && ghostPos(p.anim);
       if (g) drawBall(g.x, g.y, g.h, p.col, p.name);
-      else if (!p.done && p.hole === round.i && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, tag(p.ball.x, p.ball.y, p.name));
+      else if (!p.done && p.hole === viewHole() && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, tag(p.ball.x, p.ball.y, p.name));
+      else if (SPEC && p.id === SPEC.id && !p.order.length) drawBall(D.tee[0], D.tee[1], 0, p.col, p.name);   // watching someone who hasn't teed off yet
     }
   }
   function drawTarget(t, phase) {
@@ -1743,15 +1811,27 @@
       const [ix, iy] = toImg(p.x, p.y); want = { x: ix, y: iy };
     } else want = midTarget();
     let wantZoom = baseZoom;
-    // close-up putting view only once everyone still playing is on the green (no zooming in and out between players)
-    const allOnGreen = players.every(p => p.st.done || p.st.lie === 3);
-    if (S && putting() && allOnGreen && !S.done && !S.anim) {   // frame ball + hole so the gimme rings are readable
-      const [bx, by] = toImg(S.ball.x, S.ball.y), [hx, hy] = toImg(pin.x, pin.y);
-      const span = Math.max(Math.hypot(bx - hx, by - hy), 4 * ppm);
-      wantZoom = Math.min(baseZoom * 9, Math.max(baseZoom * 2.5, 0.42 * Math.min(VW, VH) / span));
-      want = { x: (bx + hx) / 2, y: (by + hy) / 2 };
-    } else if (S && S.anim && S.anim.kind === "roll") wantZoom = zoom;
-    else if (S && S.done && allOnGreen) { wantZoom = zoom; want = { ...cam }; }   // holed out: stay on the green until the next putter (or the scorecard)
+    const spec = SPEC && !SPEC.loading && ON.roster.get(SPEC.id);
+    if (spec) {                                  // watching: follow their ball (the flag once they've holed out)
+      const g = spec.anim ? ghostPos(spec.anim) : null, here = spec.hole === SPEC.hole;
+      const at = g || (!spec.order.length || !here ? { x: D.tee[0], y: D.tee[1] } : !spec.done ? spec.ball : pin);
+      const [ax, ay] = toImg(at.x, at.y); want = { x: ax, y: ay };
+      if (here && spec.lie === 3 && !spec.done) {                 // on the green: frame ball and hole, like your own putts
+        const [hx, hy] = toImg(pin.x, pin.y), span = Math.max(Math.hypot(ax - hx, ay - hy), 4 * ppm);
+        wantZoom = Math.min(baseZoom * 9, Math.max(baseZoom * 2.5, 0.42 * Math.min(VW, VH) / span));
+        want = { x: (ax + hx) / 2, y: (ay + hy) / 2 };
+      }
+    } else {
+      // close-up putting view only once everyone still playing is on the green (no zooming in and out between players)
+      const allOnGreen = players.every(p => p.st.done || p.st.lie === 3);
+      if (S && putting() && allOnGreen && !S.done && !S.anim) {   // frame ball + hole so the gimme rings are readable
+        const [bx, by] = toImg(S.ball.x, S.ball.y), [hx, hy] = toImg(pin.x, pin.y);
+        const span = Math.max(Math.hypot(bx - hx, by - hy), 4 * ppm);
+        wantZoom = Math.min(baseZoom * 9, Math.max(baseZoom * 2.5, 0.42 * Math.min(VW, VH) / span));
+        want = { x: (bx + hx) / 2, y: (by + hy) / 2 };
+      } else if (S && S.anim && S.anim.kind === "roll") wantZoom = zoom;
+      else if (S && S.done && allOnGreen) { wantZoom = zoom; want = { ...cam }; }   // holed out: stay on the green until the next putter (or the scorecard)
+    }
     zoom += (wantZoom - zoom) * Math.min(1, dt * 2.5);
     clampCam(want);
     cam.x += (want.x - cam.x) * Math.min(1, dt * 3); cam.y += (want.y - cam.y) * Math.min(1, dt * 3);
