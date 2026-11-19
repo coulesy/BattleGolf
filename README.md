@@ -73,7 +73,6 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
 | `tools/build_course.sh` | Builds one hole's assets from a file in `data/` |
 | `tools/build_round.sh` | Builds every hole of a course into `game/courses/<course>/` and updates `courses.json` |
-| `tools/course_editor.py`, `tools/editor/` | Local course editor (see below) |
 | `tools/render_hole.py` | The earlier top-down (non-cartoon) renderer |
 | `tools/playtest.py` | Headless Playwright playtest that taps through rounds and screenshots the green |
 
@@ -86,24 +85,6 @@ bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~
 ```
 
 Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.
-
-## Course editor
-
-A local page for adjusting holes on a satellite map, then rebuilding them:
-
-```bash
-python3 tools/course_editor.py
-# open http://localhost:8790
-```
-
-- Pick a course and hole, then drag the **T**ee, **L**ayup and **G**reen markers. The dashed line is the centre line the fairway is built along (it always passes through the layup point), with a rough fairway corridor and green drawn round it.
-- Set par, stroke index and the three yardages. *Use for yellow* copies the length measured along the line.
-- **Save & rebuild** writes `data/<course>-NN.json` and rebuilds that hole into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`. The picture on the right refreshes when it's done, and *Play the game* opens it at `/game/`.
-- The first save of a hole keeps the original data in `build/editor-backups/<hole>.orig.json`; *Restore original* puts it back.
-- The elevation grid is laid along the original tee→green line (the orange box). Moving the tee or green more than about 15 m stretches the hills and green slopes, and the editor warns you.
-- Bunkers, water and trees are still placed by the renderer's rules, so they follow the new line automatically.
-
-Bump `VERSION` in `game/sw.js` before deploying rebuilt holes.
 
 ## Assumptions to check
 
