@@ -297,16 +297,21 @@ function tileCard(t, i, par) {
   let body = "";
   if (t.t === "tee") {
     const def = par === 3 ? OPTS.tee.carry : OPTS.tee.len;
-    body = `<div class="grid2">${field(par === 3 ? "Carry to green (m)" : "Length (m)", num("len", t.len, def, 'min="20" max="260"'))}${field("Tee", sel("elev", OPTS.tee_elev, t.elev || "level"))}</div>`;
+    body = `<div class="grid3">${field(par === 3 ? "Carry to green (m)" : "Length (m)", num("len", t.len, def, 'min="20" max="260"'))}${field("Tee", sel("elev", OPTS.tee_elev, t.elev || "level"))}${field("Turn (°)", num("turn", t.turn, 0, TURN))}</div>`;
   } else if (t.t === "fairway") {
-    body = `<div class="grid3">${field("Length", sel("size", OPTS.sizes, t.size || "medium"))}${field("or metres", num("len", t.len, OPTS.fairway_len[t.size || "medium"], 'min="60" max="320"'))}${field("Bend", sel("bend", OPTS.bends, t.bend || "straight"))}</div>
-      <div class="grid3" style="margin-top:6px">${field("Width", sel("width", OPTS.widths, t.width || "normal"))}${field("Slope", sel("slope", OPTS.slopes, t.slope || "flat"))}${field("Gap (rough)", sel("gap", ["none", "0.3-0.55", "0.45-0.7", "0.6-0.85"], t.gap ? t.gap.join("-") : "none"))}</div>`;
+    body = `<div class="grid3">${field("Length", sel("size", OPTS.sizes, t.size || "medium"))}${field("or metres", num("len", t.len, OPTS.fairway_len[t.size || "medium"], 'min="60" max="320"'))}${field("Bend", sel("bend", "turn" in t ? ["custom", ...OPTS.bends] : OPTS.bends, "turn" in t ? "custom" : t.bend || "straight"))}</div>
+      <div class="grid3" style="margin-top:6px">${field("Width", sel("width", OPTS.widths, t.width || "normal"))}${field("Slope", sel("slope", OPTS.slopes, t.slope || "flat"))}${field("Gap (rough)", sel("gap", ["none", "0.3-0.55", "0.45-0.7", "0.6-0.85"], t.gap ? t.gap.join("-") : "none"))}</div>
+      <div class="grid3" style="margin-top:6px">${field("Turn (°)", num("turn", t.turn, bendTurn(t.bend), TURN))}${"turn" in t ? `<label style="grid-column:span 2">Where it turns <input type="range" data-k="corner" min="0.1" max="0.95" step="0.05" value="${t.corner ?? 0.7}"></label>` : `<p class="dim" style="grid-column:span 2;margin:16px 0 0">Type a turn for an exact angle instead of the bend</p>`}</div>`;
   } else {
     body = `<div class="grid3">${field("Approach (m)", num("len", t.len, 40, 'min="10" max="120"'))}${field("Shape", sel("shape", OPTS.green_shapes, t.shape || "oval"))}${field("Slope", sel("slope", OPTS.green_slopes, t.slope || "back_to_front"))}</div>
-      <div class="grid2" style="margin-top:6px">${field("Height", sel("elev", OPTS.green_elev, t.elev || "level"))}${field("Turned (°)", num("angle", t.angle, 0, 'min="-90" max="90" step="5"'))}</div>`;
+      <div class="grid2" style="margin-top:6px">${field("Height", sel("elev", OPTS.green_elev, t.elev || "level"))}${field("Green rotated (°)", num("angle", t.angle, 0, 'min="-90" max="90" step="5"'))}</div>
+      <div class="grid3" style="margin-top:6px">${field("Approach turn (°)", num("turn", t.turn, 0, TURN))}</div>`;
   }
   return `<div class="card" data-tile="${i}"><div class="head"><span class="dot" style="background:${col}"></span><span class="grow">${label}</span></div>${body}</div>`;
 }
+// the line through each tile turns by "turn" degrees (+ right, - left); on a fairway an exact turn replaces the bend
+const TURN = 'min="-90" max="90" step="1"';
+const bendTurn = b => ({ left: -25, right: 25, hard_left: -45, hard_right: 45 })[b] ?? (b && b.startsWith("s_") ? "S" : 0);
 // values the composer uses when an option is left out, so the recipe stays short
 const TILE_DEFAULTS = { tee: { elev: "level" }, fairway: { size: "medium", bend: "straight", width: "normal", slope: "flat" }, green: { shape: "oval", slope: "back_to_front", elev: "level" } };
 
@@ -342,6 +347,17 @@ function renderForm() {
 $("tiles").addEventListener("change", e => {
   const el = e.target, card = el.closest("[data-tile]"); if (!card) return;
   const t = hole().tiles[Number(card.dataset.tile)], k = el.dataset.k, v = el.value;
+  if (k === "bend") {                         // a named bend replaces an exact turn
+    if (v === "custom") return;
+    delete t.turn; delete t.corner; if (v === "straight") delete t.bend; else t.bend = v;
+    renderForm(); return changed();
+  }
+  if (k === "turn" || k === "corner") {
+    if (v === "") { delete t[k]; if (k === "turn") delete t.corner; } else t[k] = Number(v);
+    if (k === "turn" && t.t === "fairway" && v !== "") delete t.bend;
+    if (k === "turn" && t.t === "fairway") renderForm();
+    return changed();
+  }
   if (k === "gap") { if (v === "none") delete t.gap; else t.gap = v.split("-").map(Number); }
   else if (el.type === "number") { if (v === "") delete t[k]; else t[k] = Number(v); }
   else if (TILE_DEFAULTS[t.t][k] === v) delete t[k];
@@ -367,6 +383,7 @@ $("mods").addEventListener("change", e => {
   else m[k] = el.value;
   changed();
 });
+$("tiles").addEventListener("input", e => { if (e.target.type === "range") e.target.dispatchEvent(new Event("change", { bubbles: true })); });
 $("mods").addEventListener("input", e => { if (e.target.type === "range") e.target.dispatchEvent(new Event("change", { bubbles: true })); });
 $("mods").addEventListener("click", e => {
   const b = e.target.closest("[data-del]"); if (!b) return;

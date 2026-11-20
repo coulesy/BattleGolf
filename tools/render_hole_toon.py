@@ -830,7 +830,7 @@ for kind, p in props:
         for a in (-0.6, -0.2, 0.25, 0.6):
             cv.line([x + a * r * 0.4, y, x + a * r * 1.2, y - r * (1.1 - abs(a) * 0.5)], fill=(50, 110, 40, 255), width=w)
 
-# ---------------- flag, tee markers, yardages ----------------
+# ---------------- flag and tee markers (no yardage markers on the fairway) ----------------
 fx, fy = to_screen(G); ps = 1 / mpp
 NOFLAG = os.environ.get("GAME") == "1"     # the game draws its own flag on top
 if NOFLAG: fx = fy = -1e6
@@ -851,15 +851,6 @@ try:
     font = fb(int(13 * U))
 except OSError:
     fb = lambda n: ImageFont.load_default(); font = fb(0)
-def at_yards(yd):
-    j = np.argmin(np.abs(np.linalg.norm(curve - G, axis=1) - yd * 0.9144) + (arc > total - 20) * 1e9)
-    return curve[j]
-for yd, colr in ((100, (245, 245, 245)), (150, (245, 205, 40)), (200, (40, 140, 230))):
-    if yd * 0.9144 < D - 10:
-        x, y = to_screen(at_yards(yd)); r = 5 * U
-        cv.ellipse([x - r, y - r * 0.8, x + r, y + r * 0.8], fill=colr + (255,), outline=INK, width=int(U) + 1)
-        cv.text((x + 9 * U, y), str(yd), font=font, anchor="lm", fill=(255, 255, 255), stroke_width=int(3 * U), stroke_fill=tuple(PAL["label"]))
-
 img_out = base.resize((CW // SS, CH // SS), Image.LANCZOS)
 d = ImageDraw.Draw(img_out, "RGBA")
 if os.environ.get("GAME") == "1" or DETAIL:
