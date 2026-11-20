@@ -98,6 +98,8 @@
   .card .wide { width: 100%; }
   .card .err { color: #b3261e; font-weight: 700; min-height: 1.2em; font-size: 14px; }
   .card .hint { font-size: 13px; color: #4b7a32; }
+  .card .credit { font-size: 11px; text-align: center; margin: 14px 0 0; opacity: .8; }
+  .card .credit a { color: inherit; }
   .codebig { font-size: 40px; font-weight: 900; letter-spacing: .18em; margin: 6px 0 2px; color: #23461a; }
   .board { position: fixed; left: 10px; top: 74px; display: none; background: rgba(32,64,26,.88); border: 2px solid #9fd06e; border-radius: 14px; padding: 6px 10px; min-width: 150px; max-width: 46vw; box-shadow: 0 3px 0 rgba(0,0,0,.25); font-size: 13px; pointer-events: auto; }
   .board.show { display: block; }
@@ -252,6 +254,7 @@
     <div class="row"><input id="onCode" maxlength="5" placeholder="CODE" aria-label="Match code" autocapitalize="characters" autocomplete="off"><button class="small" id="onJoin">Join</button></div>
     <p class="err" id="onMsg"></p>
   </div>
+  <p class="hint credit">Music: “Mischief” by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
 </div></div>
 <div class="modal" id="lobby"><div class="card">
   <h2>Match ready</h2>
@@ -322,9 +325,9 @@
 
   // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
   // ---------- sound ----------
-  // Effects are synthesised with Web Audio, so there are no files to download for them. The one file is the
-  // background music, "Bit Forest ambient" by bertsz (CC0, via OpenGameArt / Uncommon Ear), looped quietly
-  // under everything. The context is created on the first tap (phones only allow audio after a gesture).
+  // Effects are synthesised with Web Audio, so there are no files to download for them. The files are the
+  // background music: "Mischief" by Kevin MacLeod (incompetech.com, CC BY 4.0, credited on the menu card),
+  // looped quietly on the menu and the course alike. The context is created on the first tap (phones only allow audio after a gesture).
   // The speaker button mutes effects and music together, and the choice is remembered.
   // Every sound takes an optional volume (other players' shots play quieter: GHOST_VOL).
   const GHOST_VOL = 0.45;
@@ -344,17 +347,19 @@
       if (ac.state === "suspended" && !document.hidden) ac.resume();
       return ac;
     }
-    // background music: fetched and decoded once, then looped forever on its own quiet gain (fades in)
-    const MUSIC_VOL = 0.32;
+    // background music: "Mischief", fetched and decoded once, then looped forever on its own quiet gain (fades in)
+    const MUSIC_URL = "audio/mischief.mp3", MUSIC_VOL = 0.3;
+    let musicStarted = false;
     function music(a) {
-      fetch("audio/bit-forest.mp3").then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+      if (musicStarted) return; musicStarted = true;
+      fetch(MUSIC_URL).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
         .then(buf => new Promise((ok, no) => a.decodeAudioData(buf, ok, no)))
-        .then(decoded => {
-          const src = a.createBufferSource(), g = a.createGain();
-          src.buffer = decoded; src.loop = true;
-          g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(MUSIC_VOL, a.currentTime + 3);
-          src.connect(g); g.connect(a.destination); src.start();
-        }).catch(() => {});   // no music (offline before it was cached, old browser): the game plays on silently
+        .then(buffer => {
+          const src = a.createBufferSource(), g = a.createGain(), t = a.currentTime;
+          src.buffer = buffer; src.loop = true;
+          g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(MUSIC_VOL, t + 0.6);
+          src.connect(g); g.connect(a.destination); src.start(t);
+        }).catch(() => { musicStarted = false; });   // no music (offline before it was cached, old browser): play on silently
     }
     // a backgrounded tab or a locked phone goes quiet; coming back picks the music up where it left off
     document.addEventListener("visibilitychange", () => {
@@ -438,7 +443,11 @@
     b.addEventListener("pointerdown", e => e.stopPropagation());
     b.addEventListener("click", e => { e.stopPropagation(); SFX.on = !SFX.on; show(); });
     show();
-    addEventListener("pointerdown", () => SFX.unlock(), { once: true, capture: true });
+    // Start the audio straight away: where the browser allows it (e.g. a site you've played before, the installed
+    // app) the menu music begins on load; elsewhere it sits ready, decoded, and starts on the first tap or key.
+    // iPhones only count a finished tap (touchend / click) as permission, not a pointerdown, so listen for all.
+    SFX.unlock();
+    for (const ev of ["pointerdown", "touchend", "click", "keydown"]) addEventListener(ev, () => SFX.unlock(), { capture: true, passive: true });
   }
 
   // Everything below that depends on the hole is reassigned by useHole(), so the rest of the game just reads it.
