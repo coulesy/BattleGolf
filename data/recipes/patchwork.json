@@ -1,0 +1,57 @@
+{
+ "id": "patchwork",
+ "name": "Patchwork Park",
+ "theme": "classic",
+ "holes": [
+  {"tiles": [{"t": "tee"}, {"t": "fairway", "len": 220, "width": "wide"}, {"t": "green", "shape": "oval", "slope": "back_to_front"}],
+   "modules": [{"m": "bunker", "at": "fairway.right", "pos": 0.75},
+               {"m": "bunker", "at": "green.front_left"}, {"m": "bunker", "at": "green.right", "size": "small"},
+               {"m": "treeline", "at": "fairway.left"}, {"m": "treeline", "at": "fairway.right", "from": 0.2}]},
+
+  {"tiles": [{"t": "tee", "len": 140, "elev": "elevated"}, {"t": "green", "shape": "kidney", "slope": "right_to_left"}],
+   "modules": [{"m": "lake", "at": "tee.cross", "pos": 0.55},
+               {"m": "bunker", "at": "green.back", "count": 2}, {"m": "copse", "at": "green.back"}]},
+
+  {"tiles": [{"t": "tee", "elev": "raised"}, {"t": "fairway", "bend": "left", "len": 215, "slope": "downhill"}, {"t": "green", "shape": "long", "slope": "two_tier"}],
+   "modules": [{"m": "stream", "at": "fairway.cross", "pos": 0.92, "angle": 20},
+               {"m": "bunker", "at": "fairway.right", "pos": 0.6, "count": 2},
+               {"m": "treeline", "at": "fairway.left", "tight": true},
+               {"m": "tree", "at": "fairway.left", "pos": 0.7},
+               {"m": "bunker", "at": "green.front_right"}]},
+
+  {"tiles": [{"t": "tee"}, {"t": "fairway", "bend": "s_right", "len": 210}, {"t": "fairway", "len": 190, "width": "narrow", "slope": "uphill"}, {"t": "green", "shape": "round", "slope": "crown", "elev": "raised"}],
+   "modules": [{"m": "lake", "at": "fairway1.left", "pos": 0.6, "bite": true},
+               {"m": "bunker", "at": "fairway2.cross", "pos": 0.35},
+               {"m": "bunker", "at": "green.left"}, {"m": "bunker", "at": "green.right"},
+               {"m": "treeline", "at": "fairway2.right"}, {"m": "props", "at": "fairway1.right", "kind": "rock"}]},
+
+  {"tiles": [{"t": "tee"}, {"t": "fairway", "len": 175, "size": "short"}, {"t": "green", "shape": "wide", "slope": "front_to_back"}],
+   "modules": [{"m": "bunker", "at": "fairway.centre", "pos": 0.85},
+               {"m": "lake", "at": "green.front", "offset": -8},
+               {"m": "bunker", "at": "green.back_right"},
+               {"m": "copse", "at": "fairway.right", "pos": 0.4}, {"m": "copse", "at": "fairway.left", "pos": 0.7}]},
+
+  {"tiles": [{"t": "tee", "len": 125}, {"t": "green", "shape": "round", "slope": "bowl"}],
+   "modules": [{"m": "lake", "at": "green.island"}, {"m": "props", "at": "tee.left", "kind": "bush", "count": 4}]},
+
+  {"tiles": [{"t": "tee"}, {"t": "fairway", "bend": "hard_right", "len": 225, "slope": "ridge"}, {"t": "green", "shape": "kidney", "slope": "left_to_right", "angle": 25}],
+   "modules": [{"m": "copse", "at": "fairway.right", "pos": 0.75, "size": "large"},
+               {"m": "bunker", "at": "fairway.left", "pos": 0.85},
+               {"m": "stream", "at": "green.right"},
+               {"m": "bunker", "at": "green.front_left", "count": 2},
+               {"m": "treeline", "at": "fairway.left", "from": 0.0, "to": 0.6}]},
+
+  {"tiles": [{"t": "tee"}, {"t": "fairway", "len": 230, "gap": [0.35, 0.52]}, {"t": "fairway", "bend": "left", "len": 200, "slope": "valley"}, {"t": "green", "shape": "long", "slope": "back_to_front"}],
+   "modules": [{"m": "stream", "at": "fairway1.cross", "pos": 0.43},
+               {"m": "stream", "at": "fairway2.right"},
+               {"m": "bunker", "at": "fairway2.left", "pos": 0.5},
+               {"m": "bunker", "at": "green.front", "size": "large"}, {"m": "bunker", "at": "green.back_left", "size": "small"},
+               {"m": "treeline", "at": "fairway1.left"}, {"m": "tree", "at": "fairway2.right", "pos": 0.85, "count": 2}]},
+
+  {"tiles": [{"t": "tee", "elev": "raised"}, {"t": "fairway", "bend": "right", "len": 240, "width": "wide"}, {"t": "green", "shape": "oval", "slope": "two_tier", "elev": "raised"}],
+   "modules": [{"m": "lake", "at": "fairway.right", "pos": 0.55, "size": "large"},
+               {"m": "bunker", "at": "fairway.left", "pos": 0.7},
+               {"m": "bunker", "at": "green.front_left"}, {"m": "bunker", "at": "green.front_right"}, {"m": "bunker", "at": "green.back"},
+               {"m": "treeline", "at": "fairway.left"}, {"m": "props", "at": "fairway.right", "kind": "bush"}]}
+ ]
+}

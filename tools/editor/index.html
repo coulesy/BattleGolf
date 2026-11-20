@@ -4,426 +4,733 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BattleGolf Course Editor</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
-<script src="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.js"></script>
 <style>
   :root { --bg:#14201a; --panel:#1c2b23; --line:#2f4438; --ink:#e8f1ea; --dim:#9fb3a6; --accent:#ffd23f; --ok:#6fdc7a; --bad:#ff6b6b; --warn:#ffb347; }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, -apple-system, sans-serif; height:100vh; display:grid; grid-template-columns:240px 1fr 330px; }
-  aside, section { overflow:auto; }
-  aside { background:var(--panel); border-right:1px solid var(--line); padding:14px; }
-  section.side { background:var(--panel); border-left:1px solid var(--line); padding:14px; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.4 system-ui, -apple-system, sans-serif; height:100vh; display:grid; grid-template-columns:230px 1fr 360px; overflow:hidden; }
+  aside, section.side { overflow:auto; background:var(--panel); padding:14px; }
+  aside { border-right:1px solid var(--line); }
+  section.side { border-left:1px solid var(--line); }
   h1 { font-size:16px; margin:0 0 12px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:18px 0 8px; }
-  select, input { width:100%; background:#0f1813; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--dim); margin:18px 0 8px; display:flex; align-items:center; gap:8px; }
+  h2 .grow { flex:1; }
+  select, input { width:100%; background:#0f1813; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 7px; font:inherit; font-size:13px; }
+  input[type=checkbox] { width:auto; }
+  input[type=range] { padding:0; }
+  label { display:block; font-size:11.5px; color:var(--dim); }
+  label > input, label > select { margin-top:2px; }
   .holes { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
   .holes button { background:#0f1813; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 0; cursor:pointer; font:inherit; position:relative; }
   .holes button small { display:block; color:var(--dim); font-size:11px; }
   .holes button.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
-  .holes button.edited::after { content:""; position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%; background:var(--accent); }
-  .holes button.unbuilt { opacity:.55; }
+  .holes button.unbuilt { opacity:.6; }
   .holes button.busy::before { content:"⟳"; position:absolute; top:1px; left:4px; font-size:11px; color:var(--warn); }
-  #map { height:100vh; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  label { display:block; font-size:12px; color:var(--dim); }
-  label input { margin-top:3px; }
-  .measure { background:#0f1813; border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin-top:8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-  .btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
-  button.b { background:#2a3d32; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:7px 10px; cursor:pointer; font:inherit; }
+  .row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  button.b { background:#2a3d32; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 10px; cursor:pointer; font:inherit; font-size:13px; }
   button.b.primary { background:var(--accent); color:#1a1a1a; border-color:var(--accent); font-weight:600; }
+  button.b.small { padding:3px 8px; font-size:12px; }
   button.b:disabled { opacity:.45; cursor:default; }
-  button.link { background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font:inherit; text-decoration:underline; }
+  button.x { background:none; border:none; color:var(--dim); cursor:pointer; font-size:15px; padding:0 2px; }
+  button.x:hover { color:var(--bad); }
+  .seg { display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .seg button { flex:1; background:#0f1813; color:var(--ink); border:none; padding:6px 0; cursor:pointer; font:inherit; font-size:13px; }
+  .seg button + button { border-left:1px solid var(--line); }
+  .seg button.on { background:var(--accent); color:#1a1a1a; font-weight:600; }
+  .card { background:#0f1813; border:1px solid var(--line); border-radius:8px; padding:8px 9px; margin-top:7px; }
+  .card .head { display:flex; align-items:center; gap:6px; margin-bottom:6px; font-weight:600; font-size:13px; }
+  .card .head .grow { flex:1; }
+  .card .dot { width:10px; height:10px; border-radius:3px; display:inline-block; flex:none; }
+  .card.mod .head select { width:auto; flex:1; font-weight:600; }
   .msg { margin-top:10px; font-size:13px; min-height:18px; }
   .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); } .msg.warn { color:var(--warn); }
-  .warn-box { background:rgba(255,179,71,.12); border:1px solid rgba(255,179,71,.5); color:var(--warn); border-radius:6px; padding:8px 10px; font-size:12.5px; margin-top:10px; }
-  img.preview { width:100%; border-radius:6px; border:1px solid var(--line); display:block; background:#0f1813; min-height:60px; }
-  pre.log { background:#0b120e; border:1px solid var(--line); border-radius:6px; padding:8px; font-size:11px; max-height:180px; overflow:auto; white-space:pre-wrap; color:var(--dim); }
-  .legend { font-size:12px; color:var(--dim); margin-top:8px; }
-  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
-  .pt { width:26px; height:26px; border-radius:50%; border:2px solid #fff; display:grid; place-items:center; font-weight:700; font-size:12px; color:#111; box-shadow:0 1px 4px rgba(0,0,0,.6); }
+  .warn-box { background:rgba(255,179,71,.12); border:1px solid rgba(255,179,71,.5); color:var(--warn); border-radius:6px; padding:6px 9px; font-size:12.5px; margin-top:6px; }
+  .err-box { background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.5); color:var(--bad); border-radius:6px; padding:6px 9px; font-size:12.5px; margin-top:6px; }
+  img.preview { width:100%; border-radius:6px; border:1px solid var(--line); display:block; background:#0f1813; min-height:40px; }
+  pre.log { background:#0b120e; border:1px solid var(--line); border-radius:6px; padding:8px; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; color:var(--dim); }
   .dim { color:var(--dim); font-size:12px; }
   a { color:var(--accent); }
-  .tools { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px; }
-  .tools button { background:#0f1813; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:6px 4px; cursor:pointer; font:inherit; font-size:12.5px; display:flex; align-items:center; gap:6px; justify-content:center; }
-  .tools button i { width:10px; height:10px; border-radius:3px; display:inline-block; flex:none; }
-  .tools button.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; color:var(--accent); }
-  label.check { display:flex; gap:8px; align-items:center; margin-top:10px; color:var(--ink); font-size:13px; }
-  label.check input { width:auto; margin:0; }
-  @media (max-width: 1100px) {
-    body { grid-template-columns:170px 1fr 260px; font-size:13px; }
-    aside, section.side { padding:10px; }
-    .holes { grid-template-columns:repeat(2,1fr); }
-    .grid2 { grid-template-columns:1fr; }
-  }
+  main { position:relative; overflow:hidden; background:#3d5a27; }
+  #plan { width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
+  #plan.placing { cursor:crosshair; }
+  #plan text { user-select:none; -webkit-user-select:none; pointer-events:none; }
+  #plan.panning { cursor:grabbing; }
+  .hud { position:absolute; left:12px; top:12px; background:rgba(15,24,19,.85); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:13px; pointer-events:none; }
+  .hud b { font-size:18px; }
+  .tools-top { position:absolute; right:12px; top:12px; display:flex; gap:6px; }
+  .palette { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin-top:6px; max-height:230px; overflow:auto; }
+  .palette button { background:#0f1813; border:1px solid var(--line); border-radius:6px; padding:3px; cursor:pointer; aspect-ratio:1; display:grid; place-items:center; min-width:0; overflow:hidden; }
+  .palette button img { width:100%; height:100%; object-fit:contain; }
+  .palette button.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-top:6px; }
+  .groups .gp { position:relative; background:#0f1813; border:1px solid var(--line); border-radius:6px; padding:3px 3px 2px; cursor:pointer; color:var(--ink); font:inherit; font-size:11.5px; text-align:center; min-width:0; }
+  .groups .gp svg { width:100%; height:54px; display:block; }
+  .groups .gp.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .groups .gp .x { position:absolute; top:0; right:2px; font-size:12px; }
+  #boxSel { fill:rgba(255,210,63,.12); stroke:#ffd23f; stroke-dasharray:3 2; }
+  #empty { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); }
+  #empty[hidden] { display:none; }
+  @media (max-width: 1150px) { body { grid-template-columns:180px 1fr 300px; font-size:13px; } .holes { grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
 <body>
 <aside>
   <h1>⛳ Course editor</h1>
   <select id="course"></select>
-  <div class="holes" id="holes"></div>
-  <p class="legend"><span style="background:var(--accent)"></span>edited · faded = not built · ⟳ building</p>
-  <p class="dim"><a href="/game/" target="_blank">Play the game ↗</a></p>
+  <div class="row"><button class="b small" id="newCourse">New course</button></div>
+  <div id="courseForm" hidden>
+    <h2>Course</h2>
+    <label>Name <input id="cname" maxlength="60"></label>
+    <label style="margin-top:6px">Theme <select id="ctheme"></select></label>
+    <h2>Holes</h2>
+    <div class="holes" id="holes"></div>
+    <div class="row">
+      <button class="b small" id="addHole">Add hole</button>
+      <button class="b small" id="dupHole">Duplicate</button>
+      <button class="b small" id="delHole">Delete</button>
+    </div>
+    <div class="row">
+      <button class="b small" id="moveUp">◀ Move</button>
+      <button class="b small" id="moveDown">Move ▶</button>
+    </div>
+    <p class="dim">faded = not built yet · ⟳ building</p>
+    <div class="row"><button class="b small" id="buildAll">Save &amp; build every hole</button></div>
+  </div>
+  <p class="dim" style="margin-top:14px"><a href="/game/" target="_blank">Play the game ↗</a></p>
 </aside>
-<div id="map"></div>
-<section class="side">
-  <h1 id="title">Pick a hole</h1>
-  <div id="form" hidden>
-    <p class="dim">Drag the <b>T</b>ee, <b>L</b>ayup and <b>G</b>reen markers. The dashed line is the centre line the fairway is built along; it always passes through the layup point.</p>
-    <div class="grid2">
-      <label>Par <input id="par" type="number" min="3" max="6"></label>
-      <label>Stroke index <input id="si" type="number" min="1" max="18"></label>
-      <label>Yellow yds <input id="yards_yellow" type="number"></label>
-      <label>White yds <input id="yards_white" type="number"></label>
-      <label>Red yds <input id="yards_red" type="number"></label>
-    </div>
-    <div class="measure"><span>Measured along line: <b id="measured">–</b></span><button class="link" id="useMeasured">use for yellow</button></div>
-    <div id="warnings"></div>
 
-    <h2>Features</h2>
-    <div id="autoMode">
-      <p class="dim">The fairway, bunkers, water and treeline are placed automatically by rules, not read from the photo. Draw your own to replace them.</p>
-      <div class="btns" style="margin-top:4px">
-        <button class="b" id="startAuto">Start from automatic layout</button>
-        <button class="b" id="startEmpty">Start empty</button>
-      </div>
+<main>
+  <svg id="plan" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div class="hud" id="hud" hidden></div>
+  <div class="tools-top"><button class="b small" id="fit">Fit</button></div>
+  <div id="empty">Pick a course on the left.</div>
+</main>
+
+<section class="side">
+  <h1 id="title">–</h1>
+  <div id="form" hidden>
+    <h2>Par</h2>
+    <div class="seg" id="parSeg"><button data-par="3">Par 3</button><button data-par="4">Par 4</button><button data-par="5">Par 5</button></div>
+    <div id="tiles"></div>
+
+    <h2><span class="grow">Features</span>
+      <select id="addMod" style="width:auto"></select></h2>
+    <div id="mods"></div>
+
+    <h2><span class="grow">Props</span><button class="b small" id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button><button class="b small" id="clearProps">Clear all</button></h2>
+    <p class="dim">Pick a picture or a group, then click the plan to place it (keep clicking for more; <b>Esc</b> stops). Click a prop to select it (a grouped prop selects its whole group); <b>Shift</b>-click or <b>Shift</b>-drag a box to select several. Drag to move. <b>Right-click</b> a prop or press <b>Delete</b> to remove it.</p>
+    <select id="propSet"></select>
+    <div class="palette" id="palette"></div>
+    <div class="dim" style="margin-top:10px">Groups: click one, then click the plan to drop the whole set</div>
+    <div class="groups" id="groupPal"></div>
+    <div class="card" id="propSel" hidden>
+      <div class="head"><span class="grow" id="propName"></span><span class="dim" id="propSize"></span></div>
+      <div class="dim" id="propLie"></div>
+      <div class="row" style="align-items:center"><span class="dim">Size</span><input type="range" id="propScale" min="0.25" max="4" step="0.05" style="flex:1"></div>
+      <div class="row"><button class="b small" id="propFlip">Flip</button><button class="b small" id="propDup">Duplicate</button><button class="b small" id="propGroup">Group</button><button class="b small" id="propUngroup">Ungroup</button><button class="b small" id="propSaveGroup">Save as group…</button><span style="flex:1"></span><button class="b small" id="propDel">Delete</button></div>
     </div>
-    <div id="mapMode" hidden>
-      <p class="dim">Pick a kind, then click points on the map; click the first point to close a shape. Trees are single clicks. <b>Esc</b> stops drawing.</p>
-      <div class="tools" id="drawTools">
-        <button data-kind="fairway"><i style="background:#8fd64a"></i>Fairway</button>
-        <button data-kind="green"><i style="background:#b2ec66"></i>Green</button>
-        <button data-kind="bunker"><i style="background:#efd486"></i>Bunker</button>
-        <button data-kind="water"><i style="background:#45aee6"></i>Water</button>
-        <button data-kind="wood"><i style="background:#2f6b1c"></i>Woods</button>
-        <button data-kind="tree"><i style="background:#1f5a14;border-radius:50%"></i>Tree</button>
-      </div>
-      <div class="tools" id="editTools">
-        <button data-mode="edit">Reshape</button>
-        <button data-mode="drag">Move</button>
-        <button data-mode="remove">Delete</button>
-      </div>
-      <label class="check"><input type="checkbox" id="autoTrees"> Automatic treeline as well</label>
-      <p class="dim" id="counts"></p>
-      <button class="link" id="dropMap">Go back to automatic features</button>
+    <p class="dim" id="propCount"></p>
+
+    <h2>Hole</h2>
+    <div class="grid2">
+      <label>Stroke index <input id="si" type="number" min="1" max="18" placeholder="auto"></label>
+      <label>Layout <button class="b small" id="reshuffle" style="width:100%;margin-top:2px">Reshuffle</button></label>
     </div>
-    <div class="btns">
-      <button class="b primary" id="saveBuild">Save &amp; rebuild</button>
+    <label style="display:flex;gap:6px;align-items:center;margin-top:8px;color:var(--ink);font-size:13px"><input type="checkbox" id="autoTrees"> Automatic treeline beside the fairway</label>
+
+    <div id="warnings"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="b primary" id="saveBuild">Save &amp; build hole</button>
       <button class="b" id="save">Save</button>
       <button class="b" id="discard">Undo changes</button>
-      <button class="b" id="restore" hidden>Restore original</button>
     </div>
     <div class="msg" id="msg"></div>
 
     <h2>Built hole</h2>
     <img class="preview" id="preview" alt="">
     <p class="dim" id="builtAt"></p>
-    <button class="b" id="rebuild">Rebuild without changes</button>
     <pre class="log" id="log" hidden></pre>
   </div>
 </section>
 
 <script>
 const $ = id => document.getElementById(id);
-const NUMS = ["par", "si", "yards_yellow", "yards_white", "yards_red"];
-const COLORS = { tee: "#7fd6ff", layup: "#ffd23f", green: "#6fdc7a" };
-let courses = [], hole = null, saved = null, markers = {}, pollTimer = null;
-
-const map = L.map("map", { zoomControl: true, maxZoom: 21 });
-L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-  maxZoom: 21, maxNativeZoom: 19, attribution: "Imagery © Esri"
-}).addTo(map);
-map.setView([51.1, -0.2], 15);
-const lineLayer = L.polyline([], { color: "#fff", weight: 2, dashArray: "6 6", pmIgnore: true, interactive: false }).addTo(map);
-const fairLayer = L.polygon([], { color: "#9be37a", weight: 1, fillOpacity: .12, pmIgnore: true, interactive: false }).addTo(map);
-const greenLayer = L.circle([0, 0], { radius: 14, color: "#6fdc7a", weight: 1, fillOpacity: .2, pmIgnore: true, interactive: false }).addTo(map);
-const gridLayer = L.polygon([], { color: "#ffb347", weight: 1, dashArray: "3 5", fill: false, pmIgnore: true, interactive: false }).addTo(map);
-const origLayer = L.polyline([], { color: "#ff6b6b", weight: 1.5, opacity: .7, pmIgnore: true, interactive: false }).addTo(map);
-
-// local metres around the tee, same approximation as the renderer
-function frame(origin) {
-  const kx = Math.cos(origin[0] * Math.PI / 180) * 111320, ky = 110540;
-  return {
-    m: p => [(p[1] - origin[1]) * kx, (p[0] - origin[0]) * ky],
-    ll: m => [origin[0] + m[1] / ky, origin[1] + m[0] / kx],
-  };
-}
-function centreline(t, l, g, n = 80) {
-  const f = frame(t), T = f.m(t), Lp = f.m(l), G = f.m(g);
-  const C = [2 * Lp[0] - (T[0] + G[0]) / 2, 2 * Lp[1] - (T[1] + G[1]) / 2];
-  const pts = [];
-  for (let i = 0; i <= n; i++) {
-    const s = i / n, a = (1 - s) ** 2, b = 2 * s * (1 - s), c = s * s;
-    pts.push([a * T[0] + b * C[0] + c * G[0], a * T[1] + b * C[1] + c * G[1]]);
-  }
-  let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-  return { pts, len, f };
-}
-const dist = (a, b) => { const f = frame(a), p = f.m(b); return Math.hypot(p[0], p[1]); };
-
-function current() {
-  const h = {};
-  for (const k of ["tee", "layup", "green"]) { const ll = markers[k].getLatLng(); h[k] = [ll.lat, ll.lng]; }
-  for (const k of NUMS) h[k] = $(k).value === "" ? null : Number($(k).value);
-  h.map = mapOn ? serializeMap() : null;
-  return h;
-}
-function dirty() {
-  if (!hole) return false;
-  const c = current();
-  return ["tee", "layup", "green"].some(k => dist(c[k], saved[k]) > 0.05) || NUMS.some(k => c[k] !== (saved[k] ?? null))
-    || JSON.stringify(c.map) !== JSON.stringify(normMap(saved.map));
-}
-
-function redraw() {
-  if (!hole) return;
-  const c = current();
-  const { pts, len, f } = centreline(c.tee, c.layup, c.green);
-  lineLayer.setLatLngs(pts.map(f.ll));
-  // rough fairway corridor (~15 m each side, starting 80 m out), just as a guide
-  const left = [], right = [];
-  let run = 0;
-  for (let i = 1; i < pts.length; i++) {
-    run += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-    if (run < 80 || run > len - 10) continue;
-    const dx = pts[i][0] - pts[i - 1][0], dy = pts[i][1] - pts[i - 1][1], d = Math.hypot(dx, dy) || 1;
-    const nx = dy / d * 15, ny = -dx / d * 15;
-    right.push(f.ll([pts[i][0] + nx, pts[i][1] + ny])); left.push(f.ll([pts[i][0] - nx, pts[i][1] - ny]));
-  }
-  const drawnFair = mapOn && c.map.fairway.length;
-  fairLayer.setLatLngs(len > 200 && !drawnFair ? right.concat(left.reverse()) : []);
-  if (mapOn) {
-    const m = c.map, n = (k, one, many) => m[k].length ? `${m[k].length} ${m[k].length === 1 ? one : many}` : null;
-    $("counts").textContent = [n("fairway", "fairway", "fairway pieces"), n("green", "green", "greens"), n("bunker", "bunker", "bunkers"),
-      n("water", "water area", "water areas"), n("wood", "wood", "woods"), n("trees", "tree", "trees")].filter(Boolean).join(" · ") || "Nothing drawn yet: the hole will have no hazards or trees.";
-  }
-  greenLayer.setLatLng(c.green);
-  const yds = Math.round(len / 0.9144);
-  $("measured").textContent = `${yds} yds (${Math.round(len)} m)`;
-  $("useMeasured").dataset.yds = yds;
-
-  const w = [], o = hole.original;
-  const moved = k => dist(c[k], o[k]);
-  if (moved("tee") > 15 || moved("green") > 15)
-    w.push(`The tee or green is more than 15 m from where it was. The elevation data is laid along the original line (orange box), so hills and green slopes will be stretched to fit. Small moves are fine.`);
-  if (c.par && ((c.par === 3 && yds > 260) || (c.par === 4 && (yds < 230 || yds > 500)) || (c.par === 5 && yds < 420)))
-    w.push(`${yds} yds is unusual for a par ${c.par}.`);
-  if (c.yards_yellow && Math.abs(c.yards_yellow - yds) > 25)
-    w.push(`Yellow yardage (${c.yards_yellow}) is ${Math.abs(c.yards_yellow - yds)} yds off the measured line.`);
-  const course = courses.find(x => x.id === hole.course_id);
-  const dup = c.si && course && course.holes.find(x => x.id !== hole.id && x.si === c.si);
-  if (dup) w.push(`Stroke index ${c.si} is also used by hole ${dup.n}.`);
-  $("warnings").innerHTML = w.map(t => `<div class="warn-box">${t}</div>`).join("");
-
-  const d = dirty();
-  $("save").disabled = $("discard").disabled = !d;
-  $("title").textContent = `${course ? course.name : ""} · Hole ${hole.hole}${d ? " •" : ""}`;
-}
-
-function drawGridBox(o) {
-  // elevation grid footprint: tee to 20 m past the green, columns 18 m apart either side (as render_hole_toon.py)
-  const f = frame(o.tee), G = f.m(o.green), D = Math.hypot(G[0], G[1]), total = D + 20;
-  const half = Math.min(Math.max(Math.floor(total / 2 / 18 + 0.5), 1), 12) * 18;
-  const ux = G[0] / D, uy = G[1] / D, nx = uy, ny = -ux;
-  const corner = (s, t) => f.ll([ux * s + nx * t, uy * s + ny * t]);
-  gridLayer.setLatLngs([corner(0, -half), corner(total, -half), corner(total, half), corner(0, half)]);
-  const ol = centreline(o.tee, o.layup, o.green, 40);
-  origLayer.setLatLngs(ol.pts.map(ol.f.ll));
-}
-
-function marker(k, ll) {
-  if (markers[k]) { markers[k].setLatLng(ll); return; }
-  const icon = L.divIcon({ className: "", iconSize: [26, 26], iconAnchor: [13, 13],
-    html: `<div class="pt" style="background:${COLORS[k]}">${k[0].toUpperCase()}</div>` });
-  markers[k] = L.marker(ll, { icon, draggable: true, autoPan: true, pmIgnore: true, zIndexOffset: 1000 }).addTo(map).bindTooltip(k, { direction: "top", offset: [0, -12] });
-  markers[k].on("drag", redraw);
-}
-
-// ---------- drawn features ----------
-const KIND_COLOR = { fairway: "#8fd64a", green: "#b2ec66", bunker: "#efd486", water: "#45aee6", wood: "#2f6b1c", tree: "#1f5a14" };
-const POLY_KINDS = ["fairway", "green", "bunker", "water", "wood"];
-const features = L.featureGroup().addTo(map);
-let mapOn = false, drawKind = null;
-map.pm.setGlobalOptions({ snappable: false });
-const styleFor = k => k === "tree"
-  ? { radius: 6, color: "#0d2a08", weight: 1.5, fillColor: KIND_COLOR.tree, fillOpacity: .95 }
-  : { color: KIND_COLOR[k], weight: 2, fillColor: KIND_COLOR[k], fillOpacity: k === "fairway" ? .28 : k === "wood" ? .45 : .55 };
-const r7 = v => Math.round(v * 1e7) / 1e7;
-function hookShape(l, kind) {
-  l.kind = kind; l.setStyle(styleFor(kind));
-  l.on("pm:edit pm:dragend pm:markerdragend pm:vertexremoved pm:vertexadded", redraw);
-  features.addLayer(l);
-}
-function addShape(kind, pts) {
-  hookShape(kind === "tree" ? L.circleMarker(pts, styleFor(kind)) : L.polygon(pts, styleFor(kind)), kind);
-}
-function serializeMap() {
-  const m = { fairway: [], green: [], bunker: [], water: [], wood: [], trees: [], auto_trees: $("autoTrees").checked };
-  features.eachLayer(l => {
-    if (l.kind === "tree") { const p = l.getLatLng(); m.trees.push([r7(p.lat), r7(p.lng)]); }
-    else { const ring = l.getLatLngs()[0]; if (ring.length >= 3) m[l.kind].push(ring.map(p => [r7(p.lat), r7(p.lng)])); }
-  });
-  return m;
-}
-function normMap(m) {
-  if (!m) return null;
-  const o = {}; for (const k of POLY_KINDS) o[k] = (m[k] || []).map(P => P.map(p => [r7(p[0]), r7(p[1])]));
-  o.trees = (m.trees || []).map(p => [r7(p[0]), r7(p[1])]); o.auto_trees = m.auto_trees !== false; return o;
-}
-function loadMap(m) {
-  stopTools(); features.clearLayers(); mapOn = !!m;
-  if (m) {
-    for (const k of POLY_KINDS) for (const P of m[k] || []) addShape(k, P);
-    for (const p of m.trees || []) addShape("tree", p);
-    $("autoTrees").checked = m.auto_trees !== false;
-  }
-  $("autoMode").hidden = mapOn; $("mapMode").hidden = !mapOn;
-}
-function stopTools() {
-  map.pm.disableDraw(); drawKind = null;
-  if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
-  if (map.pm.globalDragModeEnabled()) map.pm.disableGlobalDragMode();
-  if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
-  document.querySelectorAll(".tools button").forEach(b => b.classList.remove("on"));
-}
-$("drawTools").onclick = e => {
-  const b = e.target.closest("button"); if (!b) return;
-  const k = b.dataset.kind, again = drawKind === k;
-  stopTools(); if (again) return;
-  drawKind = k; b.classList.add("on");
-  if (k === "tree") map.pm.enableDraw("CircleMarker", { pathOptions: styleFor(k), templineStyle: styleFor(k), continueDrawing: true });
-  else map.pm.enableDraw("Polygon", { pathOptions: styleFor(k), templineStyle: { color: KIND_COLOR[k] }, hintlineStyle: { color: KIND_COLOR[k], dashArray: "4 4" } });
-};
-$("editTools").onclick = e => {
-  const b = e.target.closest("button"); if (!b) return;
-  const mode = b.dataset.mode, was = b.classList.contains("on");
-  stopTools(); if (was) return;
-  b.classList.add("on");
-  if (mode === "edit") map.pm.enableGlobalEditMode(); else if (mode === "drag") map.pm.enableGlobalDragMode(); else map.pm.enableGlobalRemovalMode();
-};
-map.on("pm:create", e => {
-  const kind = drawKind || "bunker";
-  map.removeLayer(e.layer);
-  if (kind === "tree") addShape(kind, e.layer.getLatLng());
-  else { addShape(kind, e.layer.getLatLngs()[0]); stopTools(); }
-  redraw();
-});
-map.on("pm:remove", e => { features.removeLayer(e.layer); redraw(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") stopTools(); });
-$("autoTrees").onchange = redraw;
-$("startEmpty").onclick = () => { loadMap({ auto_trees: true }); redraw(); };
-$("startAuto").onclick = async () => {
-  $("startAuto").disabled = true; msg("Working out the automatic layout…", "warn");
-  try { loadMap(await api(`/api/auto/${hole.id}`)); redraw(); msg("Automatic layout loaded. Delete or reshape anything that's wrong, then save.", "ok"); }
-  catch (e) { msg(e.message, "bad"); }
-  $("startAuto").disabled = false;
-};
-$("dropMap").onclick = () => {
-  if (features.getLayers().length && !confirm("Remove the drawn features and go back to automatic ones?")) return;
-  loadMap(null); redraw();
-};
+const SVGNS = "http://www.w3.org/2000/svg";
+let OPTS = null, SETS = {}, PROPS = {}, courses = [], recipe = null, savedJSON = "", curN = 1, pv = null;
+let placeKind = null, view = null, pollTimer = null, pvTimer = null, pvSeq = 0;
 
 async function api(path, body) {
-  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const r = await fetch(path, body !== undefined ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 }
+function msg(t, cls = "") { $("msg").textContent = t; $("msg").className = "msg " + cls; }
+const nice = s => String(s).replace(/_/g, " ");
+const opt = (vals, cur, blank) => (blank !== undefined ? `<option value="">${blank}</option>` : "") +
+  vals.map(v => `<option value="${v}"${String(v) === String(cur ?? "") ? " selected" : ""}>${nice(v)}</option>`).join("");
+const hole = () => recipe && recipe.holes[curN - 1];
+const dirty = () => !!recipe && JSON.stringify(recipe) !== savedJSON;
+const parOf = h => h.tiles.length + 1;
+const tileNames = par => par === 3 ? ["tee", "green"] : par === 4 ? ["tee", "fairway", "green"] : ["tee", "fairway1", "fairway2", "green"];
+const GREEN_ONLY = new Set(["front", "back", "front_left", "front_right", "back_left", "back_right", "island"]);
+const MOD_COLOR = { bunker: "#efd486", lake: "#45aee6", stream: "#45aee6", treeline: "#2f6b1c", copse: "#2f6b1c", tree: "#1f5a14", props: "#9aa39a" };
+const slotsFor = (kind, tile) => OPTS.slots[kind].filter(s => tile === "green" ? !(kind === "bunker" && s === "centre") : !GREEN_ONLY.has(s));
 
+// ---------------- courses and holes ----------------
 async function loadCourses(keep) {
   courses = await api("/api/courses");
   const sel = $("course"), was = keep || sel.value || localStorage.getItem("bgEditCourse");
   sel.innerHTML = courses.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
   if (was && courses.some(c => c.id === was)) sel.value = was;
-  renderHoles();
 }
+async function openCourse(id) {
+  try { localStorage.setItem("bgEditCourse", id); } catch (e) {}
+  recipe = await api(`/api/recipe/${id}`); savedJSON = JSON.stringify(recipe);
+  $("courseForm").hidden = false; $("empty").hidden = true; $("form").hidden = false;
+  $("cname").value = recipe.name; $("ctheme").innerHTML = opt(OPTS.themes, recipe.theme);
+  if (SETS[recipe.theme]) $("propSet").value = recipe.theme; else if (SETS.nature) $("propSet").value = "nature";
+  showPalette();
+  openHole(Math.min(curN, recipe.holes.length) || 1, true);
+}
+$("course").onchange = async () => {
+  if (dirty() && !confirm("Discard unsaved changes to this course?")) { $("course").value = recipe.id; return; }
+  curN = 1; await openCourse($("course").value);
+};
 function renderHoles() {
-  const c = courses.find(x => x.id === $("course").value);
-  if (!c) return;
-  try { localStorage.setItem("bgEditCourse", c.id); } catch (e) {}
-  $("holes").innerHTML = c.holes.map(h => {
-    const busy = h.job && (h.job.state === "running" || h.job.state === "queued");
-    const cls = [hole && hole.id === h.id ? "on" : "", h.edited ? "edited" : "", h.built ? "" : "unbuilt", busy ? "busy" : ""].join(" ");
-    return `<button class="${cls}" data-id="${h.id}">${h.n}<small>par ${h.par} · ${h.yards ?? "?"}</small></button>`;
+  const c = courses.find(x => x.id === recipe.id);
+  $("holes").innerHTML = recipe.holes.map((h, i) => {
+    const st = c && c.holes[i], busy = st && st.job && /queued|running/.test(st.job.state);
+    const yds = i + 1 === curN && pv ? pv.yards : st && st.yards;
+    return `<button class="${i + 1 === curN ? "on" : ""} ${st && st.built ? "" : "unbuilt"} ${busy ? "busy" : ""}" data-n="${i + 1}">${i + 1}<small>par ${parOf(h)} · ${yds ?? "?"}</small></button>`;
   }).join("");
 }
-$("course").onchange = renderHoles;
-$("holes").onclick = e => { const b = e.target.closest("button"); if (b) openHole(b.dataset.id); };
-
-async function openHole(id) {
-  if (dirty() && !confirm("Discard unsaved changes to this hole?")) return;
-  show(await api(`/api/hole/${id}`), true);
+$("holes").onclick = e => { const b = e.target.closest("button"); if (b) openHole(Number(b.dataset.n), true); };
+function openHole(n, fit) {
+  curN = n; undoStack = []; $("undo").disabled = true; selectProps([]); stopPlacing(); pv = null;
+  renderHoles(); renderForm(); touched(); preview(fit); watchBuild();
 }
-function show(h, fit) {
-  hole = h; saved = JSON.parse(JSON.stringify(h));
-  $("form").hidden = false;
-  for (const k of ["tee", "layup", "green"]) marker(k, h[k]);
-  for (const k of NUMS) $(k).value = h[k] ?? "";
-  drawGridBox(h.original);
-  loadMap(h.map || null);
-  if (fit) map.fitBounds(L.latLngBounds([h.tee, h.layup, h.green]).pad(0.25));
-  $("restore").hidden = !h.original || JSON.stringify(pick(h.original)) === JSON.stringify(pick(h));
-  $("preview").src = h.built ? `${h.preview}?t=${h.built_at}` : "";
-  $("builtAt").textContent = h.built ? `Built ${new Date(h.built_at * 1000).toLocaleString()}` : "Not built yet.";
-  msg("");
-  redraw(); renderHoles(); watchBuild(h.job);
+$("cname").oninput = () => { recipe.name = $("cname").value; touched(); };
+$("ctheme").onchange = () => { recipe.theme = $("ctheme").value; if (SETS[recipe.theme]) { $("propSet").value = recipe.theme; showPalette(); } changed(); };
+$("addHole").onclick = () => {
+  if (recipe.holes.length >= 18) return msg("A course has at most 18 holes.", "bad");
+  recipe.holes.push({ tiles: [{ t: "tee" }, { t: "fairway" }, { t: "green" }], modules: [] }); openHole(recipe.holes.length, true);
+};
+$("dupHole").onclick = () => {
+  if (recipe.holes.length >= 18) return msg("A course has at most 18 holes.", "bad");
+  const copy = JSON.parse(JSON.stringify(hole())); copy.seed = ((copy.seed || 0) + 1) % 1000;
+  recipe.holes.splice(curN, 0, copy); openHole(curN + 1, true);
+};
+$("delHole").onclick = () => {
+  if (recipe.holes.length <= 1) return msg("A course needs at least one hole.", "bad");
+  if (!confirm(`Delete hole ${curN}? Later holes move up one (rebuild them afterwards).`)) return;
+  recipe.holes.splice(curN - 1, 1); openHole(Math.min(curN, recipe.holes.length), true);
+};
+function moveHole(d) {
+  const j = curN - 1 + d; if (j < 0 || j >= recipe.holes.length) return;
+  const hs = recipe.holes; [hs[curN - 1], hs[j]] = [hs[j], hs[curN - 1]]; openHole(j + 1, false);
 }
-const pick = o => Object.fromEntries(["tee", "layup", "green", ...NUMS].map(k => [k, o[k]]));
-function msg(t, cls = "") { $("msg").textContent = t; $("msg").className = "msg " + cls; }
+$("moveUp").onclick = () => moveHole(-1); $("moveDown").onclick = () => moveHole(1);
+$("newCourse").onclick = async () => {
+  if (dirty() && !confirm("Discard unsaved changes to this course?")) return;
+  const name = prompt("Course name?"); if (!name) return;
+  const id = prompt("Short id (lower-case letters, numbers, dashes):", name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
+  if (!id) return;
+  try { const r = await api("/api/new", { id, name, theme: recipe ? recipe.theme : "classic" }); await loadCourses(r.id); curN = 1; await openCourse(r.id); msg("Course created with one hole.", "ok"); }
+  catch (e) { alert(e.message); }
+};
 
-for (const k of NUMS) $(k).oninput = redraw;
-$("useMeasured").onclick = () => { $("yards_yellow").value = $("useMeasured").dataset.yds; redraw(); };
-$("discard").onclick = () => show(saved, false);
+// ---------------- the hole form ----------------
+function setPar(par) {
+  const h = hole(), old = parOf(h); if (par === old) return;
+  const fw = h.tiles.filter(t => t.t === "fairway");
+  const tee = h.tiles[0], green = h.tiles[h.tiles.length - 1];
+  if (old === 3 || par === 3) delete tee.len;          // a par 3's tee length is the whole carry
+  while (fw.length < par - 3) fw.push({ t: "fairway" });
+  h.tiles = [tee, ...fw.slice(0, par - 3), green];
+  const names = tileNames(par), dropped = [];
+  h.modules = h.modules.filter(m => {
+    let [t, slot] = (m.at || "").split(".");
+    if (par === 4 && /^fairway[12]$/.test(t)) t = "fairway";
+    if (par === 5 && t === "fairway") t = "fairway1";
+    m.at = `${t}.${slot}`;
+    if (!names.includes(t)) { dropped.push(m.m); return false; }
+    return true;
+  });
+  if (dropped.length) msg(`Removed ${dropped.length} feature(s) that sat on a fairway: ${dropped.join(", ")}.`, "warn");
+  renderForm(); touched(); preview(true);
+}
+$("parSeg").onclick = e => { const b = e.target.closest("button"); if (b) setPar(Number(b.dataset.par)); };
 
-async function save(rebuild) {
+const field = (label, html) => `<label>${label} ${html}</label>`;
+const num = (key, val, ph, attrs = "") => `<input type="number" data-k="${key}" value="${val ?? ""}" placeholder="${ph ?? ""}" ${attrs}>`;
+const sel = (key, vals, cur) => `<select data-k="${key}">${opt(vals, cur)}</select>`;
+const check = (key, on, text) => `<label style="display:flex;gap:6px;align-items:center;margin-top:16px;color:var(--ink)"><input type="checkbox" data-k="${key}" ${on ? "checked" : ""}> ${text}</label>`;
+
+function tileCard(t, i, par) {
+  const nm = tileNames(par)[i];
+  const label = { tee: "Tee", fairway: "Fairway", fairway1: "Fairway 1", fairway2: "Fairway 2", green: "Green" }[nm];
+  const col = { tee: "#7fd6ff", green: "#b2ec66" }[t.t] || "#8fd64a";
+  let body = "";
+  if (t.t === "tee") {
+    const def = par === 3 ? OPTS.tee.carry : OPTS.tee.len;
+    body = `<div class="grid2">${field(par === 3 ? "Carry to green (m)" : "Length (m)", num("len", t.len, def, 'min="20" max="260"'))}${field("Tee", sel("elev", OPTS.tee_elev, t.elev || "level"))}</div>`;
+  } else if (t.t === "fairway") {
+    body = `<div class="grid3">${field("Length", sel("size", OPTS.sizes, t.size || "medium"))}${field("or metres", num("len", t.len, OPTS.fairway_len[t.size || "medium"], 'min="60" max="320"'))}${field("Bend", sel("bend", OPTS.bends, t.bend || "straight"))}</div>
+      <div class="grid3" style="margin-top:6px">${field("Width", sel("width", OPTS.widths, t.width || "normal"))}${field("Slope", sel("slope", OPTS.slopes, t.slope || "flat"))}${field("Gap (rough)", sel("gap", ["none", "0.3-0.55", "0.45-0.7", "0.6-0.85"], t.gap ? t.gap.join("-") : "none"))}</div>`;
+  } else {
+    body = `<div class="grid3">${field("Approach (m)", num("len", t.len, 40, 'min="10" max="120"'))}${field("Shape", sel("shape", OPTS.green_shapes, t.shape || "oval"))}${field("Slope", sel("slope", OPTS.green_slopes, t.slope || "back_to_front"))}</div>
+      <div class="grid2" style="margin-top:6px">${field("Height", sel("elev", OPTS.green_elev, t.elev || "level"))}${field("Turned (°)", num("angle", t.angle, 0, 'min="-90" max="90" step="5"'))}</div>`;
+  }
+  return `<div class="card" data-tile="${i}"><div class="head"><span class="dot" style="background:${col}"></span><span class="grow">${label}</span></div>${body}</div>`;
+}
+// values the composer uses when an option is left out, so the recipe stays short
+const TILE_DEFAULTS = { tee: { elev: "level" }, fairway: { size: "medium", bend: "straight", width: "normal", slope: "flat" }, green: { shape: "oval", slope: "back_to_front", elev: "level" } };
+
+function modCard(m, k, par) {
+  const [tile, slot] = (m.at || "").split(".");
+  const fixed = (m.m === "bunker" && tile === "green" && slot !== "cross") || (m.m === "lake" && (slot === "front" || slot === "island")) ||
+    (m.m === "stream" && slot === "front") || (m.m === "copse" && slot === "back") || m.m === "treeline" || m.m === "props";
+  const pos = fixed ? "" : `<label style="margin-top:6px">Where along the ${nice(tile)} <input type="range" data-k="pos" min="0" max="1" step="0.05" value="${m.pos ?? (tile === "green" ? 0.3 : 0.6)}"></label>`;
+  let extra = "";
+  if (m.m !== "tree") extra += field("Size", sel("size", OPTS.module_sizes, m.size || "medium"));
+  if (["bunker", "tree", "props"].includes(m.m)) extra += field("How many", num("count", m.count, m.m === "props" ? 6 : 1, 'min="1" max="12"'));
+  if (m.m === "stream" && (slot === "cross" || slot === "front")) extra += field("Angle (°)", num("angle", m.angle, 0, 'min="-60" max="60" step="5"'));
+  if (m.m === "lake" && (slot === "left" || slot === "right")) extra += check("bite", m.bite, "Bites the fairway");
+  if (m.m === "lake" && slot === "front") extra += field("Sideways (m)", num("offset", m.offset, 0, 'min="-40" max="40" step="2"'));
+  if (m.m === "treeline") extra += field("From", num("from", m.from, 0, 'min="0" max="1" step="0.1"')) + field("To", num("to", m.to, 1, 'min="0" max="1" step="0.1"')) + check("tight", m.tight, "Tight");
+  if (m.m === "tree") extra += field("Off the edge (m)", num("offset", m.offset, 4, 'min="0" max="30"'));
+  if (m.m === "props") extra += field("Kind", sel("kind", ["rock", "bush"], m.kind || "rock"));
+  return `<div class="card mod" data-mod="${k}">
+    <div class="head"><span class="dot" style="background:${MOD_COLOR[m.m]}"></span>
+      <select data-k="m">${opt(Object.keys(OPTS.slots), m.m)}</select><button class="x" data-del="${k}" title="Remove">✕</button></div>
+    <div class="grid2">${field("On", sel("tile", tileNames(par), tile))}${field("Spot", sel("slot", slotsFor(m.m, tile), slot))}</div>
+    ${pos}<div class="grid3" style="margin-top:6px">${extra}</div></div>`;
+}
+
+function renderForm() {
+  const h = hole(), par = parOf(h);
+  document.querySelectorAll("#parSeg button").forEach(b => b.classList.toggle("on", Number(b.dataset.par) === par));
+  $("tiles").innerHTML = h.tiles.map((t, i) => tileCard(t, i, par)).join("");
+  $("mods").innerHTML = h.modules.length ? h.modules.map((m, k) => modCard(m, k, par)).join("") : `<p class="dim">No bunkers, water or trees yet: add some with “+ add…”.</p>`;
+  $("addMod").innerHTML = `<option value="">+ add…</option>` + Object.keys(OPTS.slots).map(k => `<option value="${k}">${nice(k)}</option>`).join("");
+  $("si").value = h.si ?? ""; $("autoTrees").checked = !!h.auto_trees;
+}
+$("tiles").addEventListener("change", e => {
+  const el = e.target, card = el.closest("[data-tile]"); if (!card) return;
+  const t = hole().tiles[Number(card.dataset.tile)], k = el.dataset.k, v = el.value;
+  if (k === "gap") { if (v === "none") delete t.gap; else t.gap = v.split("-").map(Number); }
+  else if (el.type === "number") { if (v === "") delete t[k]; else t[k] = Number(v); }
+  else if (TILE_DEFAULTS[t.t][k] === v) delete t[k];
+  else t[k] = v;
+  if (k === "size") { delete t.len; const L = card.querySelector('[data-k="len"]'); L.value = ""; L.placeholder = OPTS.fairway_len[v]; }
+  changed();
+});
+$("mods").addEventListener("change", e => {
+  const el = e.target, card = el.closest("[data-mod]"); if (!card) return;
+  const m = hole().modules[Number(card.dataset.mod)], k = el.dataset.k;
+  let [tile, slot] = (m.at || "").split(".");
+  if (k === "m" || k === "tile" || k === "slot") {
+    if (k === "m") { const at = m.at; Object.keys(m).forEach(x => delete m[x]); m.m = el.value; m.at = at; }
+    if (k === "tile") { tile = el.value; delete m.pos; }
+    if (k === "slot") slot = el.value;
+    const ok = slotsFor(m.m, tile);
+    if (!ok.includes(slot)) slot = ok.includes("left") ? "left" : ok[0];
+    m.at = `${tile}.${slot}`; renderForm(); return changed();
+  }
+  if (el.type === "checkbox") { if (el.checked) m[k] = true; else delete m[k]; }
+  else if (el.type === "number" || el.type === "range") { if (el.value === "") delete m[k]; else m[k] = Number(el.value); }
+  else if ((k === "size" && el.value === "medium") || (k === "kind" && el.value === "rock")) delete m[k];
+  else m[k] = el.value;
+  changed();
+});
+$("mods").addEventListener("input", e => { if (e.target.type === "range") e.target.dispatchEvent(new Event("change", { bubbles: true })); });
+$("mods").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  hole().modules.splice(Number(b.dataset.del), 1); renderForm(); changed();
+});
+$("addMod").onchange = () => {
+  const kind = $("addMod").value; $("addMod").value = ""; if (!kind) return;
+  const h = hole(), names = tileNames(parOf(h)), green = names[names.length - 1];
+  const tile = kind === "copse" || parOf(h) === 3 ? (kind === "treeline" || kind === "props" ? "tee" : green) : names[1];
+  const slot = { bunker: tile === "green" ? "front_left" : "right", lake: tile === "green" ? "front" : "left", stream: "cross", treeline: "left", copse: "back", tree: "left", props: "left" }[kind];
+  h.modules.push({ m: kind, at: `${tile}.${slot}` }); renderForm(); changed();
+};
+$("si").oninput = () => { const v = $("si").value; if (v === "") delete hole().si; else hole().si = Number(v); touched(); };
+$("autoTrees").onchange = () => { if ($("autoTrees").checked) hole().auto_trees = true; else delete hole().auto_trees; touched(); };
+$("reshuffle").onclick = () => { const h = hole(); h.seed = ((h.seed || 0) + 1) % 1000; changed(); msg("Reshuffled: new bunker shapes, edges, green rolls and heading.", "ok"); };
+
+function touched() {
+  const d = dirty();
+  $("save").disabled = $("discard").disabled = !d;
+  $("title").textContent = `${recipe.name} · Hole ${curN}${d ? " •" : ""}`;
+}
+function changed() { touched(); schedulePreview(); }
+$("discard").onclick = async () => { if (confirm("Throw away every unsaved change to this course?")) await openCourse(recipe.id); };
+
+// ---------------- preview and plan view ----------------
+function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(() => preview(false), 120); }
+async function preview(fit) {
+  const seq = ++pvSeq;
   try {
-    const h = await api(`/api/hole/${hole.id}`, { ...current(), rebuild });
-    show(h, false); await loadCourses();
-    msg(rebuild ? "Saved. Rebuilding (about 3 minutes)…" : "Saved. Rebuild to see it in the game.", "ok");
-  } catch (e) { msg(e.message, "bad"); }
+    const p = await api("/api/preview", { course: { id: recipe.id, theme: recipe.theme }, n: curN, hole: hole() });
+    if (seq !== pvSeq) return;
+    pv = p; $("hud").hidden = false;
+    $("hud").innerHTML = `Hole ${curN} · <b>par ${p.par}</b> · ${p.yards} yds <span class="dim">(${Math.round(p.metres)} m)</span>`;
+    $("warnings").innerHTML = p.warnings.map(t => `<div class="warn-box">${t}</div>`).join("");
+    draw(fit); renderHoles();
+  } catch (e) {
+    if (seq !== pvSeq) return;
+    $("warnings").innerHTML = `<div class="err-box">${e.message}</div>`;
+  }
 }
-$("save").onclick = () => save(false);
-$("saveBuild").onclick = () => save(true);
-$("rebuild").onclick = async () => {
-  try { const r = await api(`/api/build/${hole.id}`, {}); watchBuild(r.job); msg("Rebuilding (about 3 minutes)…", "ok"); }
-  catch (e) { msg(e.message, "bad"); }
-};
-$("restore").onclick = async () => {
-  if (!confirm("Put this hole's data back to how it was before the first edit? (You'll still need to rebuild.)")) return;
-  try { show(await api(`/api/restore/${hole.id}`, {}), false); await loadCourses(); msg("Restored. Rebuild to update the game.", "ok"); }
-  catch (e) { msg(e.message, "bad"); }
-};
+const svg = $("plan");
+function el(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || svg).appendChild(e); return e; }
+const P = pts => pts.map(([x, y]) => `${x},${-y}`).join(" ");
+function fitView() {
+  if (!pv) return;
+  const xs = [], ys = [], add = pts => pts.forEach(([x, y]) => { xs.push(x); ys.push(-y); });
+  add(pv.path); ["fairway", "green", "bunker", "water", "wood"].forEach(k => pv[k].forEach(add));
+  (hole().props || []).forEach(p => add([p.at]));
+  const x0 = Math.min(...xs) - 50, x1 = Math.max(...xs) + 50, y0 = Math.min(...ys) - 50, y1 = Math.max(...ys) + 50;
+  const r = svg.getBoundingClientRect(), ar = r.width / r.height;
+  let w = x1 - x0, h = y1 - y0;
+  if (w / h < ar) w = h * ar; else h = w / ar;
+  view = [(x0 + x1 - w) / 2, (y0 + y1 - h) / 2, w, h]; svg.setAttribute("viewBox", view.join(" "));
+}
+$("fit").onclick = fitView;
+window.addEventListener("resize", () => { if (view) fitView(); });
 
-function watchBuild(job) {
+function draw(fit) {
+  svg.innerHTML = ""; propG = null;
+  el("rect", { x: -5000, y: -5000, width: 10000, height: 10000, fill: "#5d8a35" });
+  const g = el("g", {});
+  for (const W of pv.wood) el("polygon", { points: P(W), fill: "#2f6b1c", stroke: "#1d4410", "stroke-width": 1 }, g);
+  for (const F of pv.fairway) el("polygon", { points: P(F), fill: "#8fd64a", stroke: "#6fb032", "stroke-width": 0.8 }, g);
+  for (const G of pv.green) el("polygon", { points: P(G), fill: "#b2ec66", stroke: "#86c43c", "stroke-width": 0.8 }, g);
+  for (const W of pv.water) el("polygon", { points: P(W), fill: "#45aee6", stroke: "#2a7fb0", "stroke-width": 0.8 }, g);
+  for (const B of pv.bunker) el("polygon", { points: P(B), fill: "#efd486", stroke: "#c9aa55", "stroke-width": 0.8 }, g);
+  for (const [x, y] of pv.trees) el("circle", { cx: x, cy: -y, r: 4, fill: "#1f5a14", stroke: "#0d2a08", "stroke-width": 0.8 }, g);
+  for (const p of pv.props) el("circle", { cx: p.at[0], cy: -p.at[1], r: 1.6, fill: p.kind === "rock" ? "#b9bdb5" : "#3f7d2b" }, g);
+  el("polyline", { points: P(pv.path), fill: "none", stroke: "#fff", "stroke-width": 1, "stroke-dasharray": "4 4", opacity: .8 }, g);
+  for (const [nm, [x, y]] of Object.entries(pv.tile_starts)) {          // where each tile starts
+    if (nm === "tee") continue;
+    el("circle", { cx: x, cy: -y, r: 2.2, fill: "#fff", opacity: .85 }, g);
+    const t = el("text", { x: x + 5, y: -y + 3, fill: "#fff", "font-size": 9, "paint-order": "stroke", stroke: "#000", "stroke-width": 2.5, "stroke-opacity": .5 }, g);
+    t.textContent = { fairway1: pv.par === 5 ? "fairway 1" : "fairway", fairway2: "fairway 2", green: "green" }[nm];
+  }
+  el("rect", { x: pv.tee[0] - 5, y: -pv.tee[1] - 4, width: 10, height: 8, rx: 1.5, fill: "#7fd6ff", stroke: "#fff", "stroke-width": 1 }, g);
+  el("line", { x1: pv.pin[0], y1: -pv.pin[1], x2: pv.pin[0], y2: -pv.pin[1] - 9, stroke: "#fff", "stroke-width": 0.8 }, g);
+  el("polygon", { points: `${pv.pin[0]},${-pv.pin[1] - 9} ${pv.pin[0] + 6},${-pv.pin[1] - 7.5} ${pv.pin[0]},${-pv.pin[1] - 6}`, fill: "#e42c32" }, g);
+  const sx = pv.tee[0] - 25, sy = -pv.tee[1] + 22;                       // 50 m scale bar
+  el("line", { x1: sx, y1: sy, x2: sx + 50, y2: sy, stroke: "#fff", "stroke-width": 1.2 }, g);
+  const st = el("text", { x: sx + 25, y: sy + 9, fill: "#fff", "font-size": 8, "text-anchor": "middle" }, g); st.textContent = "50 m";
+  if (fit || !view) fitView();
+  drawProps();
+}
+
+// ---------------- placed props ----------------
+// picked is the list of selected prop indexes. A prop with "g" belongs to a group: clicking any of them selects them all.
+let propG = null, picked = [], selBase = null, placeGroup = null, GROUPS = [], undoStack = [];
+const props = () => hole().props || [];
+const LIE_TEXT = { water: "water: a penalty drop", sand: "plays as a bunker", hay: "hay: plays as a bunker", trees: "blocks shots, like trees", path: "plays as fairway", rough: "plays as rough" };
+const lieOf = sp => sp.lie || (sp.solid ? "trees" : null);
+function propBox(p) {                       // the picture's rectangle on the plan, for drawing and previews
+  const sp = PROPS[p.kind]; if (!sp) return null;
+  const f = sp.m * (p.scale || 1) / sp.w, w = sp.w * f, h = sp.h * f;
+  const ax = (p.flip ? sp.w - sp.anchor[0] : sp.anchor[0]) * f, ay = sp.anchor[1] * f;
+  return { sp, x: p.at[0] - ax, y: -p.at[1] - ay, w, h };
+}
+function propImage(p, parent) {
+  const b = propBox(p); if (!b) return null;
+  const img = el("image", { href: b.sp.url, x: b.x, y: b.y, width: b.w, height: b.h, preserveAspectRatio: "none" }, parent);
+  if (p.flip) img.setAttribute("transform", `translate(${2 * b.x + b.w},0) scale(-1,1)`);
+  return b;
+}
+function drawProps() {
+  if (propG) propG.remove();
+  propG = el("g", {});
+  const order = props().map((p, i) => i).sort((a, b) => props()[b].at[1] - props()[a].at[1]);   // far ones behind
+  for (const i of order) {
+    const p = props()[i], g = el("g", { "data-prop": i, style: "cursor:move" }, propG);
+    const b = propImage(p, g);
+    if (!b) { el("circle", { cx: p.at[0], cy: -p.at[1], r: 2, fill: "#f0f" }, g); continue; }
+    if (picked.includes(i)) el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, fill: "none", stroke: p.g ? "#7fd6ff" : "#ffd23f", "stroke-width": Math.max(view[2] / 400, 0.5), "stroke-dasharray": "3 2" }, g);
+    el("circle", { cx: p.at[0], cy: -p.at[1], r: 0.9, fill: "#ffd23f" }, g);
+  }
+  const n = props().length, ng = new Set(props().filter(p => p.g).map(p => p.g)).size;
+  $("propCount").textContent = n ? `${n} prop${n === 1 ? "" : "s"} on this hole${ng ? ` · ${ng} group${ng === 1 ? "" : "s"}` : ""}` : "";
+  $("clearProps").disabled = !n;
+}
+function pushUndo() { undoStack.push(JSON.stringify(hole().props || null)); if (undoStack.length > 60) undoStack.shift(); $("undo").disabled = false; }
+function setProps(list) { const h = hole(); if (list && list.length) h.props = list; else delete h.props; }
+$("undo").onclick = () => {
+  if (!undoStack.length) return;
+  setProps(JSON.parse(undoStack.pop())); $("undo").disabled = !undoStack.length;
+  selectProps([]); drawProps(); touched();
+};
+$("clearProps").onclick = () => {
+  if (!props().length || !confirm(`Remove all ${props().length} props from this hole? (Undo brings them back.)`)) return;
+  pushUndo(); setProps([]); selectProps([]); drawProps(); touched();
+};
+const groupOf = i => { const g = props()[i].g; return g ? props().map((p, j) => p.g === g ? j : -1).filter(j => j >= 0) : [i]; };
+const newGroupId = () => Math.max(0, ...props().map(p => p.g || 0)) + 1;
+const toWorld = e => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return [q.x, -q.y]; };
+const r2 = v => Math.round(v * 100) / 100;
+function deleteProps(idx) {
+  if (!idx.length) return;
+  pushUndo(); const drop = new Set(idx);
+  setProps(props().filter((p, i) => !drop.has(i))); selectProps([]); drawProps(); touched();
+}
+function placeAt(x, y) {
+  const h = hole(); h.props = h.props || [];
+  pushUndo();
+  if (placeKind) { h.props.push({ kind: placeKind, at: [r2(x), r2(y)] }); selectProps([h.props.length - 1]); }
+  else {
+    const g = placeGroup.props.length > 1 ? newGroupId() : 0, first = h.props.length;
+    for (const q of placeGroup.props) {
+      const p = { kind: q.kind, at: [r2(x + q.at[0]), r2(y + q.at[1])] };
+      if (q.scale) p.scale = q.scale; if (q.flip) p.flip = true; if (g) p.g = g;
+      h.props.push(p);
+    }
+    selectProps(h.props.map((p, i) => i).slice(first));
+  }
+  drawProps(); touched();
+}
+let drag = null, boxEl = null;
+svg.addEventListener("contextmenu", e => {
+  const pg = e.target.closest("[data-prop]"); if (!pg) return;
+  e.preventDefault(); deleteProps([Number(pg.dataset.prop)]);
+});
+svg.addEventListener("pointerdown", e => {
+  if (!pv || e.button === 2) return;
+  const pg = e.target.closest("[data-prop]"), w = toWorld(e);
+  if (placeKind || placeGroup) { placeAt(w[0], w[1]); return; }
+  if (pg) {
+    const i = Number(pg.dataset.prop), grp = groupOf(i);
+    if (e.shiftKey) {
+      const on = picked.includes(i);
+      selectProps(on ? picked.filter(j => !grp.includes(j)) : [...new Set([...picked, ...grp])]); drawProps(); return;
+    }
+    if (!picked.includes(i)) selectProps(grp);
+    drawProps();
+    drag = { kind: "props", w, start: picked.map(j => props()[j].at.slice()) };
+  } else if (e.shiftKey) {
+    drag = { kind: "box", w }; boxEl = el("rect", { id: "boxSel", "stroke-width": view[2] / 500 });
+  } else {
+    if (picked.length) { selectProps([]); drawProps(); }
+    drag = { kind: "pan", x: e.clientX, y: e.clientY, v: view.slice() }; svg.classList.add("panning");
+  }
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (drag.kind === "pan") {
+    const k = view[2] / svg.getBoundingClientRect().width;
+    view[0] = drag.v[0] - (e.clientX - drag.x) * k; view[1] = drag.v[1] - (e.clientY - drag.y) * k; svg.setAttribute("viewBox", view.join(" "));
+  } else if (drag.kind === "box") {
+    const [x, y] = toWorld(e);
+    drag.to = [x, y];
+    boxEl.setAttribute("x", Math.min(x, drag.w[0])); boxEl.setAttribute("y", -Math.max(y, drag.w[1]));
+    boxEl.setAttribute("width", Math.abs(x - drag.w[0])); boxEl.setAttribute("height", Math.abs(y - drag.w[1]));
+  } else {
+    const [x, y] = toWorld(e), dx = x - drag.w[0], dy = y - drag.w[1];
+    if (!drag.moved) { if (Math.hypot(dx, dy) < view[2] / 800) return; pushUndo(); drag.moved = true; }
+    picked.forEach((j, k) => { props()[j].at = [r2(drag.start[k][0] + dx), r2(drag.start[k][1] + dy)]; });
+    selBase = null; drawProps();
+  }
+});
+svg.addEventListener("pointerup", () => {
+  if (drag && drag.kind === "box") {
+    boxEl.remove(); boxEl = null;
+    if (drag.to) {
+      const [x0, x1] = [Math.min(drag.w[0], drag.to[0]), Math.max(drag.w[0], drag.to[0])], [y0, y1] = [Math.min(drag.w[1], drag.to[1]), Math.max(drag.w[1], drag.to[1])];
+      const hit = props().map((p, i) => i).filter(i => { const [x, y] = props()[i].at; return x >= x0 && x <= x1 && y >= y0 && y <= y1; });
+      selectProps([...new Set([...picked, ...hit.flatMap(groupOf)])]); drawProps();
+    }
+  }
+  if (drag && drag.moved) { selectProps(picked); touched(); }
+  drag = null; svg.classList.remove("panning");
+});
+svg.addEventListener("wheel", e => {
+  if (!view) return; e.preventDefault();
+  const r = svg.getBoundingClientRect(), k = Math.exp(e.deltaY * 0.0015);
+  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  const w = Math.min(Math.max(view[2] * k, 40), 3000), h = w * view[3] / view[2];
+  view = [view[0] + (view[2] - w) * fx, view[1] + (view[3] - h) * fy, w, h]; svg.setAttribute("viewBox", view.join(" "));
+}, { passive: false });
+
+const propName = k => nice(k).replace(/\b(a|b|c|d|e|f|g|h)$/, m => m.toUpperCase());
+const centroid = idx => { const P_ = idx.map(i => props()[i].at); return [P_.reduce((a, p) => a + p[0], 0) / P_.length, P_.reduce((a, p) => a + p[1], 0) / P_.length]; };
+function selectProps(idx) {
+  picked = idx.slice().sort((a, b) => a - b); selBase = null;
+  $("propSel").hidden = !picked.length; if (!picked.length) return;
+  const ps = picked.map(i => props()[i]), one = ps.length === 1, gs = new Set(ps.map(p => p.g || 0));
+  const grouped = gs.size === 1 && !gs.has(0);
+  $("propName").textContent = one ? propName(ps[0].kind) : `${ps.length} props${grouped ? " (a group)" : ""}`;
+  $("propScale").value = one ? ps[0].scale || 1 : 1;
+  $("propGroup").hidden = one || grouped; $("propUngroup").hidden = !ps.some(p => p.g); $("propSaveGroup").hidden = one;
+  showPropSize();
+}
+function showPropSize() {
+  const ps = picked.map(i => props()[i]);
+  if (ps.length === 1) {
+    const p = ps[0], sp = PROPS[p.kind]; if (!sp) return;
+    $("propSize").textContent = `${Math.round(sp.m * (p.scale || 1) * 10) / 10} m`;
+    const l = lieOf(sp); $("propLie").textContent = l ? `Ball here: ${LIE_TEXT[l]}` : "Ball here: no effect (plays as the ground under it)";
+  } else {
+    $("propSize").textContent = "";
+    const ls = [...new Set(ps.map(p => PROPS[p.kind] && lieOf(PROPS[p.kind])).filter(Boolean))];
+    $("propLie").textContent = ls.length ? "Ball here: " + ls.map(l => LIE_TEXT[l]).join(" · ") : "";
+  }
+}
+$("propScale").addEventListener("pointerdown", () => pushUndo());
+$("propScale").addEventListener("keydown", () => pushUndo());
+$("propScale").oninput = () => {
+  const v = Number($("propScale").value);
+  if (picked.length === 1) { const p = props()[picked[0]]; if (v === 1) delete p.scale; else p.scale = v; }
+  else {      // a selection grows and shrinks as one: spacing and sizes together, about its middle
+    if (!selBase) selBase = { c: centroid(picked), ps: picked.map(i => ({ at: props()[i].at.slice(), scale: props()[i].scale || 1 })) };
+    picked.forEach((i, k) => {
+      const b = selBase.ps[k], p = props()[i], sc = Math.min(Math.max(b.scale * v, 0.25), 4);
+      p.at = [r2(selBase.c[0] + (b.at[0] - selBase.c[0]) * v), r2(selBase.c[1] + (b.at[1] - selBase.c[1]) * v)];
+      if (Math.abs(sc - 1) < 1e-3) delete p.scale; else p.scale = Math.round(sc * 1000) / 1000;
+    });
+  }
+  showPropSize(); drawProps(); touched();
+};
+$("propFlip").onclick = () => {
+  pushUndo(); const c = centroid(picked);
+  for (const i of picked) {
+    const p = props()[i]; if (p.flip) delete p.flip; else p.flip = true;
+    if (picked.length > 1) p.at = [r2(2 * c[0] - p.at[0]), p.at[1]];      // mirror the layout too
+  }
+  selBase = null; drawProps(); touched();
+};
+$("propDup").onclick = () => {
+  pushUndo(); const h = hole(), first = h.props.length, gmap = {}, base = newGroupId();
+  for (const i of picked) {      // the copy sits a little to the right and nearer, in groups of its own
+    const p = JSON.parse(JSON.stringify(h.props[i])); p.at = [r2(p.at[0] + 8), r2(p.at[1] - 8)];
+    if (p.g) p.g = gmap[p.g] = gmap[p.g] || base + Object.keys(gmap).length;
+    h.props.push(p);
+  }
+  selectProps(h.props.map((p, i) => i).slice(first)); drawProps(); touched();
+};
+$("propGroup").onclick = () => { pushUndo(); const g = newGroupId(); picked.forEach(i => props()[i].g = g); selectProps(picked); drawProps(); touched(); };
+$("propUngroup").onclick = () => { pushUndo(); picked.forEach(i => delete props()[i].g); selectProps(picked); drawProps(); touched(); };
+$("propDel").onclick = () => deleteProps(picked);
+$("propSaveGroup").onclick = async () => {
+  const name = (prompt("Name this group (it joins the Groups list for every course):") || "").trim(); if (!name) return;
+  const c = centroid(picked), kinds = picked.map(i => props()[i].kind);
+  const set = Object.keys(SETS).find(k => kinds.every(x => SETS[k][x])) || $("propSet").value;
+  const g = { name, set, props: picked.map(i => { const p = props()[i], q = { kind: p.kind, at: [r2(p.at[0] - c[0]), r2(p.at[1] - c[1])] };
+    if (p.scale) q.scale = p.scale; if (p.flip) q.flip = true; return q; }) };
+  try { GROUPS = await api("/api/groups", [...GROUPS, g]); if (set !== $("propSet").value) { $("propSet").value = set; showPalette(); } else showGroups(); msg(`Saved the group “${name}”.`, "ok"); }
+  catch (e) { msg(e.message, "bad"); }
+};
+function showPalette() {
+  stopPlacing();
+  $("palette").innerHTML = Object.entries(SETS[$("propSet").value] || {}).map(([k, sp]) => {
+    const l = lieOf(sp), t = `${propName(k)}${l ? " · " + LIE_TEXT[l] : ""}`;
+    return `<button data-kind="${k}" title="${t}"><img src="${sp.url}" alt="${propName(k)}"></button>`;
+  }).join("");
+  showGroups();
+}
+function showGroups() {
+  const set = $("propSet").value, box = $("groupPal"); box.innerHTML = "";
+  GROUPS.forEach((g, gi) => {
+    if (g.set !== set) return;
+    const b = document.createElement("div"); b.className = "gp" + (placeGroup === g ? " on" : ""); b.dataset.group = gi; b.title = g.name;
+    const mini = document.createElementNS(SVGNS, "svg"); b.appendChild(mini);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of [...g.props].sort((a, c) => c.at[1] - a.at[1])) {
+      const bx = propImage(p, mini); if (!bx) continue;
+      x0 = Math.min(x0, bx.x); y0 = Math.min(y0, bx.y); x1 = Math.max(x1, bx.x + bx.w); y1 = Math.max(y1, bx.y + bx.h);
+    }
+    mini.setAttribute("viewBox", `${x0 - 1} ${y0 - 1} ${x1 - x0 + 2} ${y1 - y0 + 2}`);
+    b.insertAdjacentHTML("beforeend", `<span>${g.name.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;")}</span><button class="x" data-delgroup="${gi}" title="Remove this group from the list">✕</button>`);
+    box.appendChild(b);
+  });
+  if (!box.children.length) box.innerHTML = `<p class="dim">None for this set yet: select a few props and press “Save as group…”.</p>`;
+}
+$("groupPal").onclick = async e => {
+  const d = e.target.closest("[data-delgroup]");
+  if (d) {
+    const g = GROUPS[Number(d.dataset.delgroup)];
+    if (!confirm(`Remove the group “${g.name}” from the list? Props already placed stay.`)) return;
+    try { GROUPS = await api("/api/groups", GROUPS.filter(x => x !== g)); stopPlacing(); showGroups(); } catch (err) { msg(err.message, "bad"); }
+    return;
+  }
+  const b = e.target.closest("[data-group]"); if (!b) return;
+  const g = GROUPS[Number(b.dataset.group)], again = placeGroup === g; stopPlacing(); if (again) return;
+  placeGroup = g; b.classList.add("on"); svg.classList.add("placing");
+  if (picked.length) { selectProps([]); drawProps(); }
+};
+$("propSet").onchange = showPalette;
+function stopPlacing() { placeKind = null; placeGroup = null; svg.classList.remove("placing"); document.querySelectorAll(".palette button, .groups .gp").forEach(b => b.classList.remove("on")); }
+$("palette").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const again = placeKind === b.dataset.kind; stopPlacing(); if (again) return;
+  placeKind = b.dataset.kind; b.classList.add("on"); svg.classList.add("placing");
+  if (picked.length) { selectProps([]); drawProps(); }
+};
+document.addEventListener("keydown", e => {
+  const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.type !== "range";
+  if (e.key === "Escape") { stopPlacing(); if (picked.length) { selectProps([]); drawProps(); } }
+  if ((e.key === "Delete" || e.key === "Backspace") && picked.length && !typing) { e.preventDefault(); deleteProps(picked); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !typing) { e.preventDefault(); $("undo").click(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g" && !typing && picked.length > 1) { e.preventDefault(); $("propGroup").click(); }
+});
+
+// ---------------- save and build ----------------
+async function save() {
+  recipe = await api(`/api/recipe/${recipe.id}`, recipe); savedJSON = JSON.stringify(recipe);
+  await loadCourses(recipe.id); $("course").value = recipe.id; $("course").selectedOptions[0].textContent = recipe.name;
+  renderHoles(); touched();
+}
+$("save").onclick = async () => { try { await save(); msg("Saved. Build to see it in the game.", "ok"); } catch (e) { msg(e.message, "bad"); } };
+$("saveBuild").onclick = async () => {
+  try { await save(); await api(`/api/build/${recipe.id}/${curN}`, {}); msg("Saved. Building (about 3 minutes)…", "ok"); watchBuild(); }
+  catch (e) { msg(e.message, "bad"); }
+};
+$("buildAll").onclick = async () => {
+  if (!confirm(`Save and build all ${recipe.holes.length} holes? Each takes about 3 minutes, one at a time.`)) return;
+  try { await save(); for (let n = 1; n <= recipe.holes.length; n++) await api(`/api/build/${recipe.id}/${n}`, {}); msg("Building every hole, one at a time…", "ok"); watchBuild(); }
+  catch (e) { msg(e.message, "bad"); }
+};
+function watchBuild() {
   clearTimeout(pollTimer);
-  const id = hole && hole.id;
-  const busy = job && (job.state === "queued" || job.state === "running");
-  $("rebuild").disabled = $("saveBuild").disabled = !!busy;
-  if (!busy) return;
+  const cid = recipe.id, n = curN;
   const tick = async () => {
-    if (!hole || hole.id !== id) return;
-    const r = await api(`/api/build/${id}`);
-    $("log").hidden = !r.log; $("log").textContent = r.log; $("log").scrollTop = 1e9;
-    const st = r.job && r.job.state;
-    if (st === "queued" || st === "running") {
+    if (!recipe || recipe.id !== cid || curN !== n) return;
+    let r; try { r = await api(`/api/build/${cid}/${n}`); } catch (e) { $("preview").src = ""; $("builtAt").textContent = "Not built yet (save first)."; return; }
+    $("preview").src = r.built ? `${r.preview}?t=${r.built_at}` : "";
+    $("builtAt").textContent = r.built ? `Built ${new Date(r.built_at * 1000).toLocaleString()}` : "Not built yet.";
+    const st = r.job && r.job.state, busy = st === "queued" || st === "running";
+    $("saveBuild").disabled = busy;
+    $("log").hidden = !(busy || st === "failed") || !r.log; $("log").textContent = r.log; $("log").scrollTop = 1e9;
+    if (busy) {
       const s = Math.round(Date.now() / 1000 - r.job.started);
       msg(`${st === "queued" ? "Waiting for another build" : "Building"}… ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`, "warn");
-      pollTimer = setTimeout(tick, 3000); return;
-    }
-    const keepDirty = dirty() ? current() : null;
-    const h = await api(`/api/hole/${id}`);
-    show(h, false); await loadCourses();
-    if (keepDirty) { for (const k of ["tee", "layup", "green"]) markers[k].setLatLng(keepDirty[k]); for (const k of NUMS) $(k).value = keepDirty[k] ?? ""; loadMap(keepDirty.map); redraw(); }
-    msg(st === "done" ? "Rebuilt. The game now has the new hole." : "Build failed. See the log below.", st === "done" ? "ok" : "bad");
-    $("log").hidden = st === "done";
+      pollTimer = setTimeout(tick, 3000);
+    } else if (st === "done" && r.job.finished > Date.now() / 1000 - 10) msg("Built. The game has the new hole.", "ok");
+    else if (st === "failed") msg("Build failed. See the log below.", "bad");
+    if (st) { await loadCourses(cid); renderHoles(); }
   };
   tick();
 }
 
 window.addEventListener("beforeunload", e => { if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
-loadCourses().catch(e => msg(e.message, "bad"));
+(async () => {
+  try {
+    [OPTS, SETS, GROUPS] = await Promise.all([api("/api/options"), api("/api/props").catch(() => ({})), api("/api/groups").catch(() => [])]);
+    PROPS = Object.assign({}, ...Object.values(SETS));
+    $("propSet").innerHTML = Object.keys(SETS).map(k => `<option value="${k}">${k[0].toUpperCase() + k.slice(1)}</option>`).join("");
+    await loadCourses();
+    if (courses.length) await openCourse($("course").value);
+  } catch (e) { msg(e.message, "bad"); }
+})();
 </script>
 </body>
 </html>

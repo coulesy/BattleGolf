@@ -1,0 +1,796 @@
+{
+ "castle": {
+  "file": "castle.png",
+  "w": 280,
+  "h": 290,
+  "m": 51.0,
+  "solid": true,
+  "anchor": [
+   140,
+   220
+  ],
+  "sheet": [
+   37,
+   41
+  ],
+  "lie": "trees"
+ },
+ "tower_tall": {
+  "file": "tower_tall.png",
+  "w": 100,
+  "h": 240,
+  "m": 13.5,
+  "solid": true,
+  "anchor": [
+   50,
+   215
+  ],
+  "sheet": [
+   362,
+   53
+  ],
+  "lie": "trees"
+ },
+ "keep_small": {
+  "file": "keep_small.png",
+  "w": 144,
+  "h": 170,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   72,
+   134
+  ],
+  "sheet": [
+   510,
+   126
+  ],
+  "lie": "trees"
+ },
+ "tower_square": {
+  "file": "tower_square.png",
+  "w": 131,
+  "h": 210,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   66,
+   177
+  ],
+  "sheet": [
+   687,
+   85
+  ],
+  "lie": "trees"
+ },
+ "keep_large": {
+  "file": "keep_large.png",
+  "w": 210,
+  "h": 242,
+  "m": 27.0,
+  "solid": true,
+  "anchor": [
+   105,
+   190
+  ],
+  "sheet": [
+   857,
+   67
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_a": {
+  "file": "ruin_wall_a.png",
+  "w": 227,
+  "h": 168,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   114,
+   111
+  ],
+  "sheet": [
+   41,
+   369
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_b": {
+  "file": "ruin_wall_b.png",
+  "w": 247,
+  "h": 165,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   124,
+   103
+  ],
+  "sheet": [
+   306,
+   364
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_c": {
+  "file": "ruin_wall_c.png",
+  "w": 245,
+  "h": 138,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   122,
+   77
+  ],
+  "sheet": [
+   592,
+   379
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_d": {
+  "file": "ruin_wall_d.png",
+  "w": 213,
+  "h": 198,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   106,
+   145
+  ],
+  "sheet": [
+   865,
+   344
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_e": {
+  "file": "ruin_wall_e.png",
+  "w": 230,
+  "h": 172,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   115,
+   114
+  ],
+  "sheet": [
+   39,
+   526
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_f": {
+  "file": "ruin_wall_f.png",
+  "w": 244,
+  "h": 155,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   122,
+   94
+  ],
+  "sheet": [
+   312,
+   536
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_g": {
+  "file": "ruin_wall_g.png",
+  "w": 187,
+  "h": 171,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   94,
+   124
+  ],
+  "sheet": [
+   605,
+   534
+  ],
+  "lie": "trees"
+ },
+ "ruin_wall_h": {
+  "file": "ruin_wall_h.png",
+  "w": 152,
+  "h": 102,
+  "m": 16.5,
+  "solid": true,
+  "anchor": [
+   76,
+   64
+  ],
+  "sheet": [
+   877,
+   576
+  ],
+  "lie": "trees"
+ },
+ "haystack": {
+  "file": "haystack.png",
+  "w": 159,
+  "h": 184,
+  "m": 6.75,
+  "solid": true,
+  "anchor": [
+   80,
+   144
+  ],
+  "sheet": [
+   39,
+   741
+  ],
+  "lie": "hay"
+ },
+ "hay_bales": {
+  "file": "hay_bales.png",
+  "w": 227,
+  "h": 183,
+  "m": 9.0,
+  "solid": true,
+  "anchor": [
+   114,
+   126
+  ],
+  "sheet": [
+   234,
+   758
+  ],
+  "lie": "hay"
+ },
+ "cart": {
+  "file": "cart.png",
+  "w": 201,
+  "h": 157,
+  "m": 7.5,
+  "solid": true,
+  "anchor": [
+   100,
+   107
+  ],
+  "sheet": [
+   507,
+   760
+  ],
+  "lie": "trees"
+ },
+ "wheelbarrow_wide": {
+  "file": "wheelbarrow_wide.png",
+  "w": 153,
+  "h": 156,
+  "m": 5.25,
+  "solid": true,
+  "anchor": [
+   76,
+   118
+  ],
+  "sheet": [
+   748,
+   764
+  ],
+  "lie": "trees"
+ },
+ "wheelbarrow": {
+  "file": "wheelbarrow.png",
+  "w": 163,
+  "h": 143,
+  "m": 4.5,
+  "solid": true,
+  "anchor": [
+   82,
+   102
+  ],
+  "sheet": [
+   935,
+   779
+  ],
+  "lie": "trees"
+ },
+ "fence": {
+  "file": "fence.png",
+  "w": 238,
+  "h": 69,
+  "m": 9.0,
+  "solid": true,
+  "anchor": [
+   119,
+   10
+  ],
+  "sheet": [
+   39,
+   1015
+  ],
+  "lie": "trees"
+ },
+ "fence_gate": {
+  "file": "fence_gate.png",
+  "w": 237,
+  "h": 70,
+  "m": 9.0,
+  "solid": true,
+  "anchor": [
+   118,
+   11
+  ],
+  "sheet": [
+   40,
+   1127
+  ],
+  "lie": "trees"
+ },
+ "stone_wall_gate": {
+  "file": "stone_wall_gate.png",
+  "w": 386,
+  "h": 223,
+  "m": 27.0,
+  "solid": true,
+  "anchor": [
+   193,
+   126
+  ],
+  "sheet": [
+   376,
+   1000
+  ],
+  "lie": "trees"
+ },
+ "stone_wall_short": {
+  "file": "stone_wall_short.png",
+  "w": 154,
+  "h": 133,
+  "m": 10.5,
+  "solid": true,
+  "anchor": [
+   77,
+   94
+  ],
+  "sheet": [
+   314,
+   1092
+  ],
+  "lie": "trees"
+ },
+ "fence_corner": {
+  "file": "fence_corner.png",
+  "w": 334,
+  "h": 218,
+  "m": 18.0,
+  "solid": true,
+  "anchor": [
+   167,
+   134
+  ],
+  "sheet": [
+   750,
+   998
+  ],
+  "lie": "trees"
+ },
+ "well": {
+  "file": "well.png",
+  "w": 124,
+  "h": 176,
+  "m": 6.0,
+  "solid": true,
+  "anchor": [
+   62,
+   145
+  ],
+  "sheet": [
+   35,
+   1296
+  ],
+  "lie": "trees"
+ },
+ "barrels": {
+  "file": "barrels.png",
+  "w": 110,
+  "h": 120,
+  "m": 4.5,
+  "solid": true,
+  "anchor": [
+   55,
+   92
+  ],
+  "sheet": [
+   192,
+   1345
+  ],
+  "lie": "trees"
+ },
+ "crates": {
+  "file": "crates.png",
+  "w": 130,
+  "h": 156,
+  "m": 5.25,
+  "solid": true,
+  "anchor": [
+   65,
+   124
+  ],
+  "sheet": [
+   287,
+   1307
+  ],
+  "lie": "trees"
+ },
+ "archery_target": {
+  "file": "archery_target.png",
+  "w": 94,
+  "h": 133,
+  "m": 3.75,
+  "solid": true,
+  "anchor": [
+   47,
+   110
+  ],
+  "sheet": [
+   459,
+   1316
+  ],
+  "lie": "trees"
+ },
+ "tent_small": {
+  "file": "tent_small.png",
+  "w": 154,
+  "h": 174,
+  "m": 9.0,
+  "solid": true,
+  "anchor": [
+   77,
+   136
+  ],
+  "sheet": [
+   587,
+   1282
+  ],
+  "lie": "trees"
+ },
+ "tent": {
+  "file": "tent.png",
+  "w": 167,
+  "h": 195,
+  "m": 9.75,
+  "solid": true,
+  "anchor": [
+   84,
+   153
+  ],
+  "sheet": [
+   753,
+   1258
+  ],
+  "lie": "trees"
+ },
+ "tent_blue": {
+  "file": "tent_blue.png",
+  "w": 134,
+  "h": 187,
+  "m": 9.75,
+  "solid": true,
+  "anchor": [
+   67,
+   154
+  ],
+  "sheet": [
+   945,
+   1250
+  ],
+  "lie": "trees"
+ },
+ "barrel": {
+  "file": "barrel.png",
+  "w": 80,
+  "h": 103,
+  "m": 2.1,
+  "solid": true,
+  "anchor": [
+   40,
+   83
+  ],
+  "sheet": [
+   57,
+   1495
+  ],
+  "lie": "trees"
+ },
+ "barrel_b": {
+  "file": "barrel_b.png",
+  "w": 80,
+  "h": 102,
+  "m": 2.1,
+  "solid": true,
+  "anchor": [
+   40,
+   82
+  ],
+  "sheet": [
+   190,
+   1495
+  ],
+  "lie": "trees"
+ },
+ "crate": {
+  "file": "crate.png",
+  "w": 97,
+  "h": 111,
+  "m": 2.4,
+  "solid": true,
+  "anchor": [
+   48,
+   87
+  ],
+  "sheet": [
+   313,
+   1490
+  ],
+  "lie": "trees"
+ },
+ "crate_open": {
+  "file": "crate_open.png",
+  "w": 140,
+  "h": 114,
+  "m": 4.5,
+  "solid": true,
+  "anchor": [
+   70,
+   79
+  ],
+  "sheet": [
+   448,
+   1492
+  ],
+  "lie": "trees"
+ },
+ "bridge_a": {
+  "file": "bridge_a.png",
+  "w": 214,
+  "h": 152,
+  "m": 18.0,
+  "solid": false,
+  "anchor": [
+   107,
+   98
+  ],
+  "sheet": [
+   628,
+   1447
+  ],
+  "lie": "path"
+ },
+ "bridge_b": {
+  "file": "bridge_b.png",
+  "w": 214,
+  "h": 153,
+  "m": 18.0,
+  "solid": false,
+  "anchor": [
+   107,
+   100
+  ],
+  "sheet": [
+   876,
+   1454
+  ],
+  "lie": "path"
+ },
+ "spikes": {
+  "file": "spikes.png",
+  "w": 157,
+  "h": 131,
+  "m": 6.0,
+  "solid": true,
+  "anchor": [
+   78,
+   92
+  ],
+  "sheet": [
+   36,
+   1674
+  ],
+  "lie": "trees"
+ },
+ "drawbridge": {
+  "file": "drawbridge.png",
+  "w": 184,
+  "h": 191,
+  "m": 9.0,
+  "solid": false,
+  "anchor": [
+   92,
+   145
+  ],
+  "sheet": [
+   216,
+   1623
+  ],
+  "lie": "path"
+ },
+ "flag_red": {
+  "file": "flag_red.png",
+  "w": 68,
+  "h": 113,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   105
+  ],
+  "sheet": [
+   454,
+   1681
+  ]
+ },
+ "flag_blue": {
+  "file": "flag_blue.png",
+  "w": 67,
+  "h": 114,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   106
+  ],
+  "sheet": [
+   561,
+   1681
+  ]
+ },
+ "flag_yellow": {
+  "file": "flag_yellow.png",
+  "w": 67,
+  "h": 113,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   105
+  ],
+  "sheet": [
+   668,
+   1681
+  ]
+ },
+ "flag_red_b": {
+  "file": "flag_red_b.png",
+  "w": 67,
+  "h": 113,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   105
+  ],
+  "sheet": [
+   784,
+   1680
+  ]
+ },
+ "flag_blue_b": {
+  "file": "flag_blue_b.png",
+  "w": 67,
+  "h": 113,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   105
+  ],
+  "sheet": [
+   902,
+   1680
+  ]
+ },
+ "flag_yellow_b": {
+  "file": "flag_yellow_b.png",
+  "w": 67,
+  "h": 113,
+  "m": 3.3,
+  "solid": false,
+  "anchor": [
+   34,
+   105
+  ],
+  "sheet": [
+   1017,
+   1680
+  ]
+ },
+ "spikes_b": {
+  "file": "spikes_b.png",
+  "w": 157,
+  "h": 131,
+  "m": 6.0,
+  "solid": true,
+  "anchor": [
+   78,
+   92
+  ],
+  "sheet": [
+   36,
+   1824
+  ],
+  "lie": "trees"
+ },
+ "platform": {
+  "file": "platform.png",
+  "w": 167,
+  "h": 122,
+  "m": 7.5,
+  "solid": false,
+  "anchor": [
+   84,
+   80
+  ],
+  "sheet": [
+   216,
+   1834
+  ],
+  "lie": "path"
+ },
+ "tile_cobble": {
+  "file": "tile_cobble.png",
+  "w": 138,
+  "h": 87,
+  "m": 6.0,
+  "solid": false,
+  "anchor": [
+   69,
+   52
+  ],
+  "sheet": [
+   419,
+   1854
+  ],
+  "lie": "path"
+ },
+ "tile_grass_stones": {
+  "file": "tile_grass_stones.png",
+  "w": 141,
+  "h": 88,
+  "m": 6.0,
+  "solid": false,
+  "anchor": [
+   70,
+   53
+  ],
+  "sheet": [
+   584,
+   1852
+  ],
+  "lie": "path"
+ },
+ "tile_path_a": {
+  "file": "tile_path_a.png",
+  "w": 161,
+  "h": 97,
+  "m": 6.0,
+  "solid": false,
+  "anchor": [
+   80,
+   57
+  ],
+  "sheet": [
+   749,
+   1847
+  ],
+  "lie": "path"
+ },
+ "tile_path_b": {
+  "file": "tile_path_b.png",
+  "w": 167,
+  "h": 100,
+  "m": 6.0,
+  "solid": false,
+  "anchor": [
+   84,
+   58
+  ],
+  "sheet": [
+   929,
+   1844
+  ],
+  "lie": "path"
+ }
+}

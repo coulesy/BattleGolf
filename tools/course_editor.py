@@ -1,155 +1,149 @@
-"""Local course editor: move a hole's tee, layup and green on a satellite map, set par / SI / yardages,
-save to data/<course>-NN.json and rebuild the hole's game assets.
+"""Local course editor for tile-built courses: pick a course recipe (data/recipes/<id>.json), edit each hole's
+tiles, feature modules and placed props with a live plan view, then compose and build it into the game.
 
     python3 tools/course_editor.py            # then open http://localhost:8790
     PORT=8800 python3 tools/course_editor.py
 
-Only listens on 127.0.0.1. The first save of a hole keeps its original data in
-build/editor-backups/<hole>.orig.json (and the previous version in <hole>.prev.json), so it can be restored.
+Only listens on 127.0.0.1. Saving writes the recipe; building composes the hole into data/<id>-NN.json
+(tools/compose_hole.py) and renders it into game/courses/<id>/NN/ (tools/build_course.sh).
 """
-import glob, json, os, re, shutil, subprocess, sys, tempfile, threading, time
+import glob, json, os, re, subprocess, sys, threading, time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA, GAME = f"{ROOT}/data", f"{ROOT}/game"
-BACKUP = f"{ROOT}/build/editor-backups"
+sys.path.insert(0, f"{ROOT}/tools")
+import compose_hole as C
+
+DATA, GAME, RECIPES = f"{ROOT}/data", f"{ROOT}/game", f"{ROOT}/data/recipes"
 PAGE = f"{ROOT}/tools/editor/index.html"
-HOLE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-\d\d$")
-POINTS = ("tee", "layup", "green")
-NUMBERS = ("par", "si", "yards_yellow", "yards_white", "yards_red")
+COURSE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+PROP_KIND = re.compile(r"^[a-z0-9_]{1,40}$")
+THEMES = ("classic", "space", "neon", "medieval")
 
-jobs = {}          # hole id -> {"state": queued|running|done|failed, "started": t, "finished": t}
+jobs = {}          # hole id (<course>-NN) -> {"state": queued|running|done|failed, "started": t, "finished": t}
 build_lock = threading.Lock()        # one build at a time: each one is CPU-heavy
+recipe_lock = threading.Lock()
 
 
-def split_id(hid):
-    course, n = hid.rsplit("-", 1)
-    return course, n
+def recipe_path(cid):
+    if not COURSE_ID.match(cid): raise FileNotFoundError(cid)
+    return f"{RECIPES}/{cid}.json"
 
 
-def course_names():
-    try:
-        return {c["id"]: c["name"] for c in json.load(open(f"{GAME}/courses/courses.json"))}
-    except (OSError, ValueError):
-        return {}
+def load_recipe(cid):
+    p = recipe_path(cid)
+    if not os.path.exists(p): raise FileNotFoundError(cid)
+    return json.load(open(p))
+
+
+def hole_status(cid, n):
+    hid = f"{cid}-{n:02d}"; built = f"{GAME}/courses/{cid}/{n:02d}/game_data.json"
+    return dict(id=hid, built=os.path.exists(built), built_at=os.path.getmtime(built) if os.path.exists(built) else None,
+                preview=f"/game/courses/{cid}/{n:02d}/course.jpg", job=jobs.get(hid))
 
 
 def list_courses():
-    names, out = course_names(), {}
-    for f in sorted(glob.glob(f"{DATA}/*-[0-9][0-9].json")):
-        hid = os.path.basename(f)[:-5]
-        course, n = split_id(hid)
-        h = json.load(open(f))
-        c = out.setdefault(course, dict(id=course, name=names.get(course) or h.get("course", course), holes=[]))
-        built = f"{GAME}/courses/{course}/{n}/game_data.json"
-        c["holes"].append(dict(id=hid, n=h["hole"], par=h["par"], si=h.get("si"), yards=h.get("yards_yellow"),
-                               built=os.path.exists(built), built_at=os.path.getmtime(built) if os.path.exists(built) else None,
-                               edited=os.path.exists(f"{BACKUP}/{hid}.orig.json"), job=jobs.get(hid)))
-    return list(out.values())
-
-
-def load_hole(hid):
-    h = json.load(open(f"{DATA}/{hid}.json"))
-    course, n = split_id(hid)
-    orig_path = f"{BACKUP}/{hid}.orig.json"
-    orig = json.load(open(orig_path)) if os.path.exists(orig_path) else h
-    built = f"{GAME}/courses/{course}/{n}"
-    info = {k: v for k, v in h.items() if k not in ("grid", "green_grid")}
-    info.update(id=hid, course_id=course, dir=n, original={k: orig[k] for k in POINTS + NUMBERS if k in orig},
-                built=os.path.exists(f"{built}/game_data.json"),
-                built_at=os.path.getmtime(f"{built}/course.jpg") if os.path.exists(f"{built}/course.jpg") else None,
-                preview=f"/game/courses/{course}/{n}/course.jpg", job=jobs.get(hid))
-    return info
-
-
-def check_point(p):
-    if not (isinstance(p, list) and len(p) == 2 and all(isinstance(v, (int, float)) for v in p)):
-        raise ValueError("points must be [lat, lng]")
-    if not (-90 <= p[0] <= 90 and -180 <= p[1] <= 180):
-        raise ValueError("point out of range")
-    return [float(p[0]), float(p[1])]
-
-
-MAP_POLYS = ("fairway", "green", "bunker", "water", "wood")
-
-
-def check_map(m):
-    """A drawn map: lists of polygons (each a list of [lat, lng]) per kind, single trees, and the treeline switch."""
-    if m is None: return None
-    if not isinstance(m, dict): raise ValueError("map must be an object")
-    out = {k: [[check_point(p) for p in P] for P in m.get(k, []) if isinstance(P, list) and len(P) >= 3] for k in MAP_POLYS}
-    out["trees"] = [check_point(p) for p in m.get("trees", [])]
-    out["auto_trees"] = bool(m.get("auto_trees", True))
+    out = []
+    for f in sorted(glob.glob(f"{RECIPES}/*.json")):
+        r = json.load(open(f)); cid = r.get("id") or os.path.basename(f)[:-5]
+        holes = []
+        for n, rec in enumerate(r.get("holes", []), 1):
+            try: pv = C.preview(r, n, {**rec, "theme": r.get("theme", "classic")}); par, yds = pv["par"], pv["yards"]
+            except C.RecipeError: par, yds = None, None
+            holes.append(dict(n=n, par=par, yards=yds, **hole_status(cid, n)))
+        out.append(dict(id=cid, name=r.get("name", cid), theme=r.get("theme", "classic"), holes=holes))
     return out
 
 
-def auto_layout(hid):
-    """The renderer's own fairway, bunkers and water for this hole, as a starting map (takes a few seconds)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        r = subprocess.run([sys.executable, f"{ROOT}/tools/render_hole_toon.py", f"{DATA}/{hid}.json", f"{tmp}/auto.json"],
-                           env=dict(os.environ, FEATURES_ONLY="1"), cwd=tmp, capture_output=True, text=True)
-        if r.returncode != 0: raise RuntimeError(r.stderr[-800:])
-        return json.load(open(f"{tmp}/auto.json"))
+def check_recipe(cid, r):
+    """Validates a whole course recipe by composing every hole's shape; raises ValueError with the problem."""
+    if not isinstance(r, dict): raise ValueError("recipe must be an object")
+    name = str(r.get("name") or cid).strip()[:60]
+    theme = r.get("theme", "classic")
+    if theme not in THEMES: raise ValueError(f"theme must be one of {THEMES}")
+    holes = r.get("holes")
+    if not isinstance(holes, list) or not 1 <= len(holes) <= 18: raise ValueError("a course has 1-18 holes")
+    out = {k: v for k, v in r.items() if k not in ("id", "name", "theme", "holes")}
+    out.update(id=cid, name=name, theme=theme, holes=[])
+    for n, rec in enumerate(holes, 1):
+        if not isinstance(rec, dict): raise ValueError(f"hole {n} must be an object")
+        rec = dict(rec)
+        props = []
+        for p in rec.get("props", []):
+            if not (isinstance(p, dict) and isinstance(p.get("kind"), str) and PROP_KIND.match(p["kind"])): raise ValueError(f"hole {n}: bad prop")
+            at = p.get("at")
+            if not (isinstance(at, list) and len(at) == 2 and all(isinstance(v, (int, float)) and abs(v) < 2000 for v in at)):
+                raise ValueError(f"hole {n}: prop position must be [x, y] metres")
+            q = dict(kind=p["kind"], at=[round(float(at[0]), 2), round(float(at[1]), 2)])
+            if p.get("scale", 1) != 1: q["scale"] = round(min(max(float(p["scale"]), 0.25), 4.0), 3)
+            if p.get("flip"): q["flip"] = True
+            if p.get("g"): q["g"] = int(p["g"])           # props placed or joined as a group move together
+            props.append(q)
+        if props: rec["props"] = props
+        else: rec.pop("props", None)
+        for k in ("si", "seed"):
+            if rec.get(k) is None: rec.pop(k, None)
+            else: rec[k] = int(rec[k])
+        if "si" in rec and not 1 <= rec["si"] <= 18: raise ValueError(f"hole {n}: stroke index must be 1-18")
+        try: C.preview(out, n, {**rec, "theme": theme})
+        except (C.RecipeError, KeyError, TypeError) as e: raise ValueError(str(e))
+        out["holes"].append(rec)
+    return out
 
 
-def save_hole(hid, body):
-    path = f"{DATA}/{hid}.json"
-    h = json.load(open(path))
-    if "map" in body:
-        m = check_map(body["map"])
-        if m is None: h.pop("map", None)
-        else: h["map"] = m
-    for k in POINTS:
-        if k in body:
-            new = check_point(body[k])
-            if k == "green":           # front/back aren't used by the renderer; keep them where they were relative to the centre
-                dlat, dlng = new[0] - h["green"][0], new[1] - h["green"][1]
-                for fb in ("green_front", "green_back"):
-                    if fb in h: h[fb] = [h[fb][0] + dlat, h[fb][1] + dlng]
-            h[k] = new
-    for k in NUMBERS:
-        if k in body and body[k] is not None:
-            v = int(body[k])
-            if k == "par" and v not in (3, 4, 5, 6): raise ValueError("par must be 3-6")
-            if k == "si" and not 1 <= v <= 18: raise ValueError("SI must be 1-18")
-            if k.startswith("yards") and not 50 <= v <= 800: raise ValueError("yards must be 50-800")
-            h[k] = v
-    os.makedirs(BACKUP, exist_ok=True)           # back up only once the edit is known to be valid
-    if not os.path.exists(f"{BACKUP}/{hid}.orig.json"):
-        shutil.copy(path, f"{BACKUP}/{hid}.orig.json")
-    shutil.copy(path, f"{BACKUP}/{hid}.prev.json")
-    tmp = path + ".tmp"
-    json.dump(h, open(tmp, "w")); os.replace(tmp, path)
+def save_recipe(cid, body):
+    r = check_recipe(cid, body)
+    with recipe_lock:
+        p = recipe_path(cid); tmp = p + ".tmp"
+        os.makedirs(RECIPES, exist_ok=True)
+        with open(tmp, "w") as f: f.write(dump_recipe(r))
+        os.replace(tmp, p)
+        for f in glob.glob(f"{DATA}/{cid}-[0-9][0-9].json"):      # holes that were removed
+            if int(f[-7:-5]) > len(r["holes"]): os.remove(f)
+    return r
 
 
-def restore_hole(hid):
-    orig = f"{BACKUP}/{hid}.orig.json"
-    if not os.path.exists(orig): raise ValueError("this hole hasn't been edited")
-    shutil.copy(f"{DATA}/{hid}.json", f"{BACKUP}/{hid}.prev.json")
-    shutil.copy(orig, f"{DATA}/{hid}.json")
+def dump_recipe(r):
+    """One hole per line block, like the hand-written recipes, so diffs stay readable."""
+    head = {k: v for k, v in r.items() if k != "holes"}
+    s = json.dumps(head, indent=1)[:-2] + ',\n "holes": [\n'
+    s += ",\n\n".join("  " + json.dumps(h) for h in r["holes"])
+    return s + "\n ]\n}\n"
 
 
-def run_build(hid):
-    course, n = split_id(hid)
-    log = f"{ROOT}/build/{hid}.log"
+def new_course(body):
+    cid = str(body.get("id", "")).strip().lower()
+    if not COURSE_ID.match(cid): raise ValueError("course id: lower-case letters, numbers and dashes")
+    if os.path.exists(recipe_path(cid)) or os.path.exists(f"{DATA}/{cid}-01.json"): raise ValueError(f"'{cid}' is already used")
+    r = dict(name=body.get("name") or cid, theme=body.get("theme", "classic"),
+             holes=[{"tiles": [{"t": "tee"}, {"t": "fairway"}, {"t": "green"}], "modules": []}])
+    return save_recipe(cid, r)
+
+
+def run_build(cid, n):
+    hid = f"{cid}-{n:02d}"; log = f"{ROOT}/build/{hid}.log"
+    os.makedirs(f"{ROOT}/build", exist_ok=True)
     with build_lock:
         jobs[hid] = dict(state="running", started=time.time())
-        env = dict(os.environ, HOLE=hid, OUT=f"{GAME}/courses/{course}/{n}")
         with open(log, "w") as lf:
-            ok = subprocess.run(["bash", f"{ROOT}/tools/build_course.sh"], env=env, stdout=lf, stderr=subprocess.STDOUT,
-                                cwd=ROOT).returncode == 0
+            ok = subprocess.run([sys.executable, f"{ROOT}/tools/compose_hole.py", recipe_path(cid), str(n)],
+                                stdout=lf, stderr=subprocess.STDOUT, cwd=ROOT).returncode == 0
             if ok:
-                name = course_names().get(course) or json.load(open(f"{DATA}/{hid}.json")).get("course", course)
-                ok = subprocess.run([sys.executable, f"{ROOT}/tools/course_index.py", course, name], stdout=lf,
-                                    stderr=subprocess.STDOUT, cwd=ROOT).returncode == 0
+                env = dict(os.environ, HOLE=hid, OUT=f"{GAME}/courses/{cid}/{n:02d}")
+                ok = subprocess.run(["bash", f"{ROOT}/tools/build_course.sh"], env=env, stdout=lf, stderr=subprocess.STDOUT,
+                                    cwd=ROOT).returncode == 0
+            if ok:
+                ok = subprocess.run([sys.executable, f"{ROOT}/tools/course_index.py", cid, load_recipe(cid).get("name", cid)],
+                                    stdout=lf, stderr=subprocess.STDOUT, cwd=ROOT).returncode == 0
         jobs[hid].update(state="done" if ok else "failed", finished=time.time())
 
 
-def start_build(hid):
+def start_build(cid, n):
+    hid = f"{cid}-{n:02d}"
     if jobs.get(hid, {}).get("state") in ("queued", "running"): return
     jobs[hid] = dict(state="queued", started=time.time())
-    threading.Thread(target=run_build, args=(hid,), daemon=True).start()
+    threading.Thread(target=run_build, args=(cid, n), daemon=True).start()
 
 
 def log_tail(hid, lines=25):
@@ -157,6 +151,57 @@ def log_tail(hid, lines=25):
         with open(f"{ROOT}/build/{hid}.log") as f: return "".join(f.readlines()[-lines:])
     except OSError:
         return ""
+
+
+def prop_sets():
+    """Every placeable picture, by set: art/<set>/props/props.json."""
+    out = {}
+    for f in sorted(glob.glob(f"{ROOT}/art/*/props/props.json")):
+        name = os.path.basename(os.path.dirname(os.path.dirname(f)))
+        out[name] = {k: dict(v, url=f"/art/{name}/props/{v['file']}") for k, v in json.load(open(f)).items()}
+    return out
+
+
+GROUPS = f"{ROOT}/art/groups.json"
+def load_groups():
+    """Saved prop groups (art/groups.json): [{name, set, props: [{kind, at: [x, y] metres from the middle, scale?, flip?}]}]."""
+    try: return json.load(open(GROUPS))["groups"]
+    except (OSError, ValueError, KeyError): return []
+
+
+def save_groups(body):
+    if not isinstance(body, list) or len(body) > 200: raise ValueError("groups must be a list")
+    out = []
+    for g in body:
+        if not isinstance(g, dict): raise ValueError("bad group")
+        name = str(g.get("name", "")).strip()[:40]; st = str(g.get("set", ""))
+        if not name or not PROP_KIND.match(st): raise ValueError("a group needs a name and a prop set")
+        ps = []
+        for p in g.get("props", [])[:60]:
+            if not (isinstance(p, dict) and PROP_KIND.match(str(p.get("kind", "")))): raise ValueError(f"group {name}: bad prop")
+            at = p.get("at")
+            if not (isinstance(at, list) and len(at) == 2 and all(isinstance(v, (int, float)) and abs(v) < 500 for v in at)):
+                raise ValueError(f"group {name}: prop position must be [x, y] metres")
+            q = dict(kind=p["kind"], at=[round(float(at[0]), 2), round(float(at[1]), 2)])
+            if p.get("scale", 1) != 1: q["scale"] = round(min(max(float(p["scale"]), 0.25), 4.0), 3)
+            if p.get("flip"): q["flip"] = True
+            ps.append(q)
+        if not ps: raise ValueError(f"group {name} has no props")
+        out.append(dict(name=name, set=st, props=ps))
+    with recipe_lock:
+        tmp = GROUPS + ".tmp"
+        with open(tmp, "w") as f:
+            f.write('{\n "groups": [\n' + ",\n".join("  " + json.dumps(g) for g in out) + "\n ]\n}\n")
+        os.replace(tmp, GROUPS)
+    return out
+
+
+def options():
+    """What the page offers in its tile and module forms (taken from the composer, so they can't drift)."""
+    return dict(themes=THEMES, bends=list(C.BENDS), widths=list(C.WIDTHS), slopes=list(C.SLOPES), sizes=list(C.FAIRWAY_LEN),
+                tee_elev=list(C.TEE_ELEV), green_shapes=list(C.GREEN_SHAPES), green_slopes=list(C.GREEN_SLOPES),
+                green_elev=list(C.GREEN_ELEV), module_sizes=list(C.SIZES), slots={k: sorted(v) for k, v in C.SLOTS.items()},
+                fairway_len=C.FAIRWAY_LEN, tee=C.TEE, par_yards=C.PAR_YARDS)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -168,10 +213,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(b)))
         self.end_headers(); self.wfile.write(b)
 
-    def hole_id(self, path, prefix):
-        hid = path[len(prefix):]
-        if not HOLE_ID.match(hid) or not os.path.exists(f"{DATA}/{hid}.json"): raise FileNotFoundError(hid)
-        return hid
+    def hole_ref(self, path, prefix):
+        """/prefix/<course>/<n> -> (course id, hole number)"""
+        cid, _, n = path[len(prefix):].partition("/")
+        if not n.isdigit(): raise FileNotFoundError(path)
+        r = load_recipe(cid); n = int(n)
+        if not 1 <= n <= len(r["holes"]): raise FileNotFoundError(path)
+        return cid, n
 
     def do_GET(self):
         path = urlparse(self.path).path
@@ -181,19 +229,25 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Cache-Control", "no-store"); self.end_headers(); self.wfile.write(b); return
             if path == "/api/courses": return self.send_json(list_courses())
-            if path.startswith("/api/hole/"): return self.send_json(load_hole(self.hole_id(path, "/api/hole/")))
-            if path.startswith("/api/auto/"):
-                try: return self.send_json(auto_layout(self.hole_id(path, "/api/auto/")))
-                except RuntimeError as e: return self.send_json(dict(error=str(e)), 500)
+            if path == "/api/options": return self.send_json(options())
+            if path == "/api/props": return self.send_json(prop_sets())
+            if path == "/api/groups": return self.send_json(load_groups())
+            if path.startswith("/api/recipe/"): return self.send_json(load_recipe(path[len("/api/recipe/"):]))
             if path.startswith("/api/build/"):
-                hid = self.hole_id(path, "/api/build/")
-                return self.send_json(dict(job=jobs.get(hid), log=log_tail(hid)))
+                cid, n = self.hole_ref(path, "/api/build/"); hid = f"{cid}-{n:02d}"
+                return self.send_json(dict(hole_status(cid, n), log=log_tail(hid)))
+            if path.startswith("/art/") and path.endswith((".png", ".json")) and ".." not in path:
+                f = os.path.realpath(ROOT + path)
+                if not f.startswith(ROOT + "/art/") or not os.path.isfile(f): raise FileNotFoundError(path)
+                b = open(f, "rb").read()
+                self.send_response(200); self.send_header("Content-Type", "image/png" if f.endswith(".png") else "application/json")
+                self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b); return
             if path == "/game" or path.startswith("/game/"):
                 self.path = self.path[len("/game"):] or "/"
                 return SimpleHTTPRequestHandler.do_GET(self)
             self.send_error(404)
         except FileNotFoundError:
-            self.send_json(dict(error="no such hole"), 404)
+            self.send_json(dict(error="not found"), 404)
 
     def end_headers(self):
         if self.path.endswith((".jpg", ".png", ".json")): self.send_header("Cache-Control", "no-store")
@@ -204,20 +258,20 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n) or b"{}")
-            if path.startswith("/api/hole/"):
-                hid = self.hole_id(path, "/api/hole/")
-                save_hole(hid, body)
-                if body.get("rebuild"): start_build(hid)
-                return self.send_json(load_hole(hid))
-            if path.startswith("/api/restore/"):
-                hid = self.hole_id(path, "/api/restore/"); restore_hole(hid)
-                return self.send_json(load_hole(hid))
+            if path == "/api/preview":            # {course: {id, theme}, n, hole}
+                course = body.get("course") or {}
+                cid = course.get("id", "x") if COURSE_ID.match(str(course.get("id", ""))) else "x"
+                try: return self.send_json(C.preview({"id": cid}, int(body.get("n", 1)), {**body["hole"], "theme": course.get("theme", "classic")}))
+                except (C.RecipeError, KeyError, TypeError, ValueError) as e: return self.send_json(dict(error=str(e)), 400)
+            if path == "/api/new": return self.send_json(new_course(body))
+            if path == "/api/groups": return self.send_json(save_groups(body))
+            if path.startswith("/api/recipe/"): return self.send_json(save_recipe(path[len("/api/recipe/"):], body))
             if path.startswith("/api/build/"):
-                hid = self.hole_id(path, "/api/build/"); start_build(hid)
-                return self.send_json(dict(job=jobs.get(hid)))
+                cid, n = self.hole_ref(path, "/api/build/"); start_build(cid, n)
+                return self.send_json(hole_status(cid, n))
             self.send_error(404)
         except FileNotFoundError:
-            self.send_json(dict(error="no such hole"), 404)
+            self.send_json(dict(error="not found"), 404)
         except (ValueError, TypeError) as e:
             self.send_json(dict(error=str(e)), 400)
 
