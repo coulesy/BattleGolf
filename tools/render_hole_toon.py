@@ -24,8 +24,8 @@ north_rot = ang
 D = np.linalg.norm(G - T)
 
 # ---------------- camera: hole runs bottom-left -> top-right, tilted ----------------
-SS = 2
 import os
+SS = 0.25 if os.environ.get("FEATURES_ONLY") else 2      # the layout export needs no picture, so draw it tiny
 PORTRAIT = os.environ.get("PORTRAIT") == "1"
 OUT_W, OUT_H = (900, 1600) if PORTRAIT else (1600, 900)
 # DETAIL="x,y,w,h" (base-image px) + DETAIL_K renders a sharper tile of part of the same picture
@@ -74,6 +74,16 @@ nb = nbw(X, Y)
 # ---------------- real course features (OpenStreetMap), rasterised in world space ----------------
 # OSM=data/osm/<course>.json. Everything here is world-space, so detail tiles line up with the base picture.
 OSMF = json.load(open(os.environ["OSM"])) if os.environ.get("OSM") else None
+# A hand-drawn map from the course editor ("map" in the hole file) is used the same way as OSM features, except
+# that a drawn fairway replaces the generated one and the automatic treeline can stay on ("auto_trees").
+# FEATURES_ONLY=1 ignores it and writes the procedural layout (fairway, bunkers, water) as lat/lng polygons instead.
+FEATURES_ONLY = bool(os.environ.get("FEATURES_ONLY"))
+MAP = None if FEATURES_ONLY else H.get("map")
+if MAP is not None:
+    OSMF = dict(features=[dict(kind=k, pts=P) for k in ("fairway", "green", "bunker", "water", "wood")
+                          for P in MAP.get(k, []) if len(P) >= 3], trees=MAP.get("trees", []))
+AUTO_TREES = MAP is None or MAP.get("auto_trees", True)
+MAP_FAIRWAY = MAP is not None and any(len(P) >= 3 for P in MAP.get("fairway", []))
 def frame(pts): return np.array([R @ to_m(p) for p in pts])
 def world_mask(polys, width=None, round_ends=True):
     m = Image.new("L", (wnx, wny), 0); dr = ImageDraw.Draw(m)
@@ -222,6 +232,26 @@ else:
         pt, nrm = at_arc(sa); c_ = pt + nrm * side * (36 + hr.uniform(0, 8))
         tgt = np.array([-nrm[1], nrm[0]])
         ponds.append(blob(c_[0], c_[1], hr.uniform(26, 40), hr.uniform(13, 18), math.atan2(tgt[1], tgt[0]), 0.12))
+    if FEATURES_ONLY:
+        def to_ll(P):                                   # hole frame -> [lat, lng]
+            P = np.asarray(P, float) @ R
+            return [[round(lat0 + y_ / ky, 8), round(lng0 + x_ / kx, 8)] for x_, y_ in P]
+        def ribbon(S, w):                               # a polyline widened into a polygon
+            S = np.asarray(S, float); tg = np.gradient(S, axis=0); tg /= np.linalg.norm(tg, axis=1, keepdims=True) + 1e-9
+            nrm_ = np.stack([tg[:, 1], -tg[:, 0]], 1) * w / 2
+            return np.concatenate([S + nrm_, (S - nrm_)[::-1]])
+        # fairway outline: the generated fairway's half-width either side of the centre line
+        fa = np.arange(fw_start if D >= 200 else total - 45, total - 2, 8.0)
+        lft, rgt = [], []
+        for sa in fa:
+            pt, nrm = at_arc(sa); n_ = float(nbw([pt[0]], [pt[1]])[0])
+            hw_ = 15 + 4 * math.exp(-((sa - 230) / 60) ** 2) - 4 * min(max((sa - (total - 60)) / 50, 0), 1) + 2.0 * n_
+            lft.append(pt - nrm * hw_); rgt.append(pt + nrm * hw_)
+        auto = dict(fairway=[to_ll(rgt + lft[::-1])] if len(fa) > 1 else [], green=[],
+                    bunker=[to_ll(P) for P in bunkers],
+                    water=[to_ll(P) for P in ponds] + [to_ll(ribbon(S, 6)) for S in streams],
+                    wood=[], trees=[], auto_trees=True)
+        json.dump(auto, open(out, "w")); print("features", {k: len(v) for k, v in auto.items() if isinstance(v, list)}); sys.exit()
     W_bunker = world_mask(bunkers)
     W_water = np.maximum(world_mask(ponds), world_mask(streams, 6, round_ends=False))
     W_play = np.maximum(W_bunker, gaussian_filter(W_water, 3 / WC) > 0.05)
@@ -248,6 +278,10 @@ Wfr = (WDst < Whw) & (WSarc > fw_start) & (WSarc < total - 2)
 if D < 200: Wfr &= WSarc > total - 45
 Wfr |= WGd < 2.5
 Wcr = ((WDst < Whw + 10) & (WSarc > fw_start - 12)) | (WGd < 9)
+if MAP_FAIRWAY:          # the drawn fairway replaces the generated one; the first cut is a 9 m band round it
+    Wfr = (W_fair_osm > 0.5) | (WGd < 2.5)
+    Wcr = (distance_transform_edt(W_fair_osm < 0.5) * WC < 9) | (WGd < 9)
+    ofair = np.zeros_like(ofair)
 Whaz = np.maximum(W_bunker, W_water)
 if OSM_ON: Whaz = np.maximum(Whaz, W_wood)
 near_haz = distance_transform_edt(Whaz < 0.5) * WC < 2.5          # keep a grass margin round hazards
@@ -352,8 +386,8 @@ if OSM_ON:
     # real trees: OSM single trees and tree rows, plus woods filled with trees about 7.5 m apart
     def clear_of_play(p):
         d_, i_ = _kd.query(p); sa = arc[i_]
-        if d_ < 29 and fw_start - 15 < sa < total + 5: return False      # this hole's fairway and first cut
-        if np.hypot(*(p - T)) < 14 or np.hypot(*(p - G)) < a_ax + 12: return False
+        if MAP is None and d_ < 29 and fw_start - 15 < sa < total + 5: return False      # this hole's fairway and first cut
+        if np.hypot(*(p - T)) < 14 or np.hypot(*(p - G)) < a_ax + (4 if MAP is not None else 12): return False
         return not in_world(W_play, p)
     singles = [frame([t_])[0] for t_ in OSMF["trees"]]
     for f in feats.get("tree_row", []):
@@ -378,7 +412,8 @@ for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (2600, 2)):
     nearG = np.hypot(*(p - gc)) < a_ax + 16; nearT = np.hypot(*(p - T)) < 18
     if nearG or nearT: continue
     if in_world(W_play, p) or (OSM_ON and in_world(W_wood, p)): continue
-    if z > 0 and not OSM_ON and rng.random() < (0.35 + 0.6 * min(z / 12, 1)) * (clump > -0.6):   # tight treeline
+    if MAP_FAIRWAY and world_sample(CutF, [p[0]], [p[1]])[0] > 0.3: continue      # keep off a drawn fairway's cut
+    if z > 0 and (not OSM_ON or (MAP is not None and AUTO_TREES)) and rng.random() < (0.35 + 0.6 * min(z / 12, 1)) * (clump > -0.6):   # tight treeline
         props.append(("tree", p))
     elif z > -3 and rng.random() < 0.05:
         props.append(("bush", p))

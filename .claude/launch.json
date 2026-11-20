@@ -4,8 +4,22 @@
     {
       "name": "battlegolf",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "game"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "game"
+      ],
       "port": 8765
+    },
+    {
+      "name": "course-editor",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "tools/course_editor.py"
+      ],
+      "port": 8790
     }
   ]
 }
