@@ -10,6 +10,38 @@ src, out = sys.argv[1], sys.argv[2]
 H = json.load(open(src))
 rng = np.random.default_rng(7)
 
+# ---------------- themes: same holes and rules, different paint and props ----------------
+# THEME=<name> or "theme" in the hole file. Each entry: three hill bands (shadow, mid, lit) for the ground,
+# two stripes for mown grass, and the outline colours. Props are drawn per theme further down.
+import os as _os
+THEME = _os.environ.get("THEME") or H.get("theme", "classic")
+PALETTES = {
+    "classic": dict(rough=("#4f9e2a", "#62b434", "#74c63e"), cut=("#3f8a24", "#4b9a2b", "#56a831"),
+                    wood=("#3a7a22", "#438727", "#4c912b"), fair=("#8fd64a", "#7cc83c"), green=("#b2ec66", "#a5e25c"),
+                    tee=("#9ee056", "#8ad24a"), sand=("#e2c46e", "#efd486", "#f7e3a0"), water=("#7ad2f5", "#45aee6"),
+                    ink="#2d5f1a", l_fair="#3c7e22", l_green="#4f9a2b", l_sand="#b48a3c", l_water="#2a6aa0",
+                    props=(34, 70, 24), shadow=(30, 70, 20), label=(30, 55, 25)),
+    # moon base: grey-violet regolith, glowing teal landing strips, pink stardust bunkers, black-hole "water"
+    "space": dict(rough=("#3e3a56", "#4d486a", "#5e5880"), cut=("#332f4a", "#3d3858", "#474166"),
+                  wood=("#2c2842", "#34304c", "#3c3756"), fair=("#3cc4d6", "#2fadbf"), green=("#9af5e6", "#86e8d8"),
+                  tee=("#c9a2ff", "#b48cf0"), sand=("#c25fb4", "#d77ac9", "#eb9be0"), water=("#1a1638", "#0a0920"),
+                  ink="#161328", l_fair="#a6f6ff", l_green="#e6fffb", l_sand="#ffc6f4", l_water="#8a7dff",
+                  props=(22, 19, 40), shadow=(10, 8, 24), label=(22, 19, 40)),
+    # synthwave night: dark violet ground on a neon grid, glowing outlines
+    "neon": dict(rough=("#140b2e", "#1b103c", "#23164a"), cut=("#1f1045", "#271553", "#301b62"),
+                 wood=("#170c33", "#1c103d", "#221446"), fair=("#3a1f8c", "#311a78"), green=("#16c98b", "#12b47c"),
+                 tee=("#ff4fbf", "#e63aa8"), sand=("#e8a21c", "#f6bd2e", "#ffd94e"), water=("#7fe9ff", "#00a8f0"),
+                 ink="#ff2fa8", l_fair="#00f0ff", l_green="#8dffc8", l_sand="#fff07a", l_water="#c6f8ff",
+                 props=(10, 4, 26), shadow=(0, 0, 10), label=(60, 10, 70)),
+    # castle grounds: olive meadow, straw-and-earth bunkers, a dark moat, flagstone tees
+    "medieval": dict(rough=("#55652b", "#657834", "#74893c"), cut=("#475624", "#51622a", "#5b6e30"),
+                     wood=("#3f4c20", "#465524", "#4e5e28"), fair=("#9bb04f", "#8ca245"), green=("#bcd166", "#afc55a"),
+                     tee=("#bdb299", "#aaa086"), sand=("#9c7442", "#b08850", "#c49c64"), water=("#4c838e", "#2c5c68"),
+                     ink="#33341a", l_fair="#5d6f2c", l_green="#6e8a32", l_sand="#6e4e26", l_water="#1c3d46",
+                     props=(40, 36, 20), shadow=(30, 34, 14), label=(50, 40, 20)),
+}
+PAL = PALETTES.get(THEME, PALETTES["classic"])
+
 # ---------------- geometry in "hole frame": tee at origin, green straight up ----------------
 lat0, lng0 = H["tee"]
 kx, ky = math.cos(math.radians(lat0)) * 111320.0, 110540.0
@@ -141,6 +173,10 @@ if OSM_ON:
 C = 2 * L - (T + G) / 2
 t = np.linspace(0, 1, 3000)[:, None]
 curve = (1 - t) ** 2 * T + 2 * t * (1 - t) * C + t ** 2 * G
+if H.get("path"):        # tile-built holes (compose_hole.py) give their own centre line, so S-bends work
+    _P = frame(H["path"]); _c = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(_P, axis=0), axis=1))])
+    _ts = np.linspace(0, _c[-1], 3000)
+    curve = np.stack([np.interp(_ts, _c, _P[:, 0]), np.interp(_ts, _c, _P[:, 1])], 1)
 arc = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(curve, axis=0), axis=1))])
 total = arc[-1]
 dist, idx = cKDTree(curve).query(np.stack([X.ravel(), Y.ravel()], 1))
@@ -295,7 +331,7 @@ HazF = gaussian_filter((distance_transform_edt(Whaz < 0.5) * WC < 2.5).astype(fl
 fairway = (world_sample(FairF, X, Y) > 0.5) & (world_sample(HazF, X, Y) < 0.5)
 cut = world_sample(CutF, X, Y) > 0.5
 if OSM_ON:
-    cut &= ~wood; cut |= ocut
+    cut &= ~wood; cut |= ocut; cut &= ~water
 else:
     cut &= ~water
 
@@ -321,54 +357,93 @@ band = np.digitize(hs, [-0.12, 0.10])          # 0 shadow, 1 mid, 2 lit
 
 # ---------------- paint flat colours ----------------
 def c(h): return np.array([int(h[i:i + 2], 16) for i in (1, 3, 5)], float)
-rough = np.stack([c("#4f9e2a"), c("#62b434"), c("#74c63e")])
+def bands3(k): return np.stack([c(v) for v in PAL[k]])
+def stripes(k, m): return np.where(m[..., None], c(PAL[k][0]), c(PAL[k][1]))
+rough = bands3("rough")
 img = rough[band].copy()
-def fill(mask, colr): img[mask] = colr
-cutc = np.stack([c("#3f8a24"), c("#4b9a2b"), c("#56a831")])
-woodc = np.stack([c("#3a7a22"), c("#438727"), c("#4c912b")])        # forest floor
+cutc = bands3("cut")
+woodc = bands3("wood")        # forest floor
 img[wood] = woodc[band][wood]
 img[cut] = cutc[band][cut]
+plain = ~(cut | wood)          # open ground beyond the first cut
+# theme ground detail, in world metres so detail tiles line up with the base picture
+if THEME == "space":
+    # craters scattered over the regolith: a dark bowl with a lit rim on the top-left
+    cr_rng = np.random.default_rng((sum(map(ord, H.get("course", ""))) * 31 + H["hole"]) % 2**32)
+    for _ in range(70):
+        cx_, cy_ = cr_rng.uniform(bx[0], bx[1]), cr_rng.uniform(by[0], by[1]); r_ = cr_rng.uniform(3, 11)
+        dd = np.hypot(X - cx_, Y - cy_) / r_
+        if not (dd < 1.2).any(): continue
+        sh = (X - cx_) * -0.7 + (Y - cy_) * 0.7          # positive towards the light
+        bowl = plain & (dd < 1.0); rim = plain & (dd >= 1.0) & (dd < 1.18)
+        img[bowl] = img[bowl] * np.where((sh[bowl] < 0)[:, None], 0.92, 0.72)
+        img[rim] = np.minimum(img[rim] * 1.25 + 12, 255)
+elif THEME == "neon":
+    # a glowing perspective grid over the dark ground
+    gl = (np.abs(((X + 6) % 12) - 6) < 0.32) | (np.abs(((Y + 6) % 12) - 6) < 0.32)
+    m_ = gl & ~wood
+    img[m_] = img[m_] * 0.45 + c("#ff2fa8") * 0.55
+elif THEME == "medieval":
+    # worn earth patches in the meadow
+    pt_ = plain & (nb > 1.35)
+    img[pt_] = img[pt_] * 0.82 + c("#8a6a3a") * 0.18
 stripe = (np.floor(sarc / 9) % 2).astype(bool)
-fwc = np.where(stripe[..., None], c("#8fd64a"), c("#7cc83c"))
+fwc = stripes("fair", stripe)
 allfair = fairway | ofair
 img[allfair] = fwc[allfair]
 gstripe = (np.floor(gu / 2.5) % 2).astype(bool)
-gcol = np.where(gstripe[..., None], c("#b2ec66"), c("#a5e25c"))
+gcol = stripes("green", gstripe)
 img[ogreen] = gcol[ogreen]
 img[green] = gcol[green]
 tstripe = (np.floor(tv / 3) % 2).astype(bool)
-tcol = np.where(tstripe[..., None], c("#9ee056"), c("#8ad24a"))
+tcol = stripes("tee", tstripe)
+if THEME == "medieval":            # flagstones rather than stripes
+    tcol = np.where(((np.floor(tu / 2.2) + np.floor(tv / 1.6)) % 2).astype(bool)[..., None], c(PAL["tee"][0]), c(PAL["tee"][1]))
 img[otee & ~green] = tcol[otee & ~green]
-img[teepad] = c("#4b9a2b")
+img[teepad] = cutc[1]
 img[teebox] = tcol[teebox]
-# sand: warm, lighter towards the lit side; water: blue with soft noise ripples
-sandc = np.stack([c("#e2c46e"), c("#efd486"), c("#f7e3a0")])
+# sand: lighter towards the lit side; water: soft noise ripples (space: a starry void)
+sandc = bands3("sand")
 img[bunker] = sandc[band][bunker]
-rip = (np.sin((X * 0.7 + Y * 0.35) + 3 * nb) > 0.75)
-waterc = np.where(rip[..., None], c("#7ad2f5"), c("#45aee6"))
+if THEME == "space":
+    star_n = np.random.default_rng(5).random((wny, wnx))
+    stars = world_sample(star_n, X, Y, order=0) > 0.985
+    swirl = (np.sin(np.hypot(X, Y) * 0.25 + 2 * nb) > 0.6)
+    waterc = np.where(swirl[..., None], c(PAL["water"][0]), c(PAL["water"][1]))
+    waterc[stars] = c("#f4f0ff")
+else:
+    rip = (np.sin((X * 0.7 + Y * 0.35) + 3 * nb) > 0.75)
+    waterc = np.where(rip[..., None], c(PAL["water"][0]), c(PAL["water"][1]))
 img[water] = waterc[water]
 
-# outlines: edge of each region in a darker ink
-ink = c("#2d5f1a")
+# outlines: edge of each region in a darker ink (neon: bright lines with a soft glow)
+ink = c(PAL["ink"])
+GLOW = THEME in ("neon", "space")
+glow = np.zeros_like(img) if GLOW else None
 def outline(mask, width_px, colr=ink, alpha=1.0):
     # a detail tile is a window onto the full picture: regions that run off its edge carry on,
     # so the tile border must not count as a region edge (that drew a hard line across the fairway)
     e = mask & ~binary_erosion(mask, iterations=int(round(width_px)), border_value=1 if DETAIL else 0)
     img[e] = img[e] * (1 - alpha) + colr * alpha
+    if GLOW: glow[e] = np.maximum(glow[e], colr)
 outline(cut, 4 * U, alpha=0.95)
-outline(allfair, 3 * U, c("#3c7e22"), 0.85)
-outline(green, 2 * U, c("#4f9a2b"), 0.9)
-outline(ogreen, 2 * U, c("#4f9a2b"), 0.9)
-outline(otee, 2 * U, c("#3c7e22"), 0.8)
-outline(bunker, 3 * U, c("#b48a3c"), 0.95)
-outline(water, 3 * U, c("#2a6aa0"), 0.95)
+outline(allfair, 3 * U, c(PAL["l_fair"]), 0.85)
+outline(green, 2 * U, c(PAL["l_green"]), 0.9)
+outline(ogreen, 2 * U, c(PAL["l_green"]), 0.9)
+outline(otee, 2 * U, c(PAL["l_fair"]), 0.8)
+outline(bunker, 3 * U, c(PAL["l_sand"]), 0.95)
+outline(water, 3 * U, c(PAL["l_water"]), 0.95)
 outline(teepad, 2 * U, alpha=0.8)
-outline(teebox, 2 * U, c("#3c7e22"), 0.8)
+outline(teebox, 2 * U, c(PAL["l_fair"]), 0.8)
+if GLOW:
+    k_ = (4.0 if THEME == "neon" else 2.5) * U
+    gb = np.stack([gaussian_filter(glow[..., i], k_) for i in range(3)], -1)
+    img = np.minimum(img + gb * (0.9 if THEME == "neon" else 0.45), 255)
 # soft ink along hill-band boundaries in the rough (cartoon contours)
 bedge = (np.abs(np.diff(band, axis=0, prepend=band[:1])) + np.abs(np.diff(band, axis=1, prepend=band[:, :1]))) > 0
 bedge = gaussian_filter(bedge.astype(float), 1.2 * U) > 0.2
 bedge &= ~cut & ~bunker & ~water & ~ogreen & ~ofair
-img[bedge] = img[bedge] * 0.86
+img[bedge] = img[bedge] * (1.35 if THEME == "neon" else 0.86)
 
 base = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).filter(ImageFilter.SMOOTH)
 cv = ImageDraw.Draw(base, "RGBA")
@@ -421,18 +496,129 @@ for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (2600, 2)):
         props.append(("rock", p))
     elif z > -4 and rng.random() < 0.09:
         props.append(("tuft", p))
+if MAP is not None:      # placed props (bushes, rocks) from a drawn or tile-built map
+    props += [(pr["kind"], frame([pr["pt"]])[0]) for pr in MAP.get("props", []) if pr.get("kind") in ("bush", "rock", "tuft")]
 props.sort(key=lambda it: to_screen(it[1])[1])
 trees_out = []
 
-INK = (34, 70, 24, 255)
+INK = tuple(PAL["props"]) + (255,)
+SHADOW = tuple(PAL["shadow"])
 def blob(x, y, r, fillc, w=None):
     w = w or max(2, int(r * 0.12))
     cv.ellipse([x - r - w, y - r - w, x + r + w, y + r + w], fill=INK)
     cv.ellipse([x - r, y - r, x + r, y + r], fill=fillc)
 def shade(col, k): return tuple(int(min(255, v * k)) for v in col[:3]) + (255,)
 
+def themed_prop(kind, x, y, r_tree):
+    """Space, neon and medieval props. Returns False for the classic look (drawn below)."""
+    lw = lambda r, k=0.09: max(2, int(r * k))
+    if THEME == "space":
+        if kind == "tree":            # a cluster of crystal spires
+            r = r_tree; g = [(90, 230, 240), (200, 120, 255), (120, 255, 200), (255, 130, 220)][int(rng.integers(4))]
+            cv.ellipse([x - r * 1.1, y - r * 0.15, x + r * 1.4, y + r * 0.5], fill=SHADOW + (130,))
+            for ox, hgt, wd in ((-0.45, 1.3, 0.32), (0.45, 1.1, 0.3), (0.0, 2.0, 0.42)):
+                bx_, top = x + ox * r, y - hgt * r * 1.3
+                pts = [(bx_ - wd * r, y), (bx_ - wd * r * 0.7, y - hgt * r * 0.9), (bx_, top), (bx_ + wd * r * 0.7, y - hgt * r * 0.9), (bx_ + wd * r, y)]
+                cv.polygon(pts, fill=shade(g, 0.75), outline=INK, width=lw(r))
+                cv.polygon([pts[1], pts[2], (bx_, y)], fill=shade(g, 1.15))
+            cv.ellipse([x - r * 0.15, y - r * 2.45, x + r * 0.15, y - r * 2.15], fill=(255, 255, 255, 230))
+        elif kind == "bush":          # a small glowing pod
+            r = rng.uniform(2.5, 3.5) / mpp
+            cv.ellipse([x - r * 1.4, y - r * 1.4, x + r * 1.4, y + r * 1.0], fill=(140, 255, 230, 50))
+            cv.ellipse([x - r, y - r, x + r, y + r * 0.6], fill=(110, 230, 210, 255), outline=INK, width=lw(r, 0.14))
+            cv.ellipse([x - r * 0.5, y - r * 0.8, x, y - r * 0.3], fill=(220, 255, 250, 255))
+        elif kind == "rock":          # moon rocks
+            r = rng.uniform(1.4, 2.4) / mpp * 0.8
+            for dx, rr in ((0, 1.0), (r * 1.1, 0.6)):
+                cv.ellipse([x + dx - r * rr, y - r * rr * 0.7, x + dx + r * rr, y + r * rr * 0.6], fill=(132, 126, 156, 255), outline=INK, width=lw(r, 0.15))
+                cv.ellipse([x + dx - r * rr * 0.6, y - r * rr * 0.55, x + dx + r * rr * 0.2, y - r * rr * 0.1], fill=(196, 190, 220, 255))
+        elif kind == "tuft":          # a twinkle
+            r = rng.uniform(1.0, 1.8) / mpp
+            col = (255, 250, 220, 255)
+            cv.polygon([(x, y - r), (x + r * 0.22, y - r * 0.22), (x + r, y), (x + r * 0.22, y + r * 0.22), (x, y + r), (x - r * 0.22, y + r * 0.22), (x - r, y), (x - r * 0.22, y - r * 0.22)], fill=col)
+        return True
+    if THEME == "neon":
+        if kind == "tree":            # a neon palm: dark trunk, glowing fronds
+            r = r_tree; g = [(255, 47, 168), (0, 240, 255), (180, 90, 255), (255, 230, 80)][int(rng.integers(4))]
+            cv.ellipse([x - r * 1.3, y - r * 0.35, x + r * 1.3, y + r * 0.35], fill=g + (60,))
+            top = (x + r * 0.25, y - r * 1.9)
+            cv.line([(x, y), (x + r * 0.12, y - r * 1.0), top], fill=(30, 18, 60, 255), width=lw(r, 0.22), joint="curve")
+            cv.line([(x, y), (x + r * 0.12, y - r * 1.0), top], fill=g + (255,), width=lw(r, 0.06), joint="curve")
+            for a in (-2.7, -2.1, -1.2, -0.45, 0.35):
+                ex, ey = top[0] + math.cos(a) * r * 1.05, top[1] + math.sin(a) * r * 0.75 + r * 0.35
+                mx_, my_ = (top[0] + ex) / 2, min(top[1], ey) - r * 0.25
+                cv.line([top, (mx_, my_), (ex, ey)], fill=g + (90,), width=lw(r, 0.3), joint="curve")
+                cv.line([top, (mx_, my_), (ex, ey)], fill=shade(g, 1.25), width=lw(r, 0.1), joint="curve")
+            cv.ellipse([top[0] - r * 0.14, top[1] - r * 0.14, top[0] + r * 0.14, top[1] + r * 0.14], fill=(255, 255, 255, 255))
+        elif kind == "bush":          # a glowing orb on a short post
+            r = rng.uniform(1.6, 2.2) / mpp; g = (0, 240, 255) if rng.random() < 0.5 else (255, 47, 168)
+            cv.line([x, y, x, y - r * 2], fill=(60, 40, 110, 255), width=lw(r, 0.3))
+            cv.ellipse([x - r * 1.5, y - r * 3.5, x + r * 1.5, y - r * 0.5], fill=g + (55,))
+            cv.ellipse([x - r * 0.7, y - r * 2.7, x + r * 0.7, y - r * 1.3], fill=shade(g, 1.2), outline=(255, 255, 255, 255), width=lw(r, 0.08))
+        elif kind == "rock":          # a wireframe cube
+            r = rng.uniform(1.2, 1.8) / mpp; g = (180, 90, 255)
+            f_ = [(x - r, y - r * 0.4), (x, y), (x + r, y - r * 0.4), (x, y - r * 0.8)]
+            cv.polygon([(px_, py_ - r * 1.1) for px_, py_ in f_], fill=(40, 20, 90, 255), outline=g + (255,), width=lw(r, 0.1))
+            cv.polygon([f_[0], f_[1], (f_[1][0], f_[1][1] - r * 1.1), (f_[0][0], f_[0][1] - r * 1.1)], fill=(28, 14, 66, 255), outline=g + (255,), width=lw(r, 0.1))
+            cv.polygon([f_[1], f_[2], (f_[2][0], f_[2][1] - r * 1.1), (f_[1][0], f_[1][1] - r * 1.1)], fill=(52, 26, 110, 255), outline=g + (255,), width=lw(r, 0.1))
+        elif kind == "tuft":          # a spark
+            r = rng.uniform(0.6, 1.0) / mpp
+            cv.ellipse([x - r * 1.8, y - r * 1.8, x + r * 1.8, y + r * 1.8], fill=(255, 47, 168, 60))
+            cv.ellipse([x - r * 0.5, y - r * 0.5, x + r * 0.5, y + r * 0.5], fill=(255, 220, 245, 255))
+        return True
+    if THEME == "medieval":
+        if kind == "tree":            # dark pines and the odd round oak
+            r = r_tree
+            cv.ellipse([x - r * 1.1, y - r * 0.15, x + r * 1.4, y + r * 0.5], fill=SHADOW + (120,))
+            if rng.random() < 0.7:
+                g = [(52, 92, 44), (44, 80, 40), (60, 102, 50)][int(rng.integers(3))]
+                cv.rectangle([x - r * 0.12, y - r * 0.5, x + r * 0.12, y + r * 0.1], fill=(92, 62, 36, 255), outline=INK, width=lw(r, 0.07))
+                for k_, (yy, ww) in enumerate(((0.35, 0.95), (-0.35, 0.75), (-1.0, 0.55))):
+                    tri = [(x - r * ww, y - r * 0.2 + yy * r - r * 0.25), (x, y - r * 1.45 + yy * r - r * 0.25), (x + r * ww, y - r * 0.2 + yy * r - r * 0.25)]
+                    cv.polygon(tri, fill=shade(g, 0.9 + 0.08 * k_), outline=INK, width=lw(r))
+                    cv.polygon([tri[0], tri[1], ((tri[0][0] + tri[2][0]) / 2, tri[0][1])], fill=shade(g, 1.05 + 0.08 * k_))
+            else:
+                g = (88, 118, 48)
+                cv.rounded_rectangle([x - r * 0.2, y - r * 0.7, x + r * 0.2, y + r * 0.15], radius=int(r * 0.12), fill=(96, 66, 38, 255), outline=INK, width=lw(r, 0.08))
+                top = y - r * 1.25
+                for ox, oy, rr in ((-0.5, 0.15, 0.6), (0.5, 0.15, 0.6), (0, -0.3, 0.7)):
+                    q = r * rr; w = lw(r, 0.1)
+                    cv.ellipse([x + ox * r - q - w, top + oy * r - q - w, x + ox * r + q + w, top + oy * r + q + w], fill=INK)
+                for ox, oy, rr in ((-0.5, 0.15, 0.6), (0.5, 0.15, 0.6), (0, -0.3, 0.7)):
+                    q = r * rr
+                    cv.ellipse([x + ox * r - q, top + oy * r - q, x + ox * r + q, top + oy * r + q], fill=shade(g, 0.9))
+        elif kind == "bush":          # a hay bale, or now and then a little stone turret with a pennant
+            if rng.random() < 0.25:
+                r = rng.uniform(5.5, 7.0) / mpp; stone = (150, 144, 128)
+                cv.ellipse([x - r * 1.2, y - r * 0.3, x + r * 1.5, y + r * 0.4], fill=SHADOW + (110,))
+                cv.rectangle([x - r * 0.6, y - r * 2.2, x + r * 0.6, y], fill=shade(stone, 0.95), outline=INK, width=lw(r, 0.08))
+                for k_ in range(3):
+                    mx_ = x - r * 0.6 + k_ * r * 0.48
+                    cv.rectangle([mx_, y - r * 2.55, mx_ + r * 0.3, y - r * 2.2], fill=shade(stone, 1.05), outline=INK, width=lw(r, 0.06))
+                cv.rectangle([x - r * 0.15, y - r * 0.6, x + r * 0.15, y], fill=(60, 40, 24, 255))
+                cv.rectangle([x - r * 0.12, y - r * 1.7, x + r * 0.12, y - r * 1.35], fill=(40, 34, 30, 255))
+                cv.line([x, y - r * 2.55, x, y - r * 3.4], fill=INK, width=lw(r, 0.07))
+                cv.polygon([(x, y - r * 3.4), (x + r * 0.8, y - r * 3.2), (x, y - r * 3.0)], fill=(200, 40, 40, 255), outline=INK)
+            else:
+                r = rng.uniform(1.6, 2.2) / mpp; straw = (214, 180, 90)
+                cv.ellipse([x - r * 1.2, y - r * 0.2, x + r * 1.5, y + r * 0.45], fill=SHADOW + (100,))
+                cv.rounded_rectangle([x - r, y - r * 1.1, x + r, y + r * 0.1], radius=int(r * 0.3), fill=shade(straw, 0.95), outline=INK, width=lw(r, 0.12))
+                cv.line([x - r, y - r * 0.5, x + r, y - r * 0.5], fill=(150, 110, 50, 255), width=lw(r, 0.08))
+        elif kind == "rock":          # tumbled stone blocks
+            r = rng.uniform(1.0, 1.6) / mpp
+            for dx, dy in ((0, 0), (r * 1.2, r * 0.2), (r * 0.55, -r * 0.7)):
+                cv.rectangle([x + dx - r * 0.6, y + dy - r * 0.5, x + dx + r * 0.6, y + dy + r * 0.3], fill=(158, 152, 136, 255), outline=INK, width=lw(r, 0.12))
+                cv.rectangle([x + dx - r * 0.6, y + dy - r * 0.5, x + dx + r * 0.6, y + dy - r * 0.3], fill=(196, 190, 172, 255))
+        return False if kind == "tuft" else True
+    return False
+
 for kind, p in props:
     x, y = to_screen(p)
+    if THEME != "classic":
+        r_tree = rng.uniform(6, 9.5) / mpp * 0.85
+        if kind == "tree":
+            trees_out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(float(r_tree * mpp * 0.9), 2)])
+        if themed_prop(kind, x, y, r_tree): continue
     if kind == "tree":
         r = rng.uniform(6, 9.5) / mpp * 0.85
         trees_out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(float(r * mpp * 0.9), 2)])
@@ -504,7 +690,7 @@ for yd, colr in ((100, (245, 245, 245)), (150, (245, 205, 40)), (200, (40, 140, 
     if yd * 0.9144 < D - 10:
         x, y = to_screen(at_yards(yd)); r = 5 * U
         cv.ellipse([x - r, y - r * 0.8, x + r, y + r * 0.8], fill=colr + (255,), outline=INK, width=int(U) + 1)
-        cv.text((x + 9 * U, y), str(yd), font=font, anchor="lm", fill=(255, 255, 255), stroke_width=int(3 * U), stroke_fill=(30, 55, 25))
+        cv.text((x + 9 * U, y), str(yd), font=font, anchor="lm", fill=(255, 255, 255), stroke_width=int(3 * U), stroke_fill=tuple(PAL["label"]))
 
 img_out = base.resize((CW // SS, CH // SS), Image.LANCZOS)
 d = ImageDraw.Draw(img_out, "RGBA")

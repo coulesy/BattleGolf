@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The courses are **Tilgate Forest** and **Ifield** (18 holes each).
+A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The courses are **Tilgate Forest** and **Ifield** (18 holes each), plus three themed courses made from holes picked at random from Pure Golf's database (see *Themed courses*).
 
 ## Play
 
@@ -14,7 +14,7 @@ cd game && python3 -m http.server 8765
 1. **Distance:** the target moves out from the ball and back, speeding up the further out it goes. Tap to lock it.
 2. **Direction:** the target swings side to side. Tap when it's on the line.
 3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg; on par 3s they aim straight at the flag.
-4. **Putting:** the green shows a slope heat map (blue low → red high, 5 cm contours) with downhill arrows. Putts are simulated with friction and gravity, so they break with the slope.
+4. **Putting:** the green shows a wire grid lifted by the green's height (exaggerated, so the shape is easy to see) and coloured by steepness, from blue (under 1 %) through green and yellow to red and magenta (over 10 %); the *Slope %* key beside the buttons gives the bands. White arrows point downhill (they take the steepness colours when the heat map is off), and *Lines* adds 5 cm contours. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
 7. **Hazards:** bunkers are a sand lie (short, wilder shots), and water (ponds and streams) costs a stroke with a drop back along the line the ball came in on.
@@ -75,9 +75,11 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 | `supabase/migrations/` | Database setup for online matches |
 | `data/` | Hole input data exported from the Pure Golf `holes` table, one file per hole (`<course>-<NN>.json`) |
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
+| `tools/reheat.py` | Redraws a built hole's green heat map (the wire grid) from its slope data, in seconds; `build_course.sh` runs it on every build |
 | `tools/build_course.sh` | Builds one hole's assets from a file in `data/` |
 | `tools/build_round.sh` | Builds every hole of a course into `game/courses/<course>/` and updates `courses.json` |
 | `tools/course_editor.py`, `tools/editor/` | Local course editor (see below) |
+| `tools/compose_hole.py`, `data/recipes/` | Builds holes from tiles and modules (see *Tile-built courses*) |
 | `tools/render_hole.py` | The earlier top-down (non-cartoon) renderer |
 | `tools/playtest.py` | Headless Playwright playtest that taps through rounds and screenshots the green |
 
@@ -90,6 +92,53 @@ bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~
 ```
 
 Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.
+
+## Themed courses
+
+**Lunar Links** (`space`), **Neon Nights** (`neon`) and **Castle Keep** (`medieval`) are 18-hole, par-72 courses (4 par 3s, 10 par 4s, 4 par 5s) whose holes were drawn at random from Pure Golf's `holes` table, one hole per real course, from holes with complete GPS, layup, green and elevation data, not flagged for review, and whose GPS length matches the card. Each data file keeps where its hole came from under `source` (course, hole number and id). Stroke indexes are set by length for par: odd numbers on the front 9, even on the back.
+
+The hole files carry `"theme"`, which `render_hole_toon.py` uses to pick its palette and props (or set `THEME=` when rendering). Play is the same on every theme: only the paint changes.
+
+| Theme | Ground | Fairway, green | Bunkers | Water | Trees and props |
+| --- | --- | --- | --- | --- | --- |
+| `space` | Grey-violet moon dust with craters | Glowing teal | Pink stardust | A starry void | Crystal spires, glowing pods, moon rocks |
+| `neon` | Dark violet on a magenta grid | Indigo with neon outlines | Neon yellow | Electric blue | Neon palms, light orbs, wireframe cubes |
+| `medieval` | Olive meadow with worn patches | Muted greens, flagstone tees | Straw and earth | A dark moat | Pines and oaks, hay bales, stone turrets |
+
+`courses.json` records each course's `theme`, and the game sets the page colour round the picture to match.
+
+## Tile-built courses
+
+Holes can also be put together from tiles instead of GPS data. A recipe in `data/recipes/<course>.json` lists each hole's **core tiles** and the **feature modules** that sit on them; `tools/compose_hole.py` turns it into ordinary `data/<course>-NN.json` files (made-up GPS points, a centre line, hills, green slopes and a drawn map), and the normal build renders them:
+
+```bash
+python3 tools/compose_hole.py data/recipes/patchwork.json          # or add hole numbers: ... patchwork.json 3 7
+bash tools/build_round.sh patchwork "Patchwork Park"
+```
+
+**Patchwork Park** (`patchwork`, 9 holes) is the test course and uses every tile and module.
+
+**Core tiles** join end to end, and the number of tiles sets the par: `tee` + `green` is a par 3, `tee` + `fairway` + `green` a par 4, `tee` + 2 `fairway`s + `green` a par 5. The composer warns if a hole's length is unusual for its par (par 3: 110–230 yds, par 4: 290–470, par 5: 460–600).
+
+| Tile | Options |
+| --- | --- |
+| `tee` | `len` (m; default 55, or 150 on a par 3, where it's the whole carry), `elev`: `level`, `raised`, `elevated` |
+| `fairway` | `len` (m) or `size`: `short` 165, `medium` 200, `long` 240; `bend`: `straight`, `left`, `right`, `hard_left`, `hard_right`, `s_left`, `s_right` (or `turn` in degrees, + right, and `corner` 0–1); `width`: `narrow`, `normal`, `wide`; `slope`: `flat`, `uphill`, `downhill`, `ridge`, `valley`; `gap`: `[from, to]` (0–1) leaves rough to carry |
+| `green` | `len` (approach, m; default 40), `shape`: `oval`, `long`, `round`, `wide`, `kidney`; `slope`: `flat`, `back_to_front`, `front_to_back`, `left_to_right`, `right_to_left`, `crown`, `bowl`, `two_tier`; `elev`: `level`, `raised`, `sunken`; `angle` (degrees the green is turned) |
+
+**Modules** go `"at": "<tile>.<spot>"`. The tile is `tee`, `fairway` (on a par 5: `fairway1`, `fairway2`) or `green`. `pos` (0–1) is how far along the tile; `size` is `small`, `medium` or `large`; `count` repeats it.
+
+| Module | Spots | Notes |
+| --- | --- | --- |
+| `bunker` | `left`, `right`, `cross`, `centre`; on the green `front`, `back`, `left`, `right`, `front_left`, `front_right`, `back_left`, `back_right` | fairway bunkers bite the fairway's edge; greenside ones hug the green |
+| `lake` | `left`, `right`, `cross`; `green.front`, `green.island` | `bite: true` pushes a side lake into the fairway; `offset` (m) moves a front lake sideways |
+| `stream` | `cross`, `left`, `right`; `green.front` | `angle` (degrees) runs a crossing stream on the diagonal |
+| `treeline` | `left`, `right` | `from`/`to` (0–1) along the tile, `tight: true` brings it closer |
+| `copse` | `left`, `right`, `green.back` | a clump of woods |
+| `tree` | `left`, `right` | a single tree on the edge of the cut |
+| `props` | `left`, `right` | `kind`: `rock` or `bush` |
+
+A hole can also set `heading` (degrees from north; random otherwise), `si`, `theme`, `seed` (reshuffles the small random details) and `auto_trees: true` (adds the renderer's automatic treeline as well). Stroke indexes are set by length for par when left out.
 
 ## Course editor
 

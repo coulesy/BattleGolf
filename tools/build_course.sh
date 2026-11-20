@@ -25,6 +25,9 @@ ax=(G-T)/np.linalg.norm(G-T); ang=math.atan2(ax[0],ax[1])
 R=np.array([[math.cos(ang),-math.sin(ang)],[math.sin(ang),math.cos(ang)]])
 T,L,G=R@T,R@L,R@G; C=2*L-(T+G)/2
 t=np.linspace(0,1,121)[:,None]; curve=(1-t)**2*T+2*t*(1-t)*C+t**2*G
+if H.get("path"):
+    P=np.array([R@to_m(q) for q in H["path"]]); c=np.concatenate([[0],np.cumsum(np.linalg.norm(np.diff(P,axis=0),axis=1))])
+    ts=np.linspace(0,c[-1],121); curve=np.stack([np.interp(ts,c,P[:,0]),np.interp(ts,c,P[:,1])],1)
 for f,o in [('game_data.json','land'),('game_data_portrait.json','portrait')]:
     d=json.load(open(f)); det=json.load(open(f'detail_{o}.json'))
     d['centreline']=curve.round(2).tolist(); d['detail']=det['tile']; d['heat']=det['heat']
@@ -39,6 +42,7 @@ python3 - <<'PY'
 import sys, os; sys.path.insert(0, os.environ["ROOT"] + "/tools"); import pin
 print("pin", pin.repin("."))
 PY
+python3 "$ROOT/tools/reheat.py" .          # green heat map: wire grid lifted by height, coloured by steepness
 DEST="${OUT:-$ROOT/game}"; mkdir -p "$DEST"
 cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg detail_land_heat.png detail_portrait_heat.png detail_land_contours.png detail_portrait_contours.png game_data.json game_data_portrait.json "$DEST/"
 echo "copied assets to $DEST"
