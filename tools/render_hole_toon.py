@@ -503,10 +503,11 @@ SPRITES = {}
 for _mf in sorted(_glob.glob(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "art", "*", "props", "props.json"))):
     for _k, _v in json.load(open(_mf)).items(): SPRITES.setdefault(_k, dict(_v, path=_os.path.join(_os.path.dirname(_mf), _v["file"])))
 placed = []
-if MAP is not None:      # placed props (bushes, rocks, pictures) from a drawn or tile-built map
-    for pr in MAP.get("props", []):
-        if pr.get("kind") in ("bush", "rock", "tuft"): props.append((pr["kind"], frame([pr["pt"]])[0]))
-        elif pr.get("kind") in SPRITES: placed.append(pr); props.append((f"@{len(placed) - 1}", frame([pr["pt"]])[0]))
+# placed props (bushes, rocks, pictures) from a drawn or tile-built map, or "props" in a GPS hole file
+# ([{"kind", "pt": [lat, lng], "scale"?, "flip"?}]), so GPS courses can be dressed without a map
+for pr in (MAP.get("props", []) if MAP is not None else []) + H.get("props", []):
+    if pr.get("kind") in ("bush", "rock", "tuft"): props.append((pr["kind"], frame([pr["pt"]])[0]))
+    elif pr.get("kind") in SPRITES: placed.append(pr); props.append((f"@{len(placed) - 1}", frame([pr["pt"]])[0]))
 # ---- scenery from the prop pictures in art/ (classic and medieval looks) ----
 # Every tree, bush, rock and ornament is one of the pictures in art/*/props, so the style matches the editor.
 # Placement is checked in a fixed-size copy of the picture ("ref" space, the same for the base picture and
