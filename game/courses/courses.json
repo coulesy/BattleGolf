@@ -139,129 +139,130 @@
     "n": 1,
     "dir": "01",
     "par": 4,
-    "yards": 377,
+    "yards": 383,
     "si": 12
    },
    {
     "n": 2,
     "dir": "02",
     "par": 4,
-    "yards": 303,
+    "yards": 286,
     "si": 14
    },
    {
     "n": 3,
     "dir": "03",
     "par": 3,
-    "yards": 123,
+    "yards": 112,
     "si": 16
    },
    {
     "n": 4,
     "dir": "04",
     "par": 5,
-    "yards": 465,
+    "yards": 456,
     "si": 4
    },
    {
     "n": 5,
     "dir": "05",
     "par": 3,
-    "yards": 119,
+    "yards": 120,
     "si": 18
    },
    {
     "n": 6,
     "dir": "06",
     "par": 4,
-    "yards": 380,
+    "yards": 375,
     "si": 2
    },
    {
     "n": 7,
     "dir": "07",
     "par": 4,
-    "yards": 354,
+    "yards": 335,
     "si": 6
    },
    {
     "n": 8,
     "dir": "08",
     "par": 5,
-    "yards": 488,
+    "yards": 479,
     "si": 10
    },
    {
     "n": 9,
     "dir": "09",
     "par": 4,
-    "yards": 385,
+    "yards": 366,
     "si": 8
    },
    {
     "n": 10,
     "dir": "10",
     "par": 4,
-    "yards": 326,
+    "yards": 345,
     "si": 9
    },
    {
     "n": 11,
     "dir": "11",
     "par": 3,
-    "yards": 176,
+    "yards": 165,
     "si": 15
    },
    {
     "n": 12,
     "dir": "12",
     "par": 5,
-    "yards": 475,
+    "yards": 493,
     "si": 7
    },
    {
     "n": 13,
     "dir": "13",
     "par": 4,
-    "yards": 375,
+    "yards": 367,
     "si": 1
    },
    {
     "n": 14,
     "dir": "14",
     "par": 4,
-    "yards": 376,
+    "yards": 336,
     "si": 5
    },
    {
     "n": 15,
     "dir": "15",
     "par": 3,
-    "yards": 149,
+    "yards": 151,
     "si": 17
    },
    {
     "n": 16,
     "dir": "16",
     "par": 4,
-    "yards": 330,
+    "yards": 328,
     "si": 13
    },
    {
     "n": 17,
     "dir": "17",
     "par": 5,
-    "yards": 452,
+    "yards": 469,
     "si": 3
    },
    {
     "n": 18,
     "dir": "18",
     "par": 4,
-    "yards": 387,
+    "yards": 371,
     "si": 11
    }
-  ]
+  ],
+  "theme": "classic"
  },
  {
   "id": "space",

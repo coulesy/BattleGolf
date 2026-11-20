@@ -1,6 +1,6 @@
 # BattleGolf
 
-A tap-timing golf game played on cartoon, faux-isometric holes built from real courses. Each hole's shape and distances come from Pure Golf's own hole data (GPS tee, layup and green points, plus elevation grids); the details are procedural: standard-size greens, bunkers, ponds, streams and treelines, placed by simple rules seeded per hole so a hole always comes out the same. The courses are **Tilgate Forest** and **Ifield** (18 holes each), plus three themed courses made from holes picked at random from Pure Golf's database (see *Themed courses*).
+A tap-timing golf game played on cartoon, faux-isometric holes. Holes are built from tiles (a tee, 0–2 fairways and a green) and feature modules (bunkers, water, trees, props) described in a recipe, so courses can be designed in the course editor (see *Tile-built courses*). The courses are **Tilgate Forest** and **Ifield** (18 holes each), three themed courses (see *Themed courses*) and the **Patchwork Park** test course. Tilgate Forest began as a GPS course from Pure Golf's hole data and has been converted to tiles, its routing, hazards, slopes and greens following the original. Ifield and the themed courses are still built from GPS data (each hole's tee, layup and green points and elevation grids, with procedural bunkers, water and trees); their tile recipes are ready to switch to (see *Converted GPS courses*).
 
 ## Play
 
@@ -12,8 +12,8 @@ cd game && python3 -m http.server 8765
 ```
 
 1. **Distance:** the target moves out from the ball and back, speeding up the further out it goes. Tap to lock it.
-2. **Direction:** the target swings side to side. Tap when it's on the line.
-3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Tee shots follow the fairway centre line, so they curve with the dogleg; on par 3s they aim straight at the flag.
+2. **Direction = draw or fade:** the target swings side to side and the dashed line bends with it. Tap in the middle and the ball flies straight; stop it left of centre for a draw (the ball bends left), right for a fade (bends right), up to the club's full spread at the ends. Shots set off along the aim line and bend more as they fly. On the green the swing is a plain direction error instead, since putts don't bend.
+3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Shots set off down the aim line. Tee shots on par 4s and 5s start aimed at the middle of the fairway (the centre line about a drive out); everything else starts aimed at the flag.
 4. **Putting:** the green shows a wire grid lifted by the green's height (exaggerated, so the shape is easy to see) and coloured by steepness, from blue (under 1 %) through green and yellow to red and magenta (over 10 %); the *Slope %* key beside the buttons gives the bands. White arrows point downhill (they take the steepness colours when the heat map is off), and *Lines* adds 5 cm contours. Putts are simulated with friction and gravity, so they break with the slope.
 5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
@@ -73,12 +73,13 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 | `game/courses/` | `courses.json` (the course list) and one folder per hole: course picture, 4× detail tile around the green, heat map, contours and game data, in portrait and landscape |
 | `game/config.js`, `game/sw.js`, `game/manifest.webmanifest`, `game/icons/` | Online-play settings and the installable-app files |
 | `supabase/migrations/` | Database setup for online matches |
-| `data/` | Hole input data exported from the Pure Golf `holes` table, one file per hole (`<course>-<NN>.json`) |
+| `data/recipes/` | Course recipes: each hole's tiles, feature modules and placed props |
+| `data/` | Hole files (`<course>-<NN>.json`): composed from a recipe by `compose_hole.py`, or for the courses not yet converted, GPS data exported from Pure Golf's `holes` table; `data/gps/` keeps the original GPS files of converted courses |
 | `tools/render_hole_toon.py` | Renders the cartoon hole, the 4× detail tile around the green, the green heat map, and the game data (lie grid, trees, camera transform, green elevation) |
 | `tools/reheat.py` | Redraws a built hole's green heat map (the wire grid) from its slope data, in seconds; `build_course.sh` runs it on every build |
 | `tools/build_course.sh` | Builds one hole's assets from a file in `data/` |
 | `tools/build_round.sh` | Builds every hole of a course into `game/courses/<course>/` and updates `courses.json` |
-| `tools/course_editor.py`, `tools/editor/` | Local course editor (see below) |
+| `tools/course_editor.py`, `tools/editor/` | Local editor for tile-built courses (see below) |
 | `tools/compose_hole.py`, `data/recipes/` | Builds holes from tiles and modules (see *Tile-built courses*) |
 | `tools/render_hole.py` | The earlier top-down (non-cartoon) renderer |
 | `tools/playtest.py` | Headless Playwright playtest that taps through rounds and screenshots the green |
@@ -88,14 +89,15 @@ The game is also an installable web app (`manifest.webmanifest`, `icons/`, `sw.j
 Needs Python 3 with `numpy`, `scipy` and `Pillow`.
 
 ```bash
-bash tools/build_round.sh tilgate-forest "Tilgate Forest"      # all 18 holes, ~3 min each, 4 at a time
+python3 tools/compose_hole.py data/recipes/tilgate-forest.json        # recipe -> data/tilgate-forest-NN.json
+bash tools/build_round.sh tilgate-forest "Tilgate Forest"             # all 18 holes, ~3 min each, 4 at a time
 ```
 
-Adding a course: export its holes from Pure Golf into `data/<course>-01.json` … (same fields as the existing files), then build it. Bump `VERSION` in `game/sw.js` afterwards.
+Adding a course: make it in the course editor (or write a recipe in `data/recipes/`), then compose and build it. Bump `VERSION` in `game/sw.js` afterwards.
 
 ## Themed courses
 
-**Lunar Links** (`space`), **Neon Nights** (`neon`) and **Castle Keep** (`medieval`) are 18-hole, par-72 courses (4 par 3s, 10 par 4s, 4 par 5s) whose holes were drawn at random from Pure Golf's `holes` table, one hole per real course, from holes with complete GPS, layup, green and elevation data, not flagged for review, and whose GPS length matches the card. Each data file keeps where its hole came from under `source` (course, hole number and id). Stroke indexes are set by length for par: odd numbers on the front 9, even on the back.
+**Lunar Links** (`space`), **Neon Nights** (`neon`) and **Castle Keep** (`medieval`) are 18-hole, par-72 courses (4 par 3s, 10 par 4s, 4 par 5s) whose holes were drawn at random from Pure Golf's `holes` table, one hole per real course; each GPS hole file keeps where its hole came from under `source` (course, hole number and id). Stroke indexes are set by length for par: odd numbers on the front 9, even on the back.
 
 The hole files carry `"theme"`, which `render_hole_toon.py` uses to pick its palette and props (or set `THEME=` when rendering). Play is the same on every theme: only the paint changes.
 
@@ -103,7 +105,7 @@ The hole files carry `"theme"`, which `render_hole_toon.py` uses to pick its pal
 | --- | --- | --- | --- | --- | --- |
 | `space` | Grey-violet moon dust with craters | Glowing teal | Pink stardust | A starry void | Crystal spires, glowing pods, moon rocks |
 | `neon` | Dark violet on a magenta grid | Indigo with neon outlines | Neon yellow | Electric blue | Neon palms, light orbs, wireframe cubes |
-| `medieval` | Olive meadow with worn patches | Muted greens, flagstone tees | Straw and earth | A dark moat | Pines and oaks, hay bales, stone turrets |
+| `medieval` | Olive meadow with worn patches | Muted greens, flagstone tees | Straw and earth | A dark moat | Pictures from `art/nature` and `art/medieval`: pines and oaks, plus towers, ruins, tents, carts, hay and barrels |
 
 `courses.json` records each course's `theme`, and the game sets the page colour round the picture to match.
 
@@ -117,6 +119,23 @@ bash tools/build_round.sh patchwork "Patchwork Park"
 ```
 
 **Patchwork Park** (`patchwork`, 9 holes) is the test course and uses every tile and module.
+
+### Converted GPS courses
+
+Tilgate Forest, Ifield, Lunar Links, Neon Nights and Castle Keep were GPS courses. `tools/gps_to_recipe.py` converts one to a recipe; it reads the GPS hole files from `data/gps/` (once a course is converted) or `data/`. All five recipes are in `data/recipes/`, but so far only **Tilgate Forest** has been switched over and rebuilt from tiles. To switch another (Ifield, say):
+
+```bash
+mkdir -p data/gps && git mv data/ifield-[0-9][0-9].json data/gps/     # keep the GPS originals
+python3 tools/compose_hole.py data/recipes/ifield.json                 # tiles -> data/ifield-NN.json
+bash tools/build_round.sh ifield "Ifield"                              # ~15 min, 4 holes at a time
+```
+
+Until then, the editor lists those courses' recipes, but building a hole there replaces the GPS one. To convert from scratch: `python3 tools/gps_to_recipe.py ifield --id ifield`.
+
+- **Routing:** tile lengths and turns are fitted so the composed centre line follows the GPS one (the curve from the tee through the layup to the green), keeping the hole's heading; most holes are within 2–3 m all the way along, the worst about 13 m.
+- **Hazards:** the GPS holes' bunkers, ponds and streams were placed by the renderer's rules, not mapped, so each becomes a module on the matching tile and spot; the automatic treeline stays on.
+- **Ground and greens:** the real heights along the centre line choose each fairway's slope preset and the tee and green heights; the real green surface chooses the nearest green slope preset. Real hills away from the line and the exact green contours aren't kept.
+- **Yardages** now come from the composed length (the length the game always played) rather than the scorecard, so some differ from the old card by a few yards.
 
 **Core tiles** join end to end, and the number of tiles sets the par: `tee` + `green` is a par 3, `tee` + `fairway` + `green` a par 4, `tee` + 2 `fairway`s + `green` a par 5. The composer warns if a hole's length is unusual for its par (par 3: 110–230 yds, par 4: 290–470, par 5: 460–600).
 
@@ -142,24 +161,34 @@ A hole can also set `heading` (degrees from north; random otherwise), `si`, `the
 
 ## Course editor
 
-A local page for adjusting holes on a satellite map, then rebuilding them:
+A local page for making tile-built courses (see *Tile-built courses*): holes are put together from tiles and feature modules, not from GPS.
 
 ```bash
 python3 tools/course_editor.py
 # open http://localhost:8790
 ```
 
-- Pick a course and hole, then drag the **T**ee, **L**ayup and **G**reen markers. The dashed line is the centre line the fairway is built along (it always passes through the layup point), with a rough fairway corridor and green drawn round it.
-- Set par, stroke index and the three yardages. *Use for yellow* copies the length measured along the line.
-- **Save & rebuild** writes `data/<course>-NN.json` and rebuilds that hole into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`. The picture on the right refreshes when it's done, and *Play the game* opens it at `/game/`.
-- The first save of a hole keeps the original data in `build/editor-backups/<hole>.orig.json`; *Restore original* puts it back.
-- The elevation grid is laid along the original tee→green line (the orange box). Moving the tee or green more than about 15 m stretches the hills and green slopes, and the editor warns you.
-- **Features:** by default the fairway, bunkers, water and treeline are placed by the renderer's rules (they aren't read from the photo, so a rule-made stream can land on a cart path). To set them yourself, choose *Start from automatic layout* (loads the rule-made shapes so you can fix them) or *Start empty*, then draw fairway, green, bunker, water and woods shapes and place single trees. *Reshape*, *Move* and *Delete* edit what's drawn. Once a hole has a drawn map, only the drawn bunkers and water are used; a drawn fairway replaces the generated one (the first cut is a band round it), a drawn green replaces the standard oval, and woods are filled with trees. *Automatic treeline as well* keeps the rule-made treeline beside the fairway. The map is saved as `map` in the hole's data file; *Go back to automatic features* removes it.
+- Pick a course recipe from `data/recipes/` (or *New course*), set its name and theme, and add, duplicate, delete or reorder holes (up to 18).
+- For each hole, pick **par 3, 4 or 5** (that sets the tiles: a tee, 0–2 fairways and a green), then set each tile's options: tee length and height; fairway length, bend, width, slope and a gap of rough; green approach, shape, slope, height and turn.
+- **Features** adds bunkers, lakes, streams, treelines, copses, single trees and rocks or bushes, each on a tile and a spot (left, right, cross, front of the green…), with how far along the tile, size and count.
+- The middle shows a **plan view** of the hole that updates as you edit: the tee is at the bottom, with fairway, green, bunkers, water, woods, the centre line, where each tile starts and a 50 m bar. Drag to pan and scroll to zoom; *Fit* shows the whole hole. Par, length and the composer's warnings (an odd length for the par, a hazard over the tee or green) show as you go.
+- **Props**: pick a set (*Nature*: trees, bushes, rocks, long grass, paths, ponds and streams; *Medieval*: castles, towers, ruined walls, hay, carts, fences, tents, bridges, flags) and a picture, then click the plan to place it. Drag to move; click one to change its size, flip it or delete it. In the built hole, props are drawn at their ground point with trees cleared from under them. Trees, big rocks, buildings, walls, hay, carts, fences, tents and spikes block shots like trees, and the water in ponds and streams plays as water. Props are saved in the hole's recipe as `"props": [{"kind", "at": [x, y]}]`, in metres from the tee (x to the right, y straight ahead), so they move with the hole.
+- *Reshuffle* changes the hole's `seed`: new bunker shapes, fairway edges, green rolls and heading. Stroke index is worked out by length unless you set it.
+- **Save** writes the recipe. **Save & build hole** also composes it into `data/<course>-NN.json` and renders it into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`; *Save & build every hole* queues the lot. The built picture shows on the right, and *Play the game* opens it at `/game/`.
+
+**Scenery.** On the `classic` and `medieval` themes, every tree, bush, rock and ornament round a hole is one of these pictures, so the built holes match the editor's style. The renderer fills the woods and the treeline with tree pictures, puts a few landmarks in the rough or in clearings (boulders and small ponds; on `medieval` also towers, ruined walls, tents, carts and hay), then scatters bushes, rocks and long grass. Every picture is checked against the course and against everything already placed:
+- Nothing covers the tee, fairway, first cut, green, bunkers or water. Hazards on the course come only from the recipe.
+- Props placed in the editor claim their ground first.
+- Trees may overlap each other a little, as in a wood. Nothing else overlaps anything.
+
+Each spot's choice is seeded from the hole and its position, so the base picture and the detail tile always agree. Trees, big rocks and buildings still block shots, and small ponds play as water. The `space` and `neon` themes keep their own drawn scenery until they have prop sets of their own.
+
+Each prop set lives in `art/<set>/`: the cut-out pictures and their sizes in `props/props.json`, cut from the sheet and its black-and-white mask in `source/` by `python3 tools/split_props.py art/<set>` (names, centres and sizes in `source/sheet.json`).
 
 Bump `VERSION` in `game/sw.js` before deploying rebuilt holes.
 
 ## Assumptions to check
 
-- **Hole elevation grid:** read the way the Pure Golf app builds it (`generateHoleGrid`): columns 18 m apart either side of the tee→green line, rows evenly spaced from the tee to 20 m past the green.
-- **Layout is approximate on purpose:** fairways follow a curve from the tee through the layup point to the green; greens are a standard rounded oval (26–32 m long) centred on the GPS green point, because the GPS front/back points vary too much; bunkers, water and trees are procedural, not mapped.
-- **Green grid:** read as north-up. If it's actually aligned with the hole, every green break is rotated.
+- **GPS elevation grid:** read the way the Pure Golf app builds it (`generateHoleGrid`): columns 18 m apart either side of the tee→green line, rows evenly spaced from the tee to 20 m past the green.
+- **GPS layout is approximate on purpose:** on the GPS courses, fairways follow a curve from the tee through the layup point to the green; greens are a standard rounded oval (26–32 m long) centred on the GPS green point, because the GPS front/back points vary too much; bunkers, water and trees are procedural, not mapped.
+- **GPS green grid:** read as north-up. If it's actually aligned with the hole, every green break on the GPS courses (and the slopes converted from them) is rotated.

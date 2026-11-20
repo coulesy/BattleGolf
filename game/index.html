@@ -30,14 +30,6 @@
   }
   .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; justify-content: center; pointer-events: none; }
   .prompt { background: rgba(32,64,26,.9); border: 2px solid #9fd06e; border-radius: 16px; padding: 10px 16px; font-weight: 700; font-size: 16px; text-align: center; flex: 0 1 320px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
-  .shape { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom)); width: min(340px, calc(100% - 32px)); display: none; align-items: center; gap: 8px; background: rgba(32,64,26,.9); border: 2px solid #9fd06e; border-radius: 14px; padding: 6px 10px; box-shadow: 0 3px 0 rgba(0,0,0,.25); font-size: 11px; font-weight: 800; letter-spacing: .08em; color: #c9ee96; touch-action: none; user-select: none; -webkit-user-select: none; }
-  .shape.show { display: flex; }
-  .shape .track { position: relative; flex: 1; height: 26px; border-radius: 13px; background: linear-gradient(90deg, #3a6bff55, #ffffff22 45%, #ffffff22 55%, #ff8a3a55); border: 2px solid #2d5f1a; }
-  .shape .mid { position: absolute; left: 50%; top: 3px; bottom: 3px; width: 2px; margin-left: -1px; background: #fff8; border-radius: 1px; }
-  .shape .knob { position: absolute; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: #ffe14a; border: 3px solid #2d5f1a; box-shadow: 0 2px 0 rgba(0,0,0,.3); }
-  .shape.drag .track { cursor: grab; }
-  .shape.locked { opacity: .7; }
-  .shape .val { min-width: 54px; text-align: center; color: #fff; }
   .prompt small { display: block; font-weight: 500; font-size: 12px; color: #c9ee96; margin-top: 2px; }
   .aim { pointer-events: auto; flex: none; width: 66px; height: 66px; border-radius: 50%; border: 3px solid #2d5f1a; background: #ffe14a; color: #23461a; font: inherit; font-weight: 900; box-shadow: 0 4px 0 #2d5f1a, 0 0 0 0 rgba(255,225,74,.6); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; touch-action: none; animation: aimPulse 1.8s ease-in-out infinite; }
   .aim svg { width: 26px; height: 26px; }
@@ -46,6 +38,10 @@
   .aim[disabled] { opacity: .35; background: rgba(32,64,26,.9); color: #c9ee96; border-color: #9fd06e; box-shadow: 0 3px 0 rgba(0,0,0,.25); animation: none; }
   @keyframes aimPulse { 50% { box-shadow: 0 4px 0 #2d5f1a, 0 0 0 7px rgba(255,225,74,0); } 0%, 100% { box-shadow: 0 4px 0 #2d5f1a, 0 0 0 0 rgba(255,225,74,.6); } }
   @media (prefers-reduced-motion: reduce) { .aim { animation: none; } }
+  .snd { position: fixed; left: 10px; top: calc(78px + env(safe-area-inset-top)); width: 40px; height: 40px; padding: 8px; border-radius: 50%; border: 2px solid #9fd06e; background: rgba(32,64,26,.85); color: #f4fbe9; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+  .snd svg { display: block; width: 100%; height: 100%; }
+  .snd .x { display: none; } .snd.off { color: #c9ee96; opacity: .7; } .snd.off .w { display: none; } .snd.off .x { display: inline; }
+  .snd:active { transform: translateY(2px); box-shadow: none; }
   .layers { position: fixed; right: 10px; top: 50%; transform: translateY(-50%); display: none; flex-direction: column; gap: 8px; }
   .layers.show { display: flex; }
   .layer { width: 58px; padding: 7px 0 5px; border-radius: 14px; border: 2px solid #9fd06e; background: rgba(32,64,26,.9); color: #c9ee96; font: inherit; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; box-shadow: 0 3px 0 rgba(0,0,0,.25); opacity: .55; }
@@ -201,9 +197,7 @@
   <div class="prompt" id="prompt">Tap to set distance<small>Target moves toward the hole</small></div>
   <button class="aim" id="aimR" aria-label="Aim right (hold to keep turning)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.6 13.3A10.5 10.5 0 0 1 19.6 12"/><path d="M14.5 10.8L19.6 12L20.2 6.8"/></svg><span>AIM</span></button>
 </div>
-<div class="shape" id="shape" aria-label="Shot shape: draw or fade">
-  <span>DRAW</span><div class="track" id="shapeTrack" role="slider" aria-valuemin="-100" aria-valuemax="100" aria-label="Draw or fade"><i class="mid"></i><b class="knob" id="shapeKnob"></b></div><span>FADE</span><span class="val" id="shapeVal">Straight</span>
-</div>
+<button class="snd" id="sndBtn" aria-label="Sound on/off" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path class="w" d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="x" d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
 <div class="layers" id="layers">
   <button class="layer" data-layer="heat" aria-pressed="true" aria-label="Steepness heat map"><svg viewBox="0 0 26 18"><rect x="1" y="2" width="6" height="14" rx="2" fill="#3a6bff"/><rect x="7" y="2" width="6" height="14" fill="#3ce65a"/><rect x="13" y="2" width="6" height="14" fill="#ffdc00"/><rect x="19" y="2" width="6" height="14" rx="2" fill="#ff2846"/></svg>Heat</button>
   <button class="layer" data-layer="arrows" aria-pressed="true" aria-label="Slope arrows"><svg viewBox="0 0 26 18" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h9m-3-3 3 3-3 3" stroke="#ffdc00"/><path d="M12 13h11m-3-3 3 3-3 3" stroke="#ff2846"/></svg>Arrows</button>
@@ -327,6 +321,105 @@
   const THEME_BG = { space: "#161328", neon: "#0a0420", medieval: "#33341a" };
 
   // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
+  // ---------- sound ----------
+  // All synthesised with Web Audio, so there are no files to download. The context is created on the first tap
+  // (phones only allow audio after a gesture). The speaker button mutes it, and the choice is remembered.
+  // Every sound takes an optional volume (other players' shots play quieter: GHOST_VOL).
+  const GHOST_VOL = 0.45;
+  const shotPower = d => Math.max(0.15, Math.min(1, d / 230));   // carry in metres → 0..1 (a full drive is ~1)
+  const SFX = (() => {
+    let ac = null, out = null, noiseBuf = null;
+    let on = true; try { on = localStorage.getItem("bgSound") !== "0"; } catch (e) {}
+    function ctx() {
+      if (!on) return null;
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+        ac = new AC(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination);
+        noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+        const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === "suspended") ac.resume();
+      return ac;
+    }
+    // an envelope: silent → peak after `att` → near silence after `dec`
+    function env(g, t, peak, att, dec) {
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + att);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + att + dec);
+    }
+    function noise(t, { peak, att = 0.002, dec, type = "bandpass", f = 2000, f2, q = 1 }) {
+      const a = ctx(); if (!a) return;
+      const src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
+      src.buffer = noiseBuf; src.loop = true; fl.type = type; fl.Q.value = q;
+      fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + att + dec);
+      env(g, t, peak, att, dec); src.connect(fl); fl.connect(g); g.connect(out);
+      src.start(t, Math.random() * 0.5); src.stop(t + att + dec + 0.05);
+    }
+    function tone(t, { peak, att = 0.002, dec, f, f2, type = "sine" }) {
+      const a = ctx(); if (!a) return;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + att + dec);
+      env(g, t, peak, att, dec); o.connect(g); g.connect(out); o.start(t); o.stop(t + att + dec + 0.05);
+    }
+    const now = () => { const a = ctx(); return a ? a.currentTime + 0.01 : null; };
+    return {
+      get on() { return on; },
+      set on(v) { on = v; try { localStorage.setItem("bgSound", v ? "1" : "0"); } catch (e) {} if (!v && ac) ac.suspend(); else ctx(); },
+      unlock() { ctx(); },
+      // club on ball: a crisp crack, fuller the harder it's hit; out of sand, rough or trees it's muffled
+      strike(lie, pw = 0.6, vol = 1) {
+        const t = now(); if (t == null) return;
+        if (lie === 6) { noise(t, { peak: 0.5 * vol, dec: 0.35, type: "lowpass", f: 3000, f2: 600 }); tone(t, { peak: 0.25 * vol, dec: 0.08, f: 180, f2: 90 }); return; }
+        const dull = lie === 0 || lie === 5 || lie === 1;
+        noise(t, { peak: (0.35 + 0.45 * pw) * vol, dec: 0.05 + 0.04 * pw, f: dull ? 1500 : 3200 + 1500 * pw, q: 0.9 });
+        tone(t, { peak: (0.25 + 0.35 * pw) * vol, dec: 0.09, f: 240 + 120 * pw, f2: 110, type: "triangle" });
+        if (dull) noise(t + 0.01, { peak: 0.18 * vol, dec: 0.18, type: "highpass", f: 2500 });   // grass swish
+      },
+      // ball arriving: a thud on grass, a hiss in sand, a splash in water, a rustle in trees
+      land(lie, pw = 0.6, vol = 1) {
+        const t = now(); if (t == null) return;
+        if (lie === 9) return;
+        if (lie === 7) { noise(t, { peak: 0.6 * vol, att: 0.01, dec: 0.6, type: "lowpass", f: 4000, f2: 300 }); tone(t, { peak: 0.2 * vol, dec: 0.25, f: 300, f2: 80 }); return; }
+        if (lie === 6) { noise(t, { peak: 0.4 * vol, att: 0.005, dec: 0.25, type: "bandpass", f: 2500, f2: 900, q: 0.7 }); return; }
+        if (lie === 5) { noise(t, { peak: 0.35 * vol, att: 0.01, dec: 0.4, type: "highpass", f: 3000 }); noise(t + 0.15, { peak: 0.2 * vol, dec: 0.3, type: "highpass", f: 3500 }); return; }
+        const firm = lie === 3 || lie === 2 || lie === 4;
+        tone(t, { peak: (0.25 + 0.25 * pw) * vol, dec: firm ? 0.12 : 0.08, f: firm ? 150 : 110, f2: 60 });
+        noise(t, { peak: 0.15 * vol, dec: 0.06, type: "lowpass", f: firm ? 1200 : 700 });
+        if (firm && pw > 0.3) tone(t + 0.22, { peak: 0.1 * vol, dec: 0.07, f: 140, f2: 70 });   // a little bounce
+      },
+      // putter: a soft tock
+      putt(pw = 0.4, vol = 1) {
+        const t = now(); if (t == null) return;
+        tone(t, { peak: (0.2 + 0.3 * pw) * vol, dec: 0.07, f: 900, f2: 600, type: "triangle" });
+        noise(t, { peak: 0.08 * vol, dec: 0.03, f: 3000 });
+      },
+      // in the hole: a rattle round the cup, then the drop
+      cup(vol = 1) {
+        const t = now(); if (t == null) return;
+        [0, 0.07, 0.13, 0.18].forEach((d, i) => tone(t + d, { peak: 0.22 * vol * (1 - i * 0.15), dec: 0.05, f: 1700 - i * 120, type: "triangle" }));
+        tone(t + 0.24, { peak: 0.35 * vol, dec: 0.18, f: 260, f2: 120 });
+      },
+      // caught the rim
+      lip(vol = 1) {
+        const t = now(); if (t == null) return;
+        tone(t, { peak: 0.25 * vol, dec: 0.12, f: 2100, f2: 1900, type: "triangle" });
+      },
+      // under par: a rising arpeggio, one note more for each stroke under (birdie 3 notes, eagle 4…)
+      chime(n = 1) {
+        const t = now(); if (t == null) return;
+        const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        for (let i = 0; i < Math.min(notes.length, n + 2); i++) tone(t + 0.13 + i * 0.11, { peak: 0.22, att: 0.01, dec: 0.45, f: notes[i], type: "triangle" });
+      },
+    };
+  })();
+  {
+    const b = document.getElementById("sndBtn");
+    const show = () => { b.classList.toggle("off", !SFX.on); b.setAttribute("aria-pressed", String(SFX.on)); };
+    b.addEventListener("pointerdown", e => e.stopPropagation());
+    b.addEventListener("click", e => { e.stopPropagation(); SFX.on = !SFX.on; show(); });
+    show();
+    addEventListener("pointerdown", () => SFX.unlock(), { once: true, capture: true });
+  }
+
   // Everything below that depends on the hole is reassigned by useHole(), so the rest of the game just reads it.
   let D, img, heatImg, contImg, detailImg, lieBytes, IW, IH, A, B, ppm, pin, GG, gn, gstep, gcm, cr, sr, CL, CLarc;
   const holeCache = new Map();
@@ -399,7 +492,7 @@
   function simulatePutt(from, dirAng, flatDist) {
     let p = { ...from }, v = Math.sqrt(2 * FRICTION_GREEN * flatDist), vx = Math.cos(dirAng) * v, vy = Math.sin(dirAng) * v;
     const pts = [{ ...p }], dt = 1 / 120; let time = 0, holed = false, lipped = false;
-    let inCup = false, prevD = Infinity;
+    let inCup = false, prevD = Infinity; const lips = [];   // point indexes where it caught the rim (for the sound)
     for (let n = 0; n < 2400; n++) {
       // over the cup? decide at the closest approach to its centre
       const dc = Math.hypot(p.x - pin.x, p.y - pin.y), sp0 = Math.hypot(vx, vy);
@@ -412,7 +505,7 @@
           const side = Math.sign(vx * oy - vy * ox) || 1, th = -side * e * 1.1, k = 0.55 + 0.2 * e;
           const c = Math.cos(th), s = Math.sin(th);
           [vx, vy] = [(vx * c - vy * s) * k, (vx * s + vy * c) * k];
-          lipped = true; inCup = false; prevD = Infinity;
+          lipped = true; lips.push(pts.length); inCup = false; prevD = Infinity;
           // carry it clear of the rim so it can't be caught again on the same pass
           const sp1 = Math.hypot(vx, vy) || 1;
           while (Math.hypot(p.x - pin.x, p.y - pin.y) < CUP_HOLE) { p.x += vx / sp1 * 0.02; p.y += vy / sp1 * 0.02; }
@@ -436,7 +529,7 @@
     if (!holed && Math.hypot(p.x - pin.x, p.y - pin.y) < CUP_HOLE) holed = true;   // came to rest over the hole
     pts.push({ ...p });
     if (holed) { pts.push({ x: pin.x, y: pin.y }); lipped = false; }               // drop into the middle of the cup
-    return { pts, time: Math.max(0.4, time), holed, lipped };
+    return { pts, time: Math.max(0.4, time), holed, lipped, lips };
   }
 
   // per-lie shot settings: max carry (yds), seconds per sweep, lateral spread (fraction of carry), lateral period
@@ -774,12 +867,17 @@
         if (d.k === "roll") {
           const sim = simulatePutt({ x: d.f[0], y: d.f[1] }, d.ang, d.fd);
           p.anim = { kind: "roll", pts: sim.pts, dur: Math.min(sim.time, 9), t: 0, d };
-        } else p.anim = { kind: "fly", f: d.f, l: d.l, r: d.r, bv: d.bv, pk: d.pk || 10, du: d.du || 1.5, t: 0, d };
+          SFX.putt(Math.min(1, d.fd / 12), GHOST_VOL);
+        } else {
+          p.anim = { kind: "fly", f: d.f, l: d.l, r: d.r, bv: d.bv, pk: d.pk || 10, du: d.du || 1.5, t: 0, d };
+          SFX.strike(2, shotPower(p.anim.pk / 0.16), GHOST_VOL);
+        }
       }
       if (p.anim) {
-        p.anim.t += dt;
-        const end = p.anim.kind === "roll" ? p.anim.dur : p.anim.du + 0.5;
-        if (p.anim.t >= end) { const d = p.anim.d; p.anim = null; p.played++; settleGhost(p, d, false); }
+        const a = p.anim; a.t += dt;
+        if (a.kind === "fly" && !a.landed && a.t >= a.du) { a.landed = true; SFX.land(lieAt(a.l[0], a.l[1]), shotPower(a.pk / 0.16), GHOST_VOL); }
+        const end = a.kind === "roll" ? a.dur : a.du + 0.5;
+        if (a.t >= end) { const d = a.d; p.anim = null; p.played++; if (d.d) SFX.cup(GHOST_VOL); settleGhost(p, d, false); }
       }
     }
   }
@@ -998,7 +1096,7 @@
   }
   $("again").addEventListener("click", e => { if (ON.active && !round.awaitNext) { e.stopImmediatePropagation(); leaveOnline(); openSetup(); } }, true);
   // tee shots on par 4s and 5s start aimed at the middle of the fairway (the centre line, about a drive out);
-  // everything else starts aimed at the flag. The shot itself always flies straight, unless it's shaped.
+  // everything else starts aimed at the flag. The ball sets off along the aim line.
   function aimAtPin() {
     let t = pin;
     if (S.lie === 4 && D.par > 3) {
@@ -1028,27 +1126,25 @@
   function pathFrame(d) {   // point, forward and sideways directions at distance d along the (straight) aim line
     const { u, v } = dirs(); return { p: [S.ball.x + u[0] * d, S.ball.y + u[1] * d], u, v };
   }
-  // shot shape: S.shape in [-1, 1], -1 a full draw (bends left), +1 a full fade (bends right). The ball sets off on
-  // the aim line and bends away more and more as it flies: sideways offset grows with k² over the flight.
-  const BEND = 0.11;                              // full draw/fade moves the landing 11% of the carry sideways
-  const shaping = () => !putting() && !S.done && !SPEC;
-  const teeShape = () => S.lie === 4;             // off the tee it's a moving bar you tap; elsewhere you drag it
-  function liveShape() { return S.phase === "shape" ? Math.sin(S.t / SHAPE_SWEEP * Math.PI * 2) : S.shape; }
-  const SHAPE_SWEEP = 1.5;
-  function flightAt(d, lat, sh, k) {              // point at fraction k of a shot carried d with direction error lat
-    const f = pathFrame(d * k), off = lat * k + sh * BEND * d * k * k;
+  // direction is a draw or fade: the side-to-side sweep sets S.shape in [-1, 1], -1 a full draw (bends left), +1 a
+  // full fade (bends right), stopped in the middle it flies straight. The ball sets off on the aim line and bends away
+  // more and more as it flies (sideways offset grows with k²), landing up to the club's spread off line.
+  // Putts don't bend: their sweep is a straight direction error (lat) as before.
+  function flightAt(d, lat, bend, k) {            // point at fraction k of a shot carried d, bending `bend` m by the end
+    const f = pathFrame(d * k), off = lat * k + bend * k * k;
     return { x: f.p[0] + f.v[0] * off, y: f.p[1] + f.v[1] * off };
   }
   function currentTarget() {
     const r = shotRange(), p = params();
     let d = S.dist, lat = 0;
     if (S.phase === "dist") d = r.min + (r.max - r.min) * Math.pow(tri(S.t / p.sweep), 2); // speeds up the further out it gets
-    if (S.phase === "lat") lat = p.spread(d) * Math.sin(S.t / p.lat * Math.PI * 2);
-    if (S.phase !== "dist" && S.phase !== "lat") { d = S.dist; lat = S.latv; }
-    const sh = putting() ? 0 : liveShape(), f = pathFrame(d), end = flightAt(d, lat, sh, 1);
+    let sh = 0;
+    if (S.phase === "lat") { const w = Math.sin(S.t / p.lat * Math.PI * 2); if (putting()) lat = p.spread(d) * w; else sh = w; }
+    if (S.phase !== "dist" && S.phase !== "lat") { d = S.dist; lat = S.latv; sh = S.shape; }
+    const bend = sh * p.spread(d), f = pathFrame(d), end = flightAt(d, lat, bend, 1);
     // direction the ball is travelling as it lands (for the roll): the bend turns it
-    const side = lat + 2 * sh * BEND * d, ux = f.u[0] * d + f.v[0] * side, uy = f.u[1] * d + f.v[1] * side, ul = Math.hypot(ux, uy) || 1;
-    return { x: end.x, y: end.y, d, lat, sh, u: [ux / ul, uy / ul] };
+    const side = lat + 2 * bend, ux = f.u[0] * d + f.v[0] * side, uy = f.u[1] * d + f.v[1] * side, ul = Math.hypot(ux, uy) || 1;
+    return { x: end.x, y: end.y, d, lat, sh, bend, u: [ux / ul, uy / ul] };
   }
   function midTarget() {
     const r = shotRange(), m = Math.min(r.max, toPin()) * 0.5, f = pathFrame(m);
@@ -1459,8 +1555,7 @@
     if (SPEC && !overlay) return void stopWatching();
     if (S.done || overlay) return;
     if (S.phase === "dist") { S.dist = currentTarget().d; S.phase = "lat"; S.t = 0; setPrompt(); }
-    else if (S.phase === "lat") { S.latv = currentTarget().lat; if (teeShape()) { S.phase = "shape"; S.t = 0; setPrompt(); } else hit(); }
-    else if (S.phase === "shape") { S.shape = liveShape(); hit(); }
+    else if (S.phase === "lat") { const t = currentTarget(); S.latv = t.lat; S.shape = t.sh; hit(); }
   }
   cv.addEventListener("pointerdown", e => { e.preventDefault(); tap(); });
   function nudge(s) { if (S.phase !== "dist") return; S.aim += s * (putting() ? 0.02 : 0.035); }
@@ -1490,33 +1585,6 @@
   });
   document.getElementById("again").addEventListener("click", () => round.awaitNext ? nextHole() : BT && !ON.active ? startBattleRound(round.spec) : startRound(round.spec));
 
-  // shot shape bar: dragged on fairway shots, a moving bar you tap to stop off the tee
-  function shapeWord(v) { const a = Math.abs(v); return a < 0.08 ? "Straight" : `${a > 0.66 ? "Big " : a < 0.33 ? "Slight " : ""}${v < 0 ? "draw" : "fade"}`; }
-  function renderShape() {
-    const el = $("shape"), on = shaping() && !overlay && (teeShape() ? S.phase === "shape" : S.phase === "dist" || S.phase === "lat");
-    el.classList.toggle("show", on); if (!on) return;
-    const v = liveShape();
-    el.classList.toggle("drag", !teeShape() && S.phase === "dist");
-    el.classList.toggle("locked", !teeShape() && S.phase !== "dist");
-    $("shapeKnob").style.left = `${(v + 1) * 50}%`;
-    $("shapeVal").textContent = shapeWord(v);
-    $("shapeTrack").setAttribute("aria-valuenow", Math.round(v * 100));
-  }
-  {
-    const tr = $("shapeTrack"), box = $("shape");
-    const setFrom = e => { const r = tr.getBoundingClientRect(); let v = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
-      if (Math.abs(v) < 0.08) v = 0; S.shape = v; renderShape(); };
-    let dragging = false;
-    box.addEventListener("pointerdown", e => {
-      e.stopPropagation(); e.preventDefault();
-      if (S.phase === "shape") return void tap();                         // tee shot: tapping the bar stops it too
-      if (teeShape() || S.phase !== "dist") return;
-      dragging = true; try { tr.setPointerCapture(e.pointerId); } catch (_) {} setFrom(e);
-    });
-    tr.addEventListener("pointermove", e => { if (dragging) setFrom(e); });
-    for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) tr.addEventListener(ev, () => dragging = false);
-  }
-
   // ---------- shot ----------
   function hit() {
     S.strokes++;
@@ -1526,8 +1594,10 @@
       const from = { ...S.ball };
       const ang = Math.atan2(tgt.y - from.y, tgt.x - from.x), fd = Math.hypot(tgt.x - from.x, tgt.y - from.y);
       const sim = simulatePutt(from, ang, fd);   // deterministic, so other phones replay it from (from, ang, fd)
-      S.anim = { kind: "roll", from, ang, fd, pts: sim.pts, to: sim.pts[sim.pts.length - 1], t: 0, dur: Math.min(sim.time, 9), holed: sim.holed, lipped: sim.lipped };
+      S.anim = { kind: "roll", from, ang, fd, pts: sim.pts, to: sim.pts[sim.pts.length - 1], t: 0, dur: Math.min(sim.time, 9), holed: sim.holed, lipped: sim.lipped, lips: sim.lips, qi: 0 };
+      SFX.putt(Math.min(1, fd / 12));
     } else {
+      SFX.strike(S.lie, shotPower(tgt.d));
       const land = { x: tgt.x, y: tgt.y };
       const landLie = lieAt(land.x, land.y);
       const rollD = landLie === 9 ? 0 : tgt.d * (ROLL[landLie] ?? 0.03);
@@ -1538,10 +1608,10 @@
       const rdx = rest.x - land.x, rdy = rest.y - land.y, rl2 = rdx * rdx + rdy * rdy || 1;
       const k = Math.max(0, Math.min(1, ((pin.x - land.x) * rdx + (pin.y - land.y) * rdy) / rl2));
       const holed = Math.hypot(land.x + rdx * k - pin.x, land.y + rdy * k - pin.y) < 0.35;
-      const D0 = tgt.d, L0 = tgt.lat, SH = tgt.sh, v = dirs().v, bend = SH * BEND * D0;
-      const posAt = k => flightAt(D0, L0, SH, k);
+      const D0 = tgt.d, L0 = tgt.lat, bend = tgt.bend, v = dirs().v;
+      const posAt = k => flightAt(D0, L0, bend, k);
       S.anim = { kind: "fly", from: S.prev, land, posAt, bend: [v[0] * bend, v[1] * bend], rest: holed ? { x: pin.x, y: pin.y } : rest, t: 0,
-                 dur: 0.8 + tgt.d / 200 * 1.3, peak: Math.min(tgt.d * 0.16, 30), holed, landLie };
+                 dur: 0.8 + tgt.d / 200 * 1.3, peak: Math.min(tgt.d * 0.16, 30), holed, landLie, pw: shotPower(tgt.d) };
     }
     S.phase = "anim"; setPrompt(); updateHud();
   }
@@ -1550,8 +1620,9 @@
   function finishShot() {
     const a = S.anim; S.anim = null; lastAnim = a;
     S.ball = a.kind === "fly" ? { ...a.rest } : { ...a.to };
-    if (a.holed) return holeOut();
+    if (a.holed) { SFX.cup(); return holeOut(); }
     let lie = lieAt(S.ball.x, S.ball.y);
+    if (lie === 7 && !(a.kind === "fly" && a.landLie === 7)) SFX.land(7, 0.3);   // rolled in (it splashed already if it landed in)
     if (lie === 9) {
       S.strokes++; S.ball = { ...S.prev }; lie = lieAt(S.ball.x, S.ball.y);
       toast("Out of bounds  +1");
@@ -1565,7 +1636,7 @@
     else if (a.kind === "roll" && toPin() < 1.2) toast("So close!");
     // gimme rings: rest within 1 m = +1 stroke, within 2 m = +2 strokes, then holed
     if (lie !== 9) { const dp = toPin();
-      if (dp <= 2) { const g = dp <= 1 ? 1 : 2; S.strokes += g; return holeOut(`${a.lipped ? "Lipped out · " : ""}Gimme  +${g}`); } }
+      if (dp <= 2) { const g = dp <= 1 ? 1 : 2; S.strokes += g; SFX.cup(0.6); return holeOut(`${a.lipped ? "Lipped out · " : ""}Gimme  +${g}`); } }
     S.lie = lie === 9 ? 0 : lie;
     if (S.lie === 4) S.lie = 2;
     if (S.prev && Math.hypot(S.ball.x - D.tee[0], S.ball.y - D.tee[1]) < 3) S.lie = 4;
@@ -1589,6 +1660,7 @@
   const scoreName = n => scoreNameFor(n, D.par);
   function holeOut(msg) {
     S.done = true; S.phase = "done"; S.ball = { ...pin }; updateHud(); setPrompt();
+    if (S.strokes < D.par) SFX.chime(D.par - S.strokes);
     sendShot();
     toast(multi() ? `${players[cur].name}: ${msg ? msg + " · " : ""}${scoreName(S.strokes).replace("!", "")}` : (msg || "In the hole!"));
     setTimeout(nextTurn, multi() ? 1500 : 1100);
@@ -1711,13 +1783,11 @@
     const aimOn = S.phase === "dist";
     document.getElementById("aimL").disabled = !aimOn; document.getElementById("aimR").disabled = !aimOn;
     document.getElementById("layers").classList.toggle("show", S.lie === 3 && !S.done);
-    if (S.phase === "dist") p.innerHTML = (putting() ? `Tap to set putt strength<small>Ball breaks downhill · hold AIM to turn</small>` : `Tap to set distance<small>Tap or hold AIM to turn${teeShape() ? "" : " · drag bar to shape"}</small>`);
-    else if (S.phase === "lat") p.innerHTML = `Tap to set direction<small>${teeShape() && !putting() ? "Then tap to shape it" : "Stop it on the line"}</small>`;
-    else if (S.phase === "shape") p.innerHTML = `Tap to shape it<small>Left draws · right fades · middle is straight</small>`;
+    if (S.phase === "dist") p.innerHTML = (putting() ? `Tap to set putt strength<small>Ball breaks downhill · hold AIM to turn</small>` : `Tap to set distance<small>Tap or hold AIM to turn</small>`);
+    else if (S.phase === "lat") p.innerHTML = putting() ? `Tap to set direction<small>Stop it on the line</small>` : `Tap to shape it<small>Left draws · right fades · middle flies straight</small>`;
     else if (S.phase === "anim") p.innerHTML = putting() ? "Rolling…" : "Ball in flight…";
     else if (S.phase === "wait") p.innerHTML = "Next player…";
     else p.innerHTML = "Holed out!";
-    renderShape();
   }
 
   // ---------- draw ----------
@@ -1789,12 +1859,12 @@
     ctx.save();
     ctx.setLineDash([6, 7]); ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.85)";
     ctx.beginPath(); ctx.moveTo(bx, by);
-    for (let i = 1; i <= 24; i++) { const q = flightAt(t.d, t.lat, t.sh || 0, i / 24); ctx.lineTo(...toScreen(...toImg(q.x, q.y))); }
+    for (let i = 1; i <= 24; i++) { const q = flightAt(t.d, t.lat, t.bend, i / 24); ctx.lineTo(...toScreen(...toImg(q.x, q.y))); }
     ctx.stroke();
     ctx.setLineDash([]);
-    if (phase === "lat") { // show the sweep band (centred where the shaped shot lands)
+    if (phase === "lat") { // show the sweep band: the middle flies straight, either end is a full draw or fade
       const p = params(), f = pathFrame(S.dist), v = f.v, sp = p.spread(S.dist);
-      const c = flightAt(S.dist, 0, putting() ? 0 : S.shape, 1);
+      const c = { x: f.p[0], y: f.p[1] };
       const [ax, ay] = toScreen(...toImg(c.x - v[0] * sp, c.y - v[1] * sp));
       const [cx2, cy2] = toScreen(...toImg(c.x + v[0] * sp, c.y + v[1] * sp));
       const [mx, my] = toScreen(...toImg(c.x, c.y));
@@ -1921,8 +1991,7 @@
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     holdTick(dt);
     if (ON.active) stepGhosts(dt);
-    if (S.phase === "dist" || S.phase === "lat" || S.phase === "shape") S.t += dt;
-    renderShape();
+    if (S.phase === "dist" || S.phase === "lat") S.t += dt;
 
     // camera follow
     let want;
@@ -1971,6 +2040,7 @@
       const a = S.anim; a.t += dt;
       if (a.kind === "fly") {
         const fT = a.dur, rT = 0.5;
+        if (!a.landed && a.t >= fT) { a.landed = true; SFX.land(a.landLie, a.pw); }
         if (a.t < fT) {
           const k = a.t / fT;
           const q = a.posAt(k); drawBall(q.x, q.y, 4 * a.peak * k * (1 - k));
@@ -1979,12 +2049,15 @@
           drawBall(a.land.x + (a.rest.x - a.land.x) * k, a.land.y + (a.rest.y - a.land.y) * k, 0);
         } else { drawBall(a.rest.x, a.rest.y, 0); finishShot(); }
       } else {
-        const k = Math.min(1, a.t / a.dur), q = a.pts[Math.min(a.pts.length - 1, Math.floor(k * (a.pts.length - 1)))];
+        const k = Math.min(1, a.t / a.dur), qi = Math.min(a.pts.length - 1, Math.floor(k * (a.pts.length - 1))), q = a.pts[qi];
         drawBall(q.x, q.y, 0);
+        // a click wherever it caught the rim
+        if (a.lips.some(i => i > a.qi && i <= qi)) SFX.lip();
+        a.qi = qi;
         if (k >= 1) finishShot();
       }
     } else {
-      if (S.phase === "dist" || S.phase === "lat" || S.phase === "shape") drawTarget(currentTarget(), S.phase);
+      if (S.phase === "dist" || S.phase === "lat") drawTarget(currentTarget(), S.phase);
       if (!S.done) drawBall(S.ball.x, S.ball.y, 0);
     }
     requestAnimationFrame(frame);

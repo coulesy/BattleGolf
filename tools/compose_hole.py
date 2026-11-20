@@ -72,7 +72,7 @@ class Hole:
 
     # ---- centre line ----
     def build_path(self):
-        h = math.radians(self.rec.get("heading", float(self.rng.uniform(0, 360))))
+        h = self.heading = math.radians(self.rec.get("heading", float(self.rng.uniform(0, 360))))
         pts, heads, spans, s = [np.zeros(2)], [h], [], 0.0
         fw_names = ["fairway"] if self.par == 4 else ["fairway1", "fairway2"]
         names = ["tee"] + (fw_names if self.par > 3 else []) + ["green"]
@@ -383,10 +383,44 @@ def to_ll(P, lat0, lng0):
     return [[round(lat0 + y / ky, 8), round(lng0 + x / kx, 8)] for x, y in P]
 
 
+def hole_seed(course, i, rec):
+    return (sum(map(ord, course["id"])) * 131 + i * 7919 + rec.get("seed", 0)) % 2 ** 32
+
+
+def placed_props(h, rec):
+    """Props placed in the editor ("props" in the hole recipe): [x, y] metres from the tee, x to the right of the
+    tee's heading and y along it, so they turn with the hole if its heading changes."""
+    fwd = np.array([math.sin(h.heading), math.cos(h.heading)]); right = np.array([fwd[1], -fwd[0]])
+    out = []
+    for p in rec.get("props", []):
+        q = dict(kind=p["kind"], pt=right * float(p["at"][0]) + fwd * float(p["at"][1]))
+        if p.get("scale", 1) != 1: q["scale"] = float(p["scale"])
+        if p.get("flip"): q["flip"] = True
+        out.append(q)
+    return out
+
+
+def preview(course, i, rec):
+    """The hole's shapes for the editor's plan view, in metres from the tee with the tee's heading pointing up
+    (x right, y forward). No elevation or green grid, so it's quick."""
+    h = Hole(rec, i, hole_seed(course, i, rec))
+    feats = h.modules(); warn = h.check(feats)
+    c, s_ = math.cos(h.heading), math.sin(h.heading)
+    loc = lambda P: [[round(float(x * c - y * s_), 2), round(float(x * s_ + y * c), 2)] for x, y in np.atleast_2d(np.asarray(P, float))]
+    spans = {nm: [round(float(a), 1), round(float(b), 1)] for nm, (a, b, _) in h.spans.items()}
+    marks = {nm: loc(h.at(a)[0])[0] for nm, (a, b) in spans.items() if nm in ("tee", "fairway1", "fairway2", "green")}
+    return dict(par=h.par, yards=int(round(h.total / YD)), metres=round(float(h.total), 1), warnings=warn,
+                path=loc(h.P[::3].tolist() + [h.G]), tee=loc(h.T)[0], pin=loc(h.G)[0], tile_starts=marks,
+                fairway=[loc(P) for P in feats["fairway"]], green=[loc(P) for P in feats["green"]],
+                bunker=[loc(P) for P in feats["bunker"]], water=[loc(P) for P in feats["water"]],
+                wood=[loc(P) for P in feats["wood"]], trees=[loc(p)[0] for p in feats["trees"]],
+                props=[dict(kind=p["kind"], at=loc(p["pt"])[0]) for p in feats["props"]])
+
+
 def compose(course, i, rec, origin):
-    seed = (sum(map(ord, course["id"])) * 131 + i * 7919 + rec.get("seed", 0)) % 2 ** 32
-    h = Hole(rec, i, seed)
+    h = Hole(rec, i, hole_seed(course, i, rec))
     feats = h.modules()
+    feats["props"] += placed_props(h, rec)
     warn = h.check(feats)
     lat0, lng0 = origin
     ll = lambda P: to_ll(P, lat0, lng0)
@@ -405,7 +439,7 @@ def compose(course, i, rec, origin):
                 map=dict(fairway=[ll(P) for P in feats["fairway"]], green=[ll(P) for P in feats["green"]],
                          bunker=[ll(P) for P in feats["bunker"]], water=[ll(P) for P in feats["water"]],
                          wood=[ll(P) for P in feats["wood"]], trees=[ll(p)[0] for p in feats["trees"]],
-                         props=[dict(kind=p["kind"], pt=ll(p["pt"])[0]) for p in feats["props"]],
+                         props=[dict(p, pt=ll(p["pt"])[0]) for p in feats["props"]],
                          auto_trees=bool(rec.get("auto_trees", course.get("auto_trees", False)))),
                 tiles=dict(tiles=rec["tiles"], modules=rec.get("modules", [])))
     return data, warn

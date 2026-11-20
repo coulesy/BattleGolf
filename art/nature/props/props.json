@@ -1,0 +1,580 @@
+{
+ "canal": {
+  "file": "canal.png",
+  "w": 294,
+  "h": 188,
+  "m": 30,
+  "solid": false,
+  "anchor": [
+   147,
+   94
+  ],
+  "sheet": [
+   23,
+   62
+  ],
+  "lie": "water"
+ },
+ "stream_bend": {
+  "file": "stream_bend.png",
+  "w": 157,
+  "h": 219,
+  "m": 16,
+  "solid": false,
+  "anchor": [
+   78,
+   110
+  ],
+  "sheet": [
+   335,
+   64
+  ],
+  "lie": "water"
+ },
+ "pond_grass": {
+  "file": "pond_grass.png",
+  "w": 222,
+  "h": 139,
+  "m": 22,
+  "solid": false,
+  "anchor": [
+   111,
+   70
+  ],
+  "sheet": [
+   516,
+   87
+  ],
+  "lie": "water"
+ },
+ "pond_stone": {
+  "file": "pond_stone.png",
+  "w": 344,
+  "h": 197,
+  "m": 32,
+  "solid": false,
+  "anchor": [
+   172,
+   98
+  ],
+  "sheet": [
+   758,
+   66
+  ],
+  "lie": "water"
+ },
+ "long_grass_a": {
+  "file": "long_grass_a.png",
+  "w": 244,
+  "h": 182,
+  "m": 9,
+  "solid": false,
+  "anchor": [
+   122,
+   121
+  ],
+  "sheet": [
+   42,
+   341
+  ]
+ },
+ "long_grass_b": {
+  "file": "long_grass_b.png",
+  "w": 248,
+  "h": 187,
+  "m": 9,
+  "solid": false,
+  "anchor": [
+   124,
+   125
+  ],
+  "sheet": [
+   311,
+   342
+  ]
+ },
+ "path_dirt_a": {
+  "file": "path_dirt_a.png",
+  "w": 254,
+  "h": 151,
+  "m": 11,
+  "solid": false,
+  "anchor": [
+   127,
+   76
+  ],
+  "sheet": [
+   583,
+   369
+  ]
+ },
+ "path_dirt_b": {
+  "file": "path_dirt_b.png",
+  "w": 251,
+  "h": 153,
+  "m": 11,
+  "solid": false,
+  "anchor": [
+   126,
+   76
+  ],
+  "sheet": [
+   849,
+   367
+  ]
+ },
+ "grass_patch": {
+  "file": "grass_patch.png",
+  "w": 232,
+  "h": 150,
+  "m": 9,
+  "solid": false,
+  "anchor": [
+   116,
+   92
+  ],
+  "sheet": [
+   51,
+   546
+  ]
+ },
+ "dirt_patch": {
+  "file": "dirt_patch.png",
+  "w": 233,
+  "h": 137,
+  "m": 10,
+  "solid": false,
+  "anchor": [
+   116,
+   68
+  ],
+  "sheet": [
+   317,
+   553
+  ]
+ },
+ "path_dirt_c": {
+  "file": "path_dirt_c.png",
+  "w": 247,
+  "h": 147,
+  "m": 11,
+  "solid": false,
+  "anchor": [
+   124,
+   74
+  ],
+  "sheet": [
+   589,
+   548
+  ]
+ },
+ "sand_bank": {
+  "file": "sand_bank.png",
+  "w": 241,
+  "h": 157,
+  "m": 11,
+  "solid": false,
+  "anchor": [
+   120,
+   78
+  ],
+  "sheet": [
+   850,
+   540
+  ]
+ },
+ "oak": {
+  "file": "oak.png",
+  "w": 219,
+  "h": 203,
+  "m": 17,
+  "solid": true,
+  "anchor": [
+   110,
+   199
+  ],
+  "sheet": [
+   25,
+   759
+  ]
+ },
+ "oak_wide": {
+  "file": "oak_wide.png",
+  "w": 222,
+  "h": 191,
+  "m": 18,
+  "solid": true,
+  "anchor": [
+   111,
+   187
+  ],
+  "sheet": [
+   255,
+   771
+  ]
+ },
+ "pine_small": {
+  "file": "pine_small.png",
+  "w": 139,
+  "h": 208,
+  "m": 9.5,
+  "solid": true,
+  "anchor": [
+   70,
+   205
+  ],
+  "sheet": [
+   482,
+   766
+  ]
+ },
+ "pine": {
+  "file": "pine.png",
+  "w": 129,
+  "h": 240,
+  "m": 10,
+  "solid": true,
+  "anchor": [
+   64,
+   237
+  ],
+  "sheet": [
+   635,
+   732
+  ]
+ },
+ "pine_tall": {
+  "file": "pine_tall.png",
+  "w": 132,
+  "h": 258,
+  "m": 10,
+  "solid": true,
+  "anchor": [
+   66,
+   255
+  ],
+  "sheet": [
+   785,
+   718
+  ]
+ },
+ "tree_round": {
+  "file": "tree_round.png",
+  "w": 164,
+  "h": 183,
+  "m": 13,
+  "solid": true,
+  "anchor": [
+   82,
+   180
+  ],
+  "sheet": [
+   927,
+   784
+  ]
+ },
+ "tree_bushy": {
+  "file": "tree_bushy.png",
+  "w": 200,
+  "h": 211,
+  "m": 16,
+  "solid": true,
+  "anchor": [
+   100,
+   207
+  ],
+  "sheet": [
+   37,
+   1012
+  ]
+ },
+ "tree_bushy_b": {
+  "file": "tree_bushy_b.png",
+  "w": 173,
+  "h": 196,
+  "m": 15,
+  "solid": true,
+  "anchor": [
+   86,
+   193
+  ],
+  "sheet": [
+   262,
+   1029
+  ]
+ },
+ "tree_cone": {
+  "file": "tree_cone.png",
+  "w": 104,
+  "h": 158,
+  "m": 8,
+  "solid": true,
+  "anchor": [
+   52,
+   156
+  ],
+  "sheet": [
+   468,
+   1064
+  ]
+ },
+ "bush": {
+  "file": "bush.png",
+  "w": 132,
+  "h": 101,
+  "m": 6,
+  "solid": false,
+  "anchor": [
+   66,
+   88
+  ],
+  "sheet": [
+   611,
+   1126
+  ]
+ },
+ "bush_flowers": {
+  "file": "bush_flowers.png",
+  "w": 150,
+  "h": 108,
+  "m": 6,
+  "solid": false,
+  "anchor": [
+   75,
+   93
+  ],
+  "sheet": [
+   768,
+   1119
+  ]
+ },
+ "bush_lavender": {
+  "file": "bush_lavender.png",
+  "w": 141,
+  "h": 126,
+  "m": 6,
+  "solid": false,
+  "anchor": [
+   70,
+   112
+  ],
+  "sheet": [
+   939,
+   1094
+  ]
+ },
+ "boulder": {
+  "file": "boulder.png",
+  "w": 227,
+  "h": 147,
+  "m": 9,
+  "solid": true,
+  "anchor": [
+   114,
+   113
+  ],
+  "sheet": [
+   36,
+   1295
+  ]
+ },
+ "stone": {
+  "file": "stone.png",
+  "w": 73,
+  "h": 63,
+  "m": 2,
+  "solid": false,
+  "anchor": [
+   36,
+   52
+  ],
+  "sheet": [
+   341,
+   1358
+  ]
+ },
+ "stones": {
+  "file": "stones.png",
+  "w": 131,
+  "h": 87,
+  "m": 3.4,
+  "solid": false,
+  "anchor": [
+   66,
+   67
+  ],
+  "sheet": [
+   487,
+   1328
+  ]
+ },
+ "rock_pile": {
+  "file": "rock_pile.png",
+  "w": 185,
+  "h": 145,
+  "m": 6.5,
+  "solid": true,
+  "anchor": [
+   92,
+   117
+  ],
+  "sheet": [
+   675,
+   1296
+  ]
+ },
+ "rock_tall": {
+  "file": "rock_tall.png",
+  "w": 152,
+  "h": 153,
+  "m": 6.5,
+  "solid": true,
+  "anchor": [
+   76,
+   130
+  ],
+  "sheet": [
+   925,
+   1275
+  ]
+ },
+ "rock_mossy_a": {
+  "file": "rock_mossy_a.png",
+  "w": 168,
+  "h": 95,
+  "m": 5.2,
+  "solid": true,
+  "anchor": [
+   84,
+   70
+  ],
+  "sheet": [
+   47,
+   1494
+  ]
+ },
+ "pebbles": {
+  "file": "pebbles.png",
+  "w": 88,
+  "h": 60,
+  "m": 2.8,
+  "solid": false,
+  "anchor": [
+   44,
+   47
+  ],
+  "sheet": [
+   292,
+   1521
+  ]
+ },
+ "rock_mossy_b": {
+  "file": "rock_mossy_b.png",
+  "w": 141,
+  "h": 109,
+  "m": 5.2,
+  "solid": true,
+  "anchor": [
+   70,
+   88
+  ],
+  "sheet": [
+   441,
+   1478
+  ]
+ },
+ "rock_cluster": {
+  "file": "rock_cluster.png",
+  "w": 186,
+  "h": 153,
+  "m": 6.5,
+  "solid": true,
+  "anchor": [
+   93,
+   125
+  ],
+  "sheet": [
+   634,
+   1453
+  ]
+ },
+ "rock_slab": {
+  "file": "rock_slab.png",
+  "w": 214,
+  "h": 149,
+  "m": 9,
+  "solid": true,
+  "anchor": [
+   107,
+   117
+  ],
+  "sheet": [
+   871,
+   1453
+  ]
+ },
+ "stream_bank": {
+  "file": "stream_bank.png",
+  "w": 314,
+  "h": 166,
+  "m": 24,
+  "solid": false,
+  "anchor": [
+   157,
+   83
+  ],
+  "sheet": [
+   40,
+   1613
+  ],
+  "lie": "water"
+ },
+ "pond_large": {
+  "file": "pond_large.png",
+  "w": 431,
+  "h": 307,
+  "m": 34,
+  "solid": false,
+  "anchor": [
+   216,
+   154
+  ],
+  "sheet": [
+   415,
+   1654
+  ],
+  "lie": "water"
+ },
+ "reed_pond": {
+  "file": "reed_pond.png",
+  "w": 209,
+  "h": 172,
+  "m": 9,
+  "solid": false,
+  "anchor": [
+   104,
+   86
+  ],
+  "sheet": [
+   865,
+   1646
+  ],
+  "lie": "water"
+ },
+ "sand_shore": {
+  "file": "sand_shore.png",
+  "w": 286,
+  "h": 153,
+  "m": 22,
+  "solid": false,
+  "anchor": [
+   143,
+   76
+  ],
+  "sheet": [
+   52,
+   1827
+  ],
+  "lie": "water"
+ }
+}

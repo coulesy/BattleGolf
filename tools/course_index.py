@@ -9,7 +9,9 @@ for f in sorted(glob.glob(f"{ROOT}/data/{course}-[0-9]*.json")):
         holes.append(dict(n=h["hole"], dir=n, par=h["par"], yards=h["yards_yellow"], si=h.get("si")))
 idx_path = f"{ROOT}/game/courses/courses.json"
 idx = json.load(open(idx_path)) if os.path.exists(idx_path) else []
-idx = [c for c in idx if c["id"] != course]
-idx.append(dict(id=course, name=name, holes=holes, **({"theme": theme} if theme else {})))
+entry = dict(id=course, name=name, holes=holes, **({"theme": theme} if theme else {}))
+at = next((i for i, c in enumerate(idx) if c["id"] == course), None)      # a rebuilt course keeps its place
+if at is None: idx.append(entry)
+else: idx[at] = entry
 json.dump(idx, open(idx_path, "w"), indent=1)
 print(f"{name}: {len(holes)} holes in {idx_path}")

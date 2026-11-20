@@ -2,7 +2,7 @@
 Same inputs as render_hole.py (tee, layup, green front/centre/back, elevation grids)."""
 import json, base64, sys, math
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 from scipy.ndimage import gaussian_filter, map_coordinates, binary_erosion, distance_transform_edt
 from scipy.spatial import cKDTree
 
@@ -164,7 +164,8 @@ if OSM_ON:
     W_nfair = (W_nfair > 0.5) & (W_wood < 0.5); W_ncut = (W_ncut > 0.5) & (W_wood < 0.5)
     W_play = np.maximum.reduce([W_tee, W_fair_osm, W_bunker, W_water, W_green_oth, W_nfair.astype(float), W_ncut.astype(float)]
                                + ([W_green_own] if W_green_own is not None else []))
-    S_ = lambda Wm: world_sample(np.asarray(Wm, float), X, Y) > 0.5
+    # blurred a little before thresholding so drawn edges are smooth at any zoom, not stepped on the 0.5 m grid
+    S_ = lambda Wm: world_sample(gaussian_filter(np.asarray(Wm, float), 0.8 / WC), X, Y) > 0.5
     wood, water, bunker = S_(W_wood), S_(W_water), S_(W_bunker)
     ogreen, otee = S_(W_green_oth), S_(W_tee)
     ofair = S_(W_fair_osm) | S_(W_nfair); ocut = S_(W_ncut)
@@ -197,7 +198,7 @@ du, dv = X - gc[0], Y - gc[1]
 gu, gv, gr = green_r(du, dv)
 green = gr < 1.0
 if OSM_ON and W_green_own is not None:
-    green = world_sample(W_green_own, X, Y) > 0.5
+    green = world_sample(gaussian_filter(W_green_own, 0.8 / WC), X, Y) > 0.5
     GD = distance_transform_edt(W_green_own < 0.5) * WC          # metres outside the real green
     gdist = world_sample(GD, X, Y)
 else:
@@ -478,7 +479,7 @@ if OSM_ON:
     for gap, pts_ in ((3.0, singles), (7.5, fill)):
         for p in pts_:
             q = to_abs(p)
-            if not (-80 <= q[0] < W + 80 and -80 <= q[1] < Hh + 80): continue
+            if not (-40 * U <= q[0] < W + 40 * U and -40 * U <= q[1] < Hh + 40 * U): continue
             if too_close(p, gap) or not clear_of_play(p): continue
             cells.setdefault((int(p[0] // 8), int(p[1] // 8)), []).append(p); props.append(("tree", p))
 for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (2600, 2)):
@@ -496,8 +497,132 @@ for p in rng.uniform([bx[0], by[0]], [bx[1], by[1]], (2600, 2)):
         props.append(("rock", p))
     elif z > -4 and rng.random() < 0.09:
         props.append(("tuft", p))
-if MAP is not None:      # placed props (bushes, rocks) from a drawn or tile-built map
-    props += [(pr["kind"], frame([pr["pt"]])[0]) for pr in MAP.get("props", []) if pr.get("kind") in ("bush", "rock", "tuft")]
+# pictures that can be placed from the course editor: art/<set>/props/props.json + one PNG each
+import glob as _glob
+SPRITES = {}
+for _mf in sorted(_glob.glob(_os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "art", "*", "props", "props.json"))):
+    for _k, _v in json.load(open(_mf)).items(): SPRITES.setdefault(_k, dict(_v, path=_os.path.join(_os.path.dirname(_mf), _v["file"])))
+placed = []
+if MAP is not None:      # placed props (bushes, rocks, pictures) from a drawn or tile-built map
+    for pr in MAP.get("props", []):
+        if pr.get("kind") in ("bush", "rock", "tuft"): props.append((pr["kind"], frame([pr["pt"]])[0]))
+        elif pr.get("kind") in SPRITES: placed.append(pr); props.append((f"@{len(placed) - 1}", frame([pr["pt"]])[0]))
+# ---- scenery from the prop pictures in art/ (classic and medieval looks) ----
+# Every tree, bush, rock and ornament is one of the pictures in art/*/props, so the style matches the editor.
+# Placement is checked in a fixed-size copy of the picture ("ref" space, the same for the base picture and
+# every detail tile), against the course and against everything already placed:
+#   - nothing may cover the tee, fairway, first cut, green, bunkers or water
+#   - trees may overlap other trees a little (a wood), nothing else may overlap anything
+SPRITE_SCENERY = THEME in ("classic", "medieval") and "oak" in SPRITES
+if SPRITE_SCENERY:
+    _seed = (sum(map(ord, H.get("course", ""))) * 131 + H["hole"] * 7919 + 77) % 2**32
+    srng = np.random.default_rng(_seed)
+    FEAT_SPOTS = srng.uniform([bx[0], by[0]], [bx[1], by[1]], (200, 2))
+    FILL_SPOTS = srng.uniform([bx[0], by[0]], [bx[1], by[1]], (1400, 2))
+    # each spot gets its own dice from its position, so the base picture and the detail tiles agree exactly
+    def prng(p, salt): return np.random.default_rng((int(round(p[0] * 37)) * 1000003 + int(round(p[1] * 37)) * 7919 + salt * 104729 + _seed) % 2**32)
+    have = lambda L: [it for it in L if it[0] in SPRITES]
+    if THEME == "medieval":
+        TREE_POOL = have([("pine", 3), ("pine_tall", 3), ("pine_small", 2), ("tree_cone", 2), ("oak", 2), ("tree_round", 1), ("tree_bushy", 1)])
+    else:
+        TREE_POOL = have([("oak", 3), ("oak_wide", 2), ("tree_round", 3), ("tree_bushy", 2), ("tree_bushy_b", 2),
+                          ("pine", 1), ("pine_tall", 1), ("pine_small", 1), ("tree_cone", 1)])
+    SMALL_POOL = have([("bush", 4), ("bush_flowers", 3), ("bush_lavender", 2), ("long_grass_a", 3), ("long_grass_b", 3),
+                       ("stone", 2), ("stones", 2), ("pebbles", 1), ("rock_mossy_a", 1), ("rock_mossy_b", 1),
+                       ("rock_pile", 1), ("rock_cluster", 1), ("rock_tall", 1)])
+    FEATURE_POOL = have([("boulder", 3), ("rock_slab", 2), ("pond_grass", 2), ("reed_pond", 2), ("pond_stone", 1)])
+    if THEME == "medieval":
+        SMALL_POOL += have([("barrel", 2), ("barrel_b", 1), ("crate", 2), ("crate_open", 1), ("barrels", 1), ("crates", 1),
+                            ("wheelbarrow", 1), ("haystack", 2), ("flag_red", 0.3), ("flag_blue", 0.3), ("flag_yellow", 0.3)])
+        FEATURE_POOL += have([("hay_bales", 3), ("cart", 3), ("well", 2), ("tent", 2), ("tent_small", 2), ("tent_blue", 2),
+                              ("archery_target", 2), ("tower_tall", 2), ("tower_square", 1), ("keep_small", 1),
+                              ("ruin_wall_a", 1), ("ruin_wall_c", 1), ("ruin_wall_e", 1), ("ruin_wall_g", 1),
+                              ("fence", 2), ("fence_gate", 1), ("stone_wall_short", 1)])
+    SCALE = {"long_grass_a": 0.5, "long_grass_b": 0.5}
+    def pick(pool, r):
+        w = np.array([q for _, q in pool], float); return pool[int(r.choice(len(pool), p=w / w.sum()))][0]
+
+    # ref space: abs picture px / U * RS, padded so props hanging over the edge are checked too
+    RS, PAD = 0.5, 80
+    RW, RH = int(OUT_W * RS) + 2 * PAD, int(OUT_H * RS) + 2 * PAD
+    def ref_of(p): q = to_abs(p) / U * RS + PAD; return float(q[0]), float(q[1])
+    _ry, _rx = np.mgrid[0:RH, 0:RW] + 0.5
+    RX, RY = from_abs((_rx - PAD) / RS * U, (_ry - PAD) / RS * U)
+    # the course, in world space: first cut (which holds fairway and green), green surround, tee, sand, water
+    nogo_w = (CutF > 0.3) | (WGd < 9) | (W_bunker > 0.5) | (W_water > 0.5)
+    nogo_w |= (np.abs(WXw - T[0]) < 11) & (np.abs(WYw - (T[1] - 4)) < 14)
+    if OSM_ON:
+        nogo_w |= (W_play > 0.5) | (W_green_oth > 0.5)
+    nogo_w = distance_transform_edt(~nogo_w) * WC < 1.5            # a little grass between props and the course
+    NOGO = world_sample(nogo_w.astype(float), RX, RY, order=0) > 0.5
+    OCC = np.zeros((RH, RW), np.int8)                                # 1 = tree, 2 = anything else
+    ref_ppm = s / U * RS                                             # ref px per metre
+    _ref_cache = {}
+    def ref_mask(kind, scale, flip):
+        sp = SPRITES[kind]; key = (kind, round(scale, 3), flip)
+        if key not in _ref_cache:
+            f = sp["m"] * scale * ref_ppm / sp["w"]
+            im = Image.open(sp["path"]).convert("RGBA").getchannel("A")
+            if flip: im = ImageOps.mirror(im)
+            im = im.resize((max(1, round(sp["w"] * f)), max(1, round(sp["h"] * f))), Image.BILINEAR)
+            ax = (sp["w"] - sp["anchor"][0] if flip else sp["anchor"][0]) * f
+            _ref_cache[key] = (np.asarray(im) > 110, ax, sp["anchor"][1] * f)
+        return _ref_cache[key]
+    def footprint(pr, p):
+        m_, ax, ay = ref_mask(pr["kind"], float(pr.get("scale", 1)), bool(pr.get("flip")))
+        rx, ry = ref_of(p); x0, y0 = round(rx - ax), round(ry - ay)
+        h_, w_ = m_.shape
+        cx0, cy0, cx1, cy1 = max(x0, 0), max(y0, 0), min(x0 + w_, RW), min(y0 + h_, RH)
+        if cx1 <= cx0 or cy1 <= cy0: return None
+        return m_[cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0], (slice(cy0, cy1), slice(cx0, cx1))
+    def try_place(pr, p, tree, force=False):
+        fp = footprint(pr, p)
+        if fp is None: return False
+        m_, sl = fp; area = max(int(m_.sum()), 1)
+        if not force:
+            if (m_ & NOGO[sl]).sum() > 0.01 * area: return False
+            o = OCC[sl][m_]
+            if tree:
+                if (o == 2).sum() > 0.02 * area or (o == 1).sum() > 0.45 * area: return False
+            elif (o > 0).sum() > 0.02 * area: return False
+        OCC[sl][m_] = 1 if tree else 2
+        return True
+
+    auto = []          # (prop dict, world point)
+    # 1. the pictures placed in the editor claim their ground first
+    for pr in placed:
+        try_place(pr, frame([pr["pt"]])[0], SPRITES[pr["kind"]]["solid"] and pr["kind"] in dict(TREE_POOL), force=True)
+    # 2. the odd landmark in the rough or a clearing: boulders, ponds (and in Castle Keep, tents, carts, towers...)
+    n_feat = 14 if THEME == "medieval" else 5
+    for p in FEAT_SPOTS[:n_feat * 12]:
+        if len(auto) >= n_feat: break
+        if np.hypot(*(p - T)) < 25 or np.hypot(*(p - gc)) < a_ax + 20: continue
+        r_ = prng(p, 1)
+        pr = dict(kind=pick(FEATURE_POOL, r_), scale=float(r_.uniform(0.85, 1.1)), flip=bool(r_.random() < 0.5))
+        if try_place(pr, p, False): auto.append((pr, p))
+    # 3. trees: the woods and the treeline worked out above, each a picture that fits its spot (smaller if need be)
+    trees_by_size = sorted(dict(TREE_POOL), key=lambda k: SPRITES[k]["m"])
+    for kind, p in props:
+        if kind != "tree": continue
+        r_ = prng(p, 2); first = pick(TREE_POOL, r_); sc = float(r_.uniform(0.85, 1.1)); fl = bool(r_.random() < 0.5)
+        for k_ in [first] + [k for k in trees_by_size if SPRITES[k]["m"] < SPRITES[first]["m"]][:2][::-1]:
+            pr = dict(kind=k_, scale=sc, flip=fl)
+            if try_place(pr, p, True): auto.append((pr, p)); break
+    # 4. small things to fill the rough: the bushes, rocks and tufts from above, plus a scatter of extra spots
+    small = [p for kind, p in props if kind in ("bush", "rock", "tuft")]
+    for p in FILL_SPOTS:
+        z, _ = zone_at(p)
+        if z is not None and z > -12: small.append(p)
+    for p in small:
+        r_ = prng(p, 3); k_ = pick(SMALL_POOL, r_)
+        pr = dict(kind=k_, scale=float(SCALE.get(k_, 1) * r_.uniform(0.8, 1.1)), flip=bool(r_.random() < 0.5))
+        if try_place(pr, p, False): auto.append((pr, p))
+    props = [it for it in props if it[0][0] == "@"]
+    for pr, p in auto:
+        placed.append(pr); props.append((f"@{len(placed) - 1}", p))
+elif placed:              # keep the automatic trees, bushes and rocks off placed pictures
+    _clear = [(frame([pr["pt"]])[0], 0.5 * SPRITES[pr["kind"]]["m"] * float(pr.get("scale", 1))) for pr in placed]
+    props = [it for it in props if it[0][0] == "@" or all(np.hypot(*(it[1] - c_)) > r_ for c_, r_ in _clear)]
 props.sort(key=lambda it: to_screen(it[1])[1])
 trees_out = []
 
@@ -612,8 +737,34 @@ def themed_prop(kind, x, y, r_tree):
         return False if kind == "tuft" else True
     return False
 
+_sprite_cache = {}
+sprite_water = []        # (mask, x, y) of the blue in placed ponds and streams, in base-picture px, for the lie grid
+def draw_sprite(pr, p, x, y):
+    sp = SPRITES[pr["kind"]]; mw = sp["m"] * float(pr.get("scale", 1))
+    if sp["solid"]:          # blocks shots like a tree (baked into the lie grid below)
+        trees_out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(0.35 * mw / 0.75, 2)])
+    f = mw / mpp / sp["w"]
+    if f * sp["w"] < 2: return
+    key = (pr["kind"], round(f, 4), bool(pr.get("flip")))
+    if key not in _sprite_cache:
+        im = Image.open(sp["path"]).convert("RGBA")
+        if pr.get("flip"): im = ImageOps.mirror(im)
+        _sprite_cache[key] = im.resize((max(1, round(sp["w"] * f)), max(1, round(sp["h"] * f))), Image.LANCZOS)
+    im = _sprite_cache[key]
+    ax = (sp["w"] - sp["anchor"][0] if pr.get("flip") else sp["anchor"][0]) * f; ay = sp["anchor"][1] * f
+    if not pr["kind"].startswith(("tile_", "path_", "grass_patch", "dirt_patch")) and sp.get("lie") != "water":
+        r = mw / mpp / 2
+        cv.ellipse([x - r * 0.8, y - r * 0.3, x + r * 1.15, y + r * 0.42], fill=SHADOW + (110,))
+    base.paste(im, (round(x - ax), round(y - ay)), im)
+    if sp.get("lie") == "water":
+        a_ = np.asarray(im).astype(int)
+        blue = (a_[..., 3] > 128) & (a_[..., 2] > a_[..., 0] + 25) & (a_[..., 2] > a_[..., 1] + 5)
+        sprite_water.append((blue, round(x - ax) + OFFX, round(y - ay) + OFFY))
+
 for kind, p in props:
     x, y = to_screen(p)
+    if kind[0] == "@":
+        draw_sprite(placed[int(kind[1:])], p, x, y); continue
     if THEME != "classic":
         r_tree = rng.uniform(6, 9.5) / mpp * 0.85
         if kind == "tree":
@@ -726,6 +877,11 @@ if len(sys.argv) > 3 and not DETAIL:
     lie[at(cut)] = 1; lie[at(wood)] = 5
     lie[at(fairway | ofair | ogreen | otee)] = 2
     lie[at(bunker)] = 6; lie[at(water)] = 7
+    for wm, wx, wy in sprite_water:        # placed ponds and streams
+        rx, ry = sx - wx, sy - wy
+        ins = (rx >= 0) & (ry >= 0) & (rx < wm.shape[1]) & (ry < wm.shape[0])
+        hit = np.zeros_like(ins); hit[ins] = wm[ry[ins], rx[ins]]
+        lie[hit] = 7
     lie[at(teebox)] = 4; lie[at(green)] = 3
     # trees are baked in too (the game no longer checks every tree for every step of a putt)
     for tx, ty, tr in trees_out:
