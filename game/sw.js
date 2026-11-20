@@ -3,10 +3,10 @@
 // The game's own files (page, course list, hole pictures) are network-first: a rebuilt hole keeps its file
 // names, so serving the cache first would show the old one. The cache is the offline fallback, and hole
 // pictures are added to it as each hole is played.
-const VERSION = "bg-v28";
+const VERSION = "bg-v29";
 const CORE = [
   "./", "index.html", "config.js", "manifest.webmanifest", "courses/courses.json", "logo.webp",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
+  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "audio/bit-forest.mp3",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",
 ];
 

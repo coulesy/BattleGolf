@@ -322,8 +322,10 @@
 
   // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
   // ---------- sound ----------
-  // All synthesised with Web Audio, so there are no files to download. The context is created on the first tap
-  // (phones only allow audio after a gesture). The speaker button mutes it, and the choice is remembered.
+  // Effects are synthesised with Web Audio, so there are no files to download for them. The one file is the
+  // background music, "Bit Forest ambient" by bertsz (CC0, via OpenGameArt / Uncommon Ear), looped quietly
+  // under everything. The context is created on the first tap (phones only allow audio after a gesture).
+  // The speaker button mutes effects and music together, and the choice is remembered.
   // Every sound takes an optional volume (other players' shots play quieter: GHOST_VOL).
   const GHOST_VOL = 0.45;
   const shotPower = d => Math.max(0.15, Math.min(1, d / 230));   // carry in metres → 0..1 (a full drive is ~1)
@@ -337,10 +339,28 @@
         ac = new AC(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination);
         noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
         const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        music(ac);
       }
-      if (ac.state === "suspended") ac.resume();
+      if (ac.state === "suspended" && !document.hidden) ac.resume();
       return ac;
     }
+    // background music: fetched and decoded once, then looped forever on its own quiet gain (fades in)
+    const MUSIC_VOL = 0.32;
+    function music(a) {
+      fetch("audio/bit-forest.mp3").then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+        .then(buf => new Promise((ok, no) => a.decodeAudioData(buf, ok, no)))
+        .then(decoded => {
+          const src = a.createBufferSource(), g = a.createGain();
+          src.buffer = decoded; src.loop = true;
+          g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(MUSIC_VOL, a.currentTime + 3);
+          src.connect(g); g.connect(a.destination); src.start();
+        }).catch(() => {});   // no music (offline before it was cached, old browser): the game plays on silently
+    }
+    // a backgrounded tab or a locked phone goes quiet; coming back picks the music up where it left off
+    document.addEventListener("visibilitychange", () => {
+      if (!ac) return;
+      if (document.hidden) ac.suspend(); else if (on) ac.resume();
+    });
     // an envelope: silent → peak after `att` → near silence after `dec`
     function env(g, t, peak, att, dec) {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + att);
