@@ -47,7 +47,18 @@
   .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); } .msg.warn { color:var(--warn); }
   .warn-box { background:rgba(255,179,71,.12); border:1px solid rgba(255,179,71,.5); color:var(--warn); border-radius:6px; padding:6px 9px; font-size:12.5px; margin-top:6px; }
   .err-box { background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.5); color:var(--bad); border-radius:6px; padding:6px 9px; font-size:12.5px; margin-top:6px; }
-  img.preview { width:100%; border-radius:6px; border:1px solid var(--line); display:block; background:#0f1813; min-height:40px; }
+  img.preview { width:100%; border-radius:6px; border:1px solid var(--line); display:block; background:#0f1813; min-height:40px; cursor:zoom-in; }
+  .pvwrap { position:relative; }
+  .pvwrap .grow-btn { position:absolute; right:6px; top:6px; }
+  #viewer { position:fixed; inset:0; z-index:50; background:rgba(8,12,10,.94); display:none; flex-direction:column; }
+  #viewer.show { display:flex; }
+  #viewer .bar { display:flex; gap:6px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel); }
+  #viewer .bar .grow { flex:1; }
+  #viewer .seg { width:auto; }
+  #viewer .seg button { padding:5px 12px; }
+  #vStage { flex:1; position:relative; overflow:hidden; cursor:grab; touch-action:none; }
+  #vStage.drag { cursor:grabbing; }
+  #vImg { position:absolute; left:0; top:0; transform-origin:0 0; user-select:none; -webkit-user-drag:none; image-rendering:auto; }
   pre.log { background:#0b120e; border:1px solid var(--line); border-radius:6px; padding:8px; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; color:var(--dim); }
   .dim { color:var(--dim); font-size:12px; }
   a { color:var(--accent); }
@@ -148,11 +159,22 @@
     <div class="msg" id="msg"></div>
 
     <h2>Built hole</h2>
-    <img class="preview" id="preview" alt="">
+    <div class="pvwrap"><img class="preview" id="preview" alt="" title="Click to view larger"><button class="b small grow-btn" id="pvBig" title="View larger">⤢ Larger</button></div>
     <p class="dim" id="builtAt"></p>
     <pre class="log" id="log" hidden></pre>
   </div>
 </section>
+
+<div id="viewer" role="dialog" aria-label="Built hole, larger">
+  <div class="bar">
+    <b id="vTitle"></b>
+    <div class="seg" id="vPick"><button data-f="course.jpg">Whole hole</button><button data-f="course_portrait.jpg">Portrait</button><button data-f="detail_land.jpg">Green</button><button data-f="detail_portrait.jpg">Green (portrait)</button></div>
+    <span class="grow dim" id="vZoom"></span>
+    <span class="dim">Scroll to zoom · drag to pan · double-click: fit / full size</span>
+    <button class="b small" id="vFit">Fit</button><button class="b small" id="v1">100%</button><button class="b small" id="vClose">Close (Esc)</button>
+  </div>
+  <div id="vStage"><img id="vImg" alt=""></div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -682,6 +704,55 @@ document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !typing) { e.preventDefault(); $("undo").click(); }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g" && !typing && picked.length > 1) { e.preventDefault(); $("propGroup").click(); }
 });
+
+// ---------------- larger view of the built hole ----------------
+const V = { k: 1, x: 0, y: 0, file: "course.jpg", drag: null };
+function vApply() { $("vImg").style.transform = `translate(${V.x}px,${V.y}px) scale(${V.k})`; $("vZoom").textContent = `${Math.round(V.k * 100)}%`; }
+function vFit() {
+  const st = $("vStage").getBoundingClientRect(), im = $("vImg");
+  if (!im.naturalWidth) return;
+  V.k = Math.min(st.width / im.naturalWidth, st.height / im.naturalHeight);
+  V.x = (st.width - im.naturalWidth * V.k) / 2; V.y = (st.height - im.naturalHeight * V.k) / 2; vApply();
+}
+function vZoomAt(k, cx, cy) {     // zoom to k keeping the point under (cx, cy) still
+  k = Math.min(Math.max(k, 0.05), 8);
+  V.x = cx - (cx - V.x) * k / V.k; V.y = cy - (cy - V.y) * k / V.k; V.k = k; vApply();
+}
+function vLoad(file) {
+  const src = $("preview").getAttribute("src"); if (!src) return;
+  V.file = file;
+  document.querySelectorAll("#vPick button").forEach(b => b.classList.toggle("on", b.dataset.f === file));
+  $("vImg").onload = vFit; $("vImg").onerror = () => { $("vZoom").textContent = "not built for this view"; };
+  $("vImg").src = src.replace(/course\.jpg/, file);
+}
+function openViewer() {
+  if (!$("preview").getAttribute("src")) return msg("This hole hasn't been built yet.", "warn");
+  $("vTitle").textContent = `${recipe.name} · Hole ${curN}`;
+  $("viewer").classList.add("show"); vLoad(V.file);
+}
+const closeViewer = () => $("viewer").classList.remove("show");
+$("preview").onclick = openViewer; $("pvBig").onclick = openViewer;
+$("vClose").onclick = closeViewer; $("vFit").onclick = vFit;
+$("v1").onclick = () => { const r = $("vStage").getBoundingClientRect(); vZoomAt(1, r.width / 2, r.height / 2); };
+$("vPick").onclick = e => { const b = e.target.closest("button"); if (b) vLoad(b.dataset.f); };
+const vStage = $("vStage");
+vStage.addEventListener("wheel", e => {
+  e.preventDefault(); const r = vStage.getBoundingClientRect();
+  vZoomAt(V.k * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+vStage.addEventListener("pointerdown", e => { V.drag = { x: e.clientX - V.x, y: e.clientY - V.y }; vStage.classList.add("drag"); vStage.setPointerCapture(e.pointerId); });
+vStage.addEventListener("pointermove", e => { if (!V.drag) return; V.x = e.clientX - V.drag.x; V.y = e.clientY - V.drag.y; vApply(); });
+vStage.addEventListener("pointerup", () => { V.drag = null; vStage.classList.remove("drag"); });
+vStage.addEventListener("dblclick", e => {
+  const r = vStage.getBoundingClientRect(), st = r, im = $("vImg");
+  const fit = Math.min(st.width / im.naturalWidth, st.height / im.naturalHeight);
+  if (Math.abs(V.k - fit) < 0.01) vZoomAt(1, e.clientX - r.left, e.clientY - r.top); else vFit();
+});
+window.addEventListener("resize", () => { if ($("viewer").classList.contains("show")) vFit(); });
+document.addEventListener("keydown", e => {
+  if (!$("viewer").classList.contains("show")) return;
+  if (e.key === "Escape") { closeViewer(); e.stopImmediatePropagation(); }
+}, true);
 
 // ---------------- save and build ----------------
 async function save() {

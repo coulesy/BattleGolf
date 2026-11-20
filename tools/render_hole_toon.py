@@ -57,7 +57,7 @@ D = np.linalg.norm(G - T)
 
 # ---------------- camera: hole runs bottom-left -> top-right, tilted ----------------
 import os
-SS = 0.25 if os.environ.get("FEATURES_ONLY") else 2      # the layout export needs no picture, so draw it tiny
+SS = int(os.environ["SS"]) if os.environ.get("SS") else 0.25 if os.environ.get("FEATURES_ONLY") else 2      # the layout export needs no picture, so draw it tiny
 PORTRAIT = os.environ.get("PORTRAIT") == "1"
 OUT_W, OUT_H = (900, 1600) if PORTRAIT else (1600, 900)
 # DETAIL="x,y,w,h" (base-image px) + DETAIL_K renders a sharper tile of part of the same picture
@@ -744,6 +744,7 @@ _sprite_cache = {}
 # buildings, rocks) by a circle round their ground point.
 SPRITE_LIE = {"water": 7, "hay": 8, "sand": 6, "trees": 5, "path": 2, "rough": 0}   # 8: hay plays like a bunker
 sprite_lie = []          # ("mask", code, mask, x, y) in base-picture px, or ("circle", code, x, y, r) in metres
+flags_out = []           # waving flags for the game (see draw_sprite)
 def sprite_lie_of(sp): return sp.get("lie") or ("trees" if sp["solid"] else None)
 def draw_sprite(pr, p, x, y):
     sp = SPRITES[pr["kind"]]; mw = sp["m"] * float(pr.get("scale", 1)); lie_ = sprite_lie_of(sp)
@@ -752,6 +753,12 @@ def draw_sprite(pr, p, x, y):
     elif lie_ and not sp.get("flat") and lie_ not in ("water", "path", "rough"):
         sprite_lie.append(("circle", SPRITE_LIE[lie_], float(p[0]), float(p[1]), 0.4 * mw))
     f = mw / mpp / sp["w"]
+    # flags the game waves over the painted ones: hoist corner, length and height in base-picture px,
+    # how far down the hoist the tip sits, colour, and which way the cloth points (-1 when flipped)
+    fl_ = bool(pr.get("flip")); ax0 = (sp["w"] - sp["anchor"][0] if fl_ else sp["anchor"][0]) * f
+    for hx, hy, L, h, tip, col in sp.get("flags", []):
+        fx = x - ax0 + (sp["w"] - hx if fl_ else hx) * f; fy = y + (hy - sp["anchor"][1]) * f
+        flags_out.append([round((fx + OFFX) / U, 1), round((fy + OFFY) / U, 1), round(L * f / U, 2), round(h * f / U, 2), tip, col, -1 if fl_ else 1])
     if f * sp["w"] < 2: return
     key = (pr["kind"], round(f, 4), bool(pr.get("flip")))
     if key not in _sprite_cache:
@@ -913,6 +920,7 @@ if len(sys.argv) > 3 and not DETAIL:
     data = dict(A=A.round(6).tolist(), b=b.round(3).tolist(), tee=T.round(2).tolist(), pin=G.round(2).tolist(),
                 par=H["par"], hole=H["hole"], yards=H["yards_yellow"], cell=CELL, gx0=round(float(gx0), 2), gy0=round(float(gy0), 2),
                 nx=nx_, ny=ny_, lie=base64.b64encode(lie.tobytes()).decode(), trees=trees_out, img=[OUT_W, OUT_H])
+    if flags_out: data["flags"] = flags_out
     json.dump(data, open(sys.argv[3], "w"))
     print("game data", nx_, ny_, len(trees_out))
 

@@ -98,6 +98,8 @@
   .card .wide { width: 100%; }
   .card .err { color: #b3261e; font-weight: 700; min-height: 1.2em; font-size: 14px; }
   .card .hint { font-size: 13px; color: #4b7a32; }
+  .card .credit { font-size: 11px; text-align: center; margin: 14px 0 0; opacity: .8; }
+  .card .credit a { color: inherit; }
   .codebig { font-size: 40px; font-weight: 900; letter-spacing: .18em; margin: 6px 0 2px; color: #23461a; }
   .board { position: fixed; left: 10px; top: 74px; display: none; background: rgba(32,64,26,.88); border: 2px solid #9fd06e; border-radius: 14px; padding: 6px 10px; min-width: 150px; max-width: 46vw; box-shadow: 0 3px 0 rgba(0,0,0,.25); font-size: 13px; pointer-events: auto; }
   .board.show { display: block; }
@@ -252,6 +254,7 @@
     <div class="row"><input id="onCode" maxlength="5" placeholder="CODE" aria-label="Match code" autocapitalize="characters" autocomplete="off"><button class="small" id="onJoin">Join</button></div>
     <p class="err" id="onMsg"></p>
   </div>
+  <p class="hint credit">Music: “Mischief” by Kevin MacLeod (<a href="https://incompetech.com" target="_blank" rel="noopener">incompetech.com</a>), licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
 </div></div>
 <div class="modal" id="lobby"><div class="card">
   <h2>Match ready</h2>
@@ -316,14 +319,18 @@
 (async function () {
   const portrait = innerHeight > innerWidth;
   const $ = id => document.getElementById(id);
-  const COURSES = await (await fetch("courses/courses.json")).json();
-  const courseById = id => COURSES.find(c => c.id === id) || COURSES[0];
+  // courses with "hidden": true stay out of the pickers, but a round already on one (online) can still load it
+  const ALL_COURSES = await (await fetch("courses/courses.json")).json();
+  const COURSES = ALL_COURSES.filter(c => !c.hidden);
+  const courseById = id => ALL_COURSES.find(c => c.id === id) || COURSES[0];
   const THEME_BG = { space: "#161328", neon: "#0a0420", medieval: "#33341a" };
 
   // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
   // ---------- sound ----------
-  // All synthesised with Web Audio, so there are no files to download. The context is created on the first tap
-  // (phones only allow audio after a gesture). The speaker button mutes it, and the choice is remembered.
+  // Effects are synthesised with Web Audio, so there are no files to download for them. The files are the
+  // background music: "Mischief" by Kevin MacLeod (incompetech.com, CC BY 4.0, credited on the menu card),
+  // looped quietly on the menu and the course alike. The context is created on the first tap (phones only allow audio after a gesture).
+  // The speaker button mutes effects and music together, and the choice is remembered.
   // Every sound takes an optional volume (other players' shots play quieter: GHOST_VOL).
   const GHOST_VOL = 0.45;
   const shotPower = d => Math.max(0.15, Math.min(1, d / 230));   // carry in metres → 0..1 (a full drive is ~1)
@@ -337,10 +344,30 @@
         ac = new AC(); out = ac.createGain(); out.gain.value = 0.8; out.connect(ac.destination);
         noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
         const ch = noiseBuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        music(ac);
       }
-      if (ac.state === "suspended") ac.resume();
+      if (ac.state === "suspended" && !document.hidden) ac.resume();
       return ac;
     }
+    // background music: "Mischief", fetched and decoded once, then looped forever on its own quiet gain (fades in)
+    const MUSIC_URL = "audio/mischief.mp3", MUSIC_VOL = 0.3;
+    let musicStarted = false;
+    function music(a) {
+      if (musicStarted) return; musicStarted = true;
+      fetch(MUSIC_URL).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+        .then(buf => new Promise((ok, no) => a.decodeAudioData(buf, ok, no)))
+        .then(buffer => {
+          const src = a.createBufferSource(), g = a.createGain(), t = a.currentTime;
+          src.buffer = buffer; src.loop = true;
+          g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(MUSIC_VOL, t + 0.6);
+          src.connect(g); g.connect(a.destination); src.start(t);
+        }).catch(() => { musicStarted = false; });   // no music (offline before it was cached, old browser): play on silently
+    }
+    // a backgrounded tab or a locked phone goes quiet; coming back picks the music up where it left off
+    document.addEventListener("visibilitychange", () => {
+      if (!ac) return;
+      if (document.hidden) ac.suspend(); else if (on) ac.resume();
+    });
     // an envelope: silent → peak after `att` → near silence after `dec`
     function env(g, t, peak, att, dec) {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + att);
@@ -418,7 +445,11 @@
     b.addEventListener("pointerdown", e => e.stopPropagation());
     b.addEventListener("click", e => { e.stopPropagation(); SFX.on = !SFX.on; show(); });
     show();
-    addEventListener("pointerdown", () => SFX.unlock(), { once: true, capture: true });
+    // Start the audio straight away: where the browser allows it (e.g. a site you've played before, the installed
+    // app) the menu music begins on load; elsewhere it sits ready, decoded, and starts on the first tap or key.
+    // iPhones only count a finished tap (touchend / click) as permission, not a pointerdown, so listen for all.
+    SFX.unlock();
+    for (const ev of ["pointerdown", "touchend", "click", "keydown"]) addEventListener(ev, () => SFX.unlock(), { capture: true, passive: true });
   }
 
   // Everything below that depends on the hole is reassigned by useHole(), so the rest of the game just reads it.
@@ -1829,6 +1860,44 @@
     }
     return out;
   }
+  // waving flags over the painted ones on castles, towers, tents and flag poles. Each is
+  // [x, y, length, height, tip, colour, dir] in course-picture px: the top of the hoist, the cloth's size, how far
+  // down the hoist its tip sits (0-1), and which way it points. Drawn a little bigger than the painted flag so it hides it.
+  const FLAG_SEGS = 8;
+  function drawFlags(now) {
+    if (!D.flags) return;
+    const t = now / 1000, hw = VW / 2 / zoom, hh = VH / 2 / zoom;
+    ctx.save(); ctx.lineJoin = "round";
+    for (let i = 0; i < D.flags.length; i++) {
+      const [fx, fy, L, h, tip, col, dir] = D.flags[i];
+      if (fx + 2 * L < cam.x - hw || fx - 2 * L > cam.x + hw || fy + 2 * h < cam.y - hh || fy - h > cam.y + hh) continue;   // off screen
+      const pad = h * 0.12, amp = h * 0.11, ph = i * 1.7, len = (L + pad) * (1 + 0.04 * Math.sin(t * 2.3 + ph));
+      const sx = (fx - cam.x) * zoom + VW / 2, sy = (fy - cam.y) * zoom + VH / 2, z = zoom;
+      const top = [], bot = [], wav = [];
+      for (let k = 0; k <= FLAG_SEGS; k++) {
+        const u = k / FLAG_SEGS, w = Math.sin(6.2 * u - t * 7 + ph);
+        const dy = amp * u * w, x = sx + dir * u * len * z;
+        top.push([x, sy + (-pad + u * (tip * h + pad) + dy) * z]);
+        bot.push([x, sy + (h + pad - u * (h + pad - tip * h) + dy) * z]);
+        wav.push(Math.cos(6.2 * u - t * 7 + ph));
+      }
+      // the cloth in strips, lit and shaded by the ripple
+      for (let k = 0; k < FLAG_SEGS; k++) {
+        const l = (wav[k] + wav[k + 1]) / 2;
+        ctx.fillStyle = col; ctx.beginPath();
+        ctx.moveTo(...top[k]); ctx.lineTo(...top[k + 1]); ctx.lineTo(...bot[k + 1]); ctx.lineTo(...bot[k]); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = l > 0 ? `rgba(255,255,255,${0.18 * l})` : `rgba(20,10,30,${-0.22 * l})`;
+        ctx.fill();
+      }
+      ctx.beginPath(); ctx.moveTo(...top[0]);
+      for (let k = 1; k <= FLAG_SEGS; k++) ctx.lineTo(...top[k]);
+      for (let k = FLAG_SEGS; k >= 0; k--) ctx.lineTo(...bot[k]);
+      ctx.closePath();
+      ctx.strokeStyle = "#2b2230"; ctx.lineWidth = Math.max(0.8, h * 0.09 * z); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function drawYardMarks() {
     if (!yardMarks.length || putting()) return;
     // at least 13 px, and growing with the zoom so it always covers the picture's own (tiny) label
@@ -2032,6 +2101,7 @@
     ctx.imageSmoothingQuality = "high";
     drawImg(img, 0, 0, IW, IH);
     drawImg(detailImg, D.detail.x, D.detail.y, D.detail.w, D.detail.h);   // 4x sharper tile around the green
+    drawFlags(now);
     drawGreenRead(dt);
     drawGimmeRings();
     drawYardMarks();
