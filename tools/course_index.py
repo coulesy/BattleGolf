@@ -12,6 +12,6 @@ idx = json.load(open(idx_path)) if os.path.exists(idx_path) else []
 entry = dict(id=course, name=name, holes=holes, **({"theme": theme} if theme else {}))
 at = next((i for i, c in enumerate(idx) if c["id"] == course), None)      # a rebuilt course keeps its place
 if at is None: idx.append(entry)
-else: idx[at] = entry
+else: idx[at] = {**entry, **({"hidden": True} if idx[at].get("hidden") else {})}     # and stays hidden if it was
 json.dump(idx, open(idx_path, "w"), indent=1)
 print(f"{name}: {len(holes)} holes in {idx_path}")

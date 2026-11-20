@@ -2,6 +2,7 @@
  {
   "id": "ifield",
   "name": "Ifield",
+  "hidden": true,
   "holes": [
    {
     "n": 1,
@@ -267,6 +268,7 @@
  {
   "id": "space",
   "name": "Lunar Links",
+  "hidden": true,
   "holes": [
    {
     "n": 1,
@@ -400,6 +402,7 @@
  {
   "id": "neon",
   "name": "Neon Nights",
+  "hidden": true,
   "holes": [
    {
     "n": 1,
@@ -666,6 +669,7 @@
  {
   "id": "patchwork",
   "name": "Patchwork Park",
+  "hidden": true,
   "holes": [
    {
     "n": 1,

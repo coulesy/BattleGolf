@@ -319,8 +319,10 @@
 (async function () {
   const portrait = innerHeight > innerWidth;
   const $ = id => document.getElementById(id);
-  const COURSES = await (await fetch("courses/courses.json")).json();
-  const courseById = id => COURSES.find(c => c.id === id) || COURSES[0];
+  // courses with "hidden": true stay out of the pickers, but a round already on one (online) can still load it
+  const ALL_COURSES = await (await fetch("courses/courses.json")).json();
+  const COURSES = ALL_COURSES.filter(c => !c.hidden);
+  const courseById = id => ALL_COURSES.find(c => c.id === id) || COURSES[0];
   const THEME_BG = { space: "#161328", neon: "#0a0420", medieval: "#33341a" };
 
   // ---------- one hole at a time: pictures + data from courses/<course>/<NN>/ ----------
@@ -1858,6 +1860,44 @@
     }
     return out;
   }
+  // waving flags over the painted ones on castles, towers, tents and flag poles. Each is
+  // [x, y, length, height, tip, colour, dir] in course-picture px: the top of the hoist, the cloth's size, how far
+  // down the hoist its tip sits (0-1), and which way it points. Drawn a little bigger than the painted flag so it hides it.
+  const FLAG_SEGS = 8;
+  function drawFlags(now) {
+    if (!D.flags) return;
+    const t = now / 1000, hw = VW / 2 / zoom, hh = VH / 2 / zoom;
+    ctx.save(); ctx.lineJoin = "round";
+    for (let i = 0; i < D.flags.length; i++) {
+      const [fx, fy, L, h, tip, col, dir] = D.flags[i];
+      if (fx + 2 * L < cam.x - hw || fx - 2 * L > cam.x + hw || fy + 2 * h < cam.y - hh || fy - h > cam.y + hh) continue;   // off screen
+      const pad = h * 0.12, amp = h * 0.11, ph = i * 1.7, len = (L + pad) * (1 + 0.04 * Math.sin(t * 2.3 + ph));
+      const sx = (fx - cam.x) * zoom + VW / 2, sy = (fy - cam.y) * zoom + VH / 2, z = zoom;
+      const top = [], bot = [], wav = [];
+      for (let k = 0; k <= FLAG_SEGS; k++) {
+        const u = k / FLAG_SEGS, w = Math.sin(6.2 * u - t * 7 + ph);
+        const dy = amp * u * w, x = sx + dir * u * len * z;
+        top.push([x, sy + (-pad + u * (tip * h + pad) + dy) * z]);
+        bot.push([x, sy + (h + pad - u * (h + pad - tip * h) + dy) * z]);
+        wav.push(Math.cos(6.2 * u - t * 7 + ph));
+      }
+      // the cloth in strips, lit and shaded by the ripple
+      for (let k = 0; k < FLAG_SEGS; k++) {
+        const l = (wav[k] + wav[k + 1]) / 2;
+        ctx.fillStyle = col; ctx.beginPath();
+        ctx.moveTo(...top[k]); ctx.lineTo(...top[k + 1]); ctx.lineTo(...bot[k + 1]); ctx.lineTo(...bot[k]); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = l > 0 ? `rgba(255,255,255,${0.18 * l})` : `rgba(20,10,30,${-0.22 * l})`;
+        ctx.fill();
+      }
+      ctx.beginPath(); ctx.moveTo(...top[0]);
+      for (let k = 1; k <= FLAG_SEGS; k++) ctx.lineTo(...top[k]);
+      for (let k = FLAG_SEGS; k >= 0; k--) ctx.lineTo(...bot[k]);
+      ctx.closePath();
+      ctx.strokeStyle = "#2b2230"; ctx.lineWidth = Math.max(0.8, h * 0.09 * z); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function drawYardMarks() {
     if (!yardMarks.length || putting()) return;
     // at least 13 px, and growing with the zoom so it always covers the picture's own (tiny) label
@@ -2061,6 +2101,7 @@
     ctx.imageSmoothingQuality = "high";
     drawImg(img, 0, 0, IW, IH);
     drawImg(detailImg, D.detail.x, D.detail.y, D.detail.w, D.detail.h);   // 4x sharper tile around the green
+    drawFlags(now);
     drawGreenRead(dt);
     drawGimmeRings();
     drawYardMarks();

@@ -107,9 +107,9 @@ The hole files carry `"theme"`, which `render_hole_toon.py` uses to pick its pal
 | `neon` | Dark violet on a magenta grid | Indigo with neon outlines | Neon yellow | Electric blue | Neon palms, light orbs, wireframe cubes |
 | `medieval` | Olive meadow with worn patches | Muted greens, flagstone tees | Straw and earth | A dark moat | Pictures from `art/nature` and `art/medieval`: pines and oaks, plus towers, ruins, tents, carts, hay and barrels |
 
-`courses.json` records each course's `theme`, and the game sets the page colour round the picture to match.
+`courses.json` records each course's `theme`, and the game sets the page colour round the picture to match. A course marked `"hidden": true` there is left out of the course and leaderboard pickers (its files stay, and an online round already on it still loads); `tools/course_index.py` keeps the flag when a course is rebuilt. For now only **Tilgate Forest** and **Castle Keep** are shown: Ifield, Lunar Links, Neon Nights and Patchwork Park are hidden.
 
-A GPS hole file can carry placed pictures of its own as `"props": [{"kind", "pt": [lat, lng], "scale"?, "flip"?}]`. They claim their ground before the automatic scenery and play by their lie (see *How props play*). Castle Keep uses this for small hay fields (two haystacks and a row of bales, which play as hay) in the rough just off the first cut: beside the landing zone on holes 2, 5, 9 and 13, and beside the green on the par 3 11th and 16th. `tools/gps_to_recipe.py` doesn't carry these over yet, so re-place them in the editor if Castle Keep is switched to tiles.
+A GPS hole file can carry placed pictures of its own as `"props": [{"kind", "pt": [lat, lng], "scale"?, "flip"?}]`. They claim their ground before the automatic scenery and play by their lie (see *How props play*). Castle Keep uses this on every hole for a small hay field (two haystacks and a row of bales, which play as hay) in the rough just off the first cut: beside the landing zone on the par 4s and 5s, and beside the green on the par 3s. `tools/gps_to_recipe.py` doesn't carry these over yet, so re-place them in the editor if Castle Keep is switched to tiles.
 
 ## Tile-built courses
 
@@ -190,7 +190,7 @@ python3 tools/course_editor.py
 
   Flat pictures (paths, ponds, long grass) cover their drawn shape. Upright ones (hay, buildings, rocks) cover a circle round their ground point. The tee and green always win.
 - *Reshuffle* changes the hole's `seed`: new bunker shapes, fairway edges, green rolls and heading. Stroke index is worked out by length unless you set it.
-- **Save** writes the recipe. **Save & build hole** also composes it into `data/<course>-NN.json` and renders it into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`; *Save & build every hole* queues the lot. The built picture shows on the right, and *Play the game* opens it at `/game/`.
+- **Save** writes the recipe. **Save & build hole** also composes it into `data/<course>-NN.json` and renders it into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`; *Save & build every hole* queues the lot. The built picture shows on the right: click it (or *Larger*) for a full-window view with tabs for the whole hole, the portrait picture and the two green close-ups; scroll to zoom, drag to pan, double-click to switch between fit and full size, **Esc** to close. *Play the game* opens it at `/game/`.
 
 **Scenery.** On the `classic` and `medieval` themes, every tree, bush, rock and ornament round a hole is one of these pictures, so the built holes match the editor's style. The renderer fills the woods and the treeline with tree pictures, puts a few landmarks in the rough or in clearings (boulders and small ponds; on `medieval` also towers, ruined walls, tents, carts and hay), then scatters bushes, rocks and long grass. Every picture is checked against the course and against everything already placed:
 - Nothing covers the tee, fairway, first cut, green, bunkers or water. Hazards on the course come only from the recipe.
