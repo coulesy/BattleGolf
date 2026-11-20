@@ -15,7 +15,7 @@ cd game && python3 -m http.server 8765
 2. **Direction = draw or fade:** the target swings side to side and the dashed line bends with it. Tap in the middle and the ball flies straight; stop it left of centre for a draw (the ball bends left), right for a fade (bends right), up to the club's full spread at the ends. Shots set off along the aim line and bend more as they fly. On the green the swing is a plain direction error instead, since putts don't bend.
 3. **Aim:** tap the yellow AIM buttons (or ← →) to nudge your aim before the first tap; hold to keep turning slowly. Shots set off down the aim line. Tee shots on par 4s and 5s start aimed at the middle of the fairway (the centre line about a drive out); everything else starts aimed at the flag.
 4. **Putting:** the green shows a wire grid lifted by the green's height (exaggerated, so the shape is easy to see) and coloured by steepness, from blue (under 1 %) through green and yellow to red and magenta (over 10 %); the *Slope %* key beside the buttons gives the bands. White arrows point downhill (they take the steepness colours when the heat map is off), and *Lines* adds 5 cm contours. Putts are simulated with friction and gravity, so they break with the slope.
-5. **Gimmes:** a ball resting within 1 m of the cup is holed for +1 stroke; within 2 m, +2.
+5. **Gimmes:** a ball resting within 1 m of the cup (inside the white ring) is holed for +1 stroke.
 6. **Rounds:** pick a course and play 18 holes, the front or back 9, or a single hole. A card after each hole shows your score and the running total to par; the next hole loads while you look at it.
 7. **Hazards:** bunkers are a sand lie (short, wilder shots), and water (ponds and streams) costs a stroke with a drop back along the line the ball came in on.
 8. **Pass-and-play:** pick 1–8 players and their names on the start screen. Everyone tees off in order, then whoever is furthest from the hole plays next. A "pass the phone" screen appears whenever the turn moves to someone else, and the scorecard ranks everyone at the end. Each player's ball is drawn in their colour.
@@ -108,6 +108,8 @@ The hole files carry `"theme"`, which `render_hole_toon.py` uses to pick its pal
 | `medieval` | Olive meadow with worn patches | Muted greens, flagstone tees | Straw and earth | A dark moat | Pictures from `art/nature` and `art/medieval`: pines and oaks, plus towers, ruins, tents, carts, hay and barrels |
 
 `courses.json` records each course's `theme`, and the game sets the page colour round the picture to match.
+
+A GPS hole file can carry placed pictures of its own as `"props": [{"kind", "pt": [lat, lng], "scale"?, "flip"?}]`. They claim their ground before the automatic scenery and play by their lie (see *How props play*). Castle Keep uses this for small hay fields (two haystacks and a row of bales, which play as hay) in the rough just off the first cut: beside the landing zone on holes 2, 5, 9 and 13, and beside the green on the par 3 11th and 16th. `tools/gps_to_recipe.py` doesn't carry these over yet, so re-place them in the editor if Castle Keep is switched to tiles.
 
 ## Tile-built courses
 
