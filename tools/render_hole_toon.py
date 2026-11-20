@@ -738,11 +738,18 @@ def themed_prop(kind, x, y, r_tree):
     return False
 
 _sprite_cache = {}
-sprite_water = []        # (mask, x, y) of the blue in placed ponds and streams, in base-picture px, for the lie grid
+# How a ball plays on a placed picture ("lie" in props.json; a solid one with none plays as trees). Each is baked
+# into the lie grid: flat pictures (ponds, paths, bridges, long grass) by their drawn shape, upright ones (hay,
+# buildings, rocks) by a circle round their ground point.
+SPRITE_LIE = {"water": 7, "hay": 8, "sand": 6, "trees": 5, "path": 2, "rough": 0}   # 8: hay plays like a bunker
+sprite_lie = []          # ("mask", code, mask, x, y) in base-picture px, or ("circle", code, x, y, r) in metres
+def sprite_lie_of(sp): return sp.get("lie") or ("trees" if sp["solid"] else None)
 def draw_sprite(pr, p, x, y):
-    sp = SPRITES[pr["kind"]]; mw = sp["m"] * float(pr.get("scale", 1))
-    if sp["solid"]:          # blocks shots like a tree (baked into the lie grid below)
+    sp = SPRITES[pr["kind"]]; mw = sp["m"] * float(pr.get("scale", 1)); lie_ = sprite_lie_of(sp)
+    if lie_ == "trees":      # blocks shots like a tree (baked into the lie grid below)
         trees_out.append([round(float(p[0]), 2), round(float(p[1]), 2), round(0.35 * mw / 0.75, 2)])
+    elif lie_ and not sp.get("flat") and lie_ not in ("water", "path", "rough"):
+        sprite_lie.append(("circle", SPRITE_LIE[lie_], float(p[0]), float(p[1]), 0.4 * mw))
     f = mw / mpp / sp["w"]
     if f * sp["w"] < 2: return
     key = (pr["kind"], round(f, 4), bool(pr.get("flip")))
@@ -756,10 +763,12 @@ def draw_sprite(pr, p, x, y):
         r = mw / mpp / 2
         cv.ellipse([x - r * 0.8, y - r * 0.3, x + r * 1.15, y + r * 0.42], fill=SHADOW + (110,))
     base.paste(im, (round(x - ax), round(y - ay)), im)
-    if sp.get("lie") == "water":
+    if lie_ == "water":     # only the blue of a pond picture is water, not its banks
         a_ = np.asarray(im).astype(int)
         blue = (a_[..., 3] > 128) & (a_[..., 2] > a_[..., 0] + 25) & (a_[..., 2] > a_[..., 1] + 5)
-        sprite_water.append((blue, round(x - ax) + OFFX, round(y - ay) + OFFY))
+        sprite_lie.append(("mask", 7, blue, round(x - ax) + OFFX, round(y - ay) + OFFY))
+    elif lie_ in ("path", "rough") or (lie_ and sp.get("flat") and lie_ != "trees"):
+        sprite_lie.append(("mask", SPRITE_LIE[lie_], np.asarray(im)[..., 3] > 128, round(x - ax) + OFFX, round(y - ay) + OFFY))
 
 for kind, p in props:
     x, y = to_screen(p)
@@ -872,16 +881,22 @@ if len(sys.argv) > 3 and not DETAIL:
     inb = (sx >= 0) & (sx < W) & (sy >= 0) & (sy < Hh)
     sxc, syc = np.clip(sx, 0, W - 1), np.clip(sy, 0, Hh - 1)
     lie = np.zeros(CX.shape, np.uint8)
-    # 0 rough, 1 first cut, 2 fairway, 3 green, 4 tee, 5 trees/woods, 6 bunker, 7 water, 9 off the map
+    # 0 rough, 1 first cut, 2 fairway, 3 green, 4 tee, 5 trees/woods, 6 bunker, 7 water, 8 hay, 9 off the map
     at = lambda m: m[syc, sxc]
     lie[at(cut)] = 1; lie[at(wood)] = 5
     lie[at(fairway | ofair | ogreen | otee)] = 2
     lie[at(bunker)] = 6; lie[at(water)] = 7
-    for wm, wx, wy in sprite_water:        # placed ponds and streams
-        rx, ry = sx - wx, sy - wy
-        ins = (rx >= 0) & (ry >= 0) & (rx < wm.shape[1]) & (ry < wm.shape[0])
-        hit = np.zeros_like(ins); hit[ins] = wm[ry[ins], rx[ins]]
-        lie[hit] = 7
+    # placed pictures: water first, then the rest in drawing order (so a bridge or path laid over water wins)
+    for it in sorted(sprite_lie, key=lambda it: it[1] != 7):
+        if it[0] == "mask":
+            _, code, wm, wx, wy = it
+            rx, ry = sx - wx, sy - wy
+            ins = (rx >= 0) & (ry >= 0) & (rx < wm.shape[1]) & (ry < wm.shape[0])
+            hit = np.zeros_like(ins); hit[ins] = wm[ry[ins], rx[ins]]
+        else:
+            _, code, tx, ty, tr = it
+            hit = np.hypot(CX - tx, CY - ty) < tr
+        lie[hit] = code
     lie[at(teebox)] = 4; lie[at(green)] = 3
     # trees are baked in too (the game no longer checks every tree for every step of a putt)
     for tx, ty, tr in trees_out:

@@ -54,6 +54,7 @@
   main { position:relative; overflow:hidden; background:#3d5a27; }
   #plan { width:100%; height:100%; display:block; cursor:grab; touch-action:none; }
   #plan.placing { cursor:crosshair; }
+  #plan text { user-select:none; -webkit-user-select:none; pointer-events:none; }
   #plan.panning { cursor:grabbing; }
   .hud { position:absolute; left:12px; top:12px; background:rgba(15,24,19,.85); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:13px; pointer-events:none; }
   .hud b { font-size:18px; }
@@ -62,6 +63,12 @@
   .palette button { background:#0f1813; border:1px solid var(--line); border-radius:6px; padding:3px; cursor:pointer; aspect-ratio:1; display:grid; place-items:center; min-width:0; overflow:hidden; }
   .palette button img { width:100%; height:100%; object-fit:contain; }
   .palette button.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin-top:6px; }
+  .groups .gp { position:relative; background:#0f1813; border:1px solid var(--line); border-radius:6px; padding:3px 3px 2px; cursor:pointer; color:var(--ink); font:inherit; font-size:11.5px; text-align:center; min-width:0; }
+  .groups .gp svg { width:100%; height:54px; display:block; }
+  .groups .gp.on { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .groups .gp .x { position:absolute; top:0; right:2px; font-size:12px; }
+  #boxSel { fill:rgba(255,210,63,.12); stroke:#ffd23f; stroke-dasharray:3 2; }
   #empty { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); }
   #empty[hidden] { display:none; }
   @media (max-width: 1150px) { body { grid-template-columns:180px 1fr 300px; font-size:13px; } .holes { grid-template-columns:repeat(2,1fr); } }
@@ -111,15 +118,19 @@
       <select id="addMod" style="width:auto"></select></h2>
     <div id="mods"></div>
 
-    <h2>Props</h2>
-    <p class="dim">Pick a picture, then click the plan to place it (keep clicking for more; <b>Esc</b> stops). Drag a prop to move it; click one to resize, flip or delete it.</p>
+    <h2><span class="grow">Props</span><button class="b small" id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button><button class="b small" id="clearProps">Clear all</button></h2>
+    <p class="dim">Pick a picture or a group, then click the plan to place it (keep clicking for more; <b>Esc</b> stops). Click a prop to select it (a grouped prop selects its whole group); <b>Shift</b>-click or <b>Shift</b>-drag a box to select several. Drag to move. <b>Right-click</b> a prop or press <b>Delete</b> to remove it.</p>
     <select id="propSet"></select>
     <div class="palette" id="palette"></div>
+    <div class="dim" style="margin-top:10px">Groups: click one, then click the plan to drop the whole set</div>
+    <div class="groups" id="groupPal"></div>
     <div class="card" id="propSel" hidden>
       <div class="head"><span class="grow" id="propName"></span><span class="dim" id="propSize"></span></div>
+      <div class="dim" id="propLie"></div>
       <div class="row" style="align-items:center"><span class="dim">Size</span><input type="range" id="propScale" min="0.25" max="4" step="0.05" style="flex:1"></div>
-      <div class="row" style="align-items:center"><label style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="propFlip"> Flip</label><span style="flex:1"></span><button class="b small" id="propDel">Delete</button></div>
+      <div class="row"><button class="b small" id="propFlip">Flip</button><button class="b small" id="propDup">Duplicate</button><button class="b small" id="propGroup">Group</button><button class="b small" id="propUngroup">Ungroup</button><button class="b small" id="propSaveGroup">Save as group…</button><span style="flex:1"></span><button class="b small" id="propDel">Delete</button></div>
     </div>
+    <p class="dim" id="propCount"></p>
 
     <h2>Hole</h2>
     <div class="grid2">
@@ -147,7 +158,7 @@
 const $ = id => document.getElementById(id);
 const SVGNS = "http://www.w3.org/2000/svg";
 let OPTS = null, SETS = {}, PROPS = {}, courses = [], recipe = null, savedJSON = "", curN = 1, pv = null;
-let placeKind = null, selProp = null, view = null, pollTimer = null, pvTimer = null, pvSeq = 0;
+let placeKind = null, view = null, pollTimer = null, pvTimer = null, pvSeq = 0;
 
 async function api(path, body) {
   const r = await fetch(path, body !== undefined ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
@@ -197,7 +208,7 @@ function renderHoles() {
 }
 $("holes").onclick = e => { const b = e.target.closest("button"); if (b) openHole(Number(b.dataset.n), true); };
 function openHole(n, fit) {
-  curN = n; selectProp(null); stopPlacing(); pv = null;
+  curN = n; undoStack = []; $("undo").disabled = true; selectProps([]); stopPlacing(); pv = null;
   renderHoles(); renderForm(); touched(); preview(fit); watchBuild();
 }
 $("cname").oninput = () => { recipe.name = $("cname").value; touched(); };
@@ -420,39 +431,95 @@ function draw(fit) {
 }
 
 // ---------------- placed props ----------------
-let propG = null;
+// picked is the list of selected prop indexes. A prop with "g" belongs to a group: clicking any of them selects them all.
+let propG = null, picked = [], selBase = null, placeGroup = null, GROUPS = [], undoStack = [];
+const props = () => hole().props || [];
+const LIE_TEXT = { water: "water: a penalty drop", sand: "plays as a bunker", hay: "hay: plays as a bunker", trees: "blocks shots, like trees", path: "plays as fairway", rough: "plays as rough" };
+const lieOf = sp => sp.lie || (sp.solid ? "trees" : null);
+function propBox(p) {                       // the picture's rectangle on the plan, for drawing and previews
+  const sp = PROPS[p.kind]; if (!sp) return null;
+  const f = sp.m * (p.scale || 1) / sp.w, w = sp.w * f, h = sp.h * f;
+  const ax = (p.flip ? sp.w - sp.anchor[0] : sp.anchor[0]) * f, ay = sp.anchor[1] * f;
+  return { sp, x: p.at[0] - ax, y: -p.at[1] - ay, w, h };
+}
+function propImage(p, parent) {
+  const b = propBox(p); if (!b) return null;
+  const img = el("image", { href: b.sp.url, x: b.x, y: b.y, width: b.w, height: b.h, preserveAspectRatio: "none" }, parent);
+  if (p.flip) img.setAttribute("transform", `translate(${2 * b.x + b.w},0) scale(-1,1)`);
+  return b;
+}
 function drawProps() {
   if (propG) propG.remove();
   propG = el("g", {});
-  (hole().props || []).forEach((p, i) => {
-    const sp = PROPS[p.kind];
-    if (!sp) { el("circle", { cx: p.at[0], cy: -p.at[1], r: 2, fill: "#f0f" }, propG); return; }
-    const f = sp.m * (p.scale || 1) / sp.w, w = sp.w * f, h = sp.h * f;
-    const ax = (p.flip ? sp.w - sp.anchor[0] : sp.anchor[0]) * f, ay = sp.anchor[1] * f;
-    const x = p.at[0] - ax, y = -p.at[1] - ay;
-    const g = el("g", { "data-prop": i, style: "cursor:move" }, propG);
-    const img = el("image", { href: sp.url, x, y, width: w, height: h, preserveAspectRatio: "none" }, g);
-    if (p.flip) img.setAttribute("transform", `translate(${2 * x + w},0) scale(-1,1)`);
-    if (i === selProp) el("rect", { x, y, width: w, height: h, fill: "none", stroke: "#ffd23f", "stroke-width": Math.max(view[2] / 400, 0.5), "stroke-dasharray": "3 2" }, g);
+  const order = props().map((p, i) => i).sort((a, b) => props()[b].at[1] - props()[a].at[1]);   // far ones behind
+  for (const i of order) {
+    const p = props()[i], g = el("g", { "data-prop": i, style: "cursor:move" }, propG);
+    const b = propImage(p, g);
+    if (!b) { el("circle", { cx: p.at[0], cy: -p.at[1], r: 2, fill: "#f0f" }, g); continue; }
+    if (picked.includes(i)) el("rect", { x: b.x, y: b.y, width: b.w, height: b.h, fill: "none", stroke: p.g ? "#7fd6ff" : "#ffd23f", "stroke-width": Math.max(view[2] / 400, 0.5), "stroke-dasharray": "3 2" }, g);
     el("circle", { cx: p.at[0], cy: -p.at[1], r: 0.9, fill: "#ffd23f" }, g);
-  });
+  }
+  const n = props().length, ng = new Set(props().filter(p => p.g).map(p => p.g)).size;
+  $("propCount").textContent = n ? `${n} prop${n === 1 ? "" : "s"} on this hole${ng ? ` · ${ng} group${ng === 1 ? "" : "s"}` : ""}` : "";
+  $("clearProps").disabled = !n;
 }
+function pushUndo() { undoStack.push(JSON.stringify(hole().props || null)); if (undoStack.length > 60) undoStack.shift(); $("undo").disabled = false; }
+function setProps(list) { const h = hole(); if (list && list.length) h.props = list; else delete h.props; }
+$("undo").onclick = () => {
+  if (!undoStack.length) return;
+  setProps(JSON.parse(undoStack.pop())); $("undo").disabled = !undoStack.length;
+  selectProps([]); drawProps(); touched();
+};
+$("clearProps").onclick = () => {
+  if (!props().length || !confirm(`Remove all ${props().length} props from this hole? (Undo brings them back.)`)) return;
+  pushUndo(); setProps([]); selectProps([]); drawProps(); touched();
+};
+const groupOf = i => { const g = props()[i].g; return g ? props().map((p, j) => p.g === g ? j : -1).filter(j => j >= 0) : [i]; };
+const newGroupId = () => Math.max(0, ...props().map(p => p.g || 0)) + 1;
 const toWorld = e => { const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const q = pt.matrixTransform(svg.getScreenCTM().inverse()); return [q.x, -q.y]; };
 const r2 = v => Math.round(v * 100) / 100;
-let drag = null;
-svg.addEventListener("pointerdown", e => {
-  if (!pv) return;
-  const pg = e.target.closest("[data-prop]");
-  if (placeKind) {
-    const [x, y] = toWorld(e), h = hole(); h.props = h.props || [];
-    h.props.push({ kind: placeKind, at: [r2(x), r2(y)] }); selectProp(h.props.length - 1); drawProps(); touched(); return;
+function deleteProps(idx) {
+  if (!idx.length) return;
+  pushUndo(); const drop = new Set(idx);
+  setProps(props().filter((p, i) => !drop.has(i))); selectProps([]); drawProps(); touched();
+}
+function placeAt(x, y) {
+  const h = hole(); h.props = h.props || [];
+  pushUndo();
+  if (placeKind) { h.props.push({ kind: placeKind, at: [r2(x), r2(y)] }); selectProps([h.props.length - 1]); }
+  else {
+    const g = placeGroup.props.length > 1 ? newGroupId() : 0, first = h.props.length;
+    for (const q of placeGroup.props) {
+      const p = { kind: q.kind, at: [r2(x + q.at[0]), r2(y + q.at[1])] };
+      if (q.scale) p.scale = q.scale; if (q.flip) p.flip = true; if (g) p.g = g;
+      h.props.push(p);
+    }
+    selectProps(h.props.map((p, i) => i).slice(first));
   }
+  drawProps(); touched();
+}
+let drag = null, boxEl = null;
+svg.addEventListener("contextmenu", e => {
+  const pg = e.target.closest("[data-prop]"); if (!pg) return;
+  e.preventDefault(); deleteProps([Number(pg.dataset.prop)]);
+});
+svg.addEventListener("pointerdown", e => {
+  if (!pv || e.button === 2) return;
+  const pg = e.target.closest("[data-prop]"), w = toWorld(e);
+  if (placeKind || placeGroup) { placeAt(w[0], w[1]); return; }
   if (pg) {
-    const i = Number(pg.dataset.prop), p = hole().props[i], w = toWorld(e);
-    selectProp(i); drawProps();
-    drag = { kind: "prop", i, dx: p.at[0] - w[0], dy: p.at[1] - w[1] };
+    const i = Number(pg.dataset.prop), grp = groupOf(i);
+    if (e.shiftKey) {
+      const on = picked.includes(i);
+      selectProps(on ? picked.filter(j => !grp.includes(j)) : [...new Set([...picked, ...grp])]); drawProps(); return;
+    }
+    if (!picked.includes(i)) selectProps(grp);
+    drawProps();
+    drag = { kind: "props", w, start: picked.map(j => props()[j].at.slice()) };
+  } else if (e.shiftKey) {
+    drag = { kind: "box", w }; boxEl = el("rect", { id: "boxSel", "stroke-width": view[2] / 500 });
   } else {
-    if (selProp !== null) { selectProp(null); drawProps(); }
+    if (picked.length) { selectProps([]); drawProps(); }
     drag = { kind: "pan", x: e.clientX, y: e.clientY, v: view.slice() }; svg.classList.add("panning");
   }
   svg.setPointerCapture(e.pointerId);
@@ -462,11 +529,30 @@ svg.addEventListener("pointermove", e => {
   if (drag.kind === "pan") {
     const k = view[2] / svg.getBoundingClientRect().width;
     view[0] = drag.v[0] - (e.clientX - drag.x) * k; view[1] = drag.v[1] - (e.clientY - drag.y) * k; svg.setAttribute("viewBox", view.join(" "));
+  } else if (drag.kind === "box") {
+    const [x, y] = toWorld(e);
+    drag.to = [x, y];
+    boxEl.setAttribute("x", Math.min(x, drag.w[0])); boxEl.setAttribute("y", -Math.max(y, drag.w[1]));
+    boxEl.setAttribute("width", Math.abs(x - drag.w[0])); boxEl.setAttribute("height", Math.abs(y - drag.w[1]));
   } else {
-    const [x, y] = toWorld(e), p = hole().props[drag.i]; p.at = [r2(x + drag.dx), r2(y + drag.dy)]; drag.moved = true; drawProps();
+    const [x, y] = toWorld(e), dx = x - drag.w[0], dy = y - drag.w[1];
+    if (!drag.moved) { if (Math.hypot(dx, dy) < view[2] / 800) return; pushUndo(); drag.moved = true; }
+    picked.forEach((j, k) => { props()[j].at = [r2(drag.start[k][0] + dx), r2(drag.start[k][1] + dy)]; });
+    selBase = null; drawProps();
   }
 });
-svg.addEventListener("pointerup", () => { if (drag && drag.moved) touched(); drag = null; svg.classList.remove("panning"); });
+svg.addEventListener("pointerup", () => {
+  if (drag && drag.kind === "box") {
+    boxEl.remove(); boxEl = null;
+    if (drag.to) {
+      const [x0, x1] = [Math.min(drag.w[0], drag.to[0]), Math.max(drag.w[0], drag.to[0])], [y0, y1] = [Math.min(drag.w[1], drag.to[1]), Math.max(drag.w[1], drag.to[1])];
+      const hit = props().map((p, i) => i).filter(i => { const [x, y] = props()[i].at; return x >= x0 && x <= x1 && y >= y0 && y <= y1; });
+      selectProps([...new Set([...picked, ...hit.flatMap(groupOf)])]); drawProps();
+    }
+  }
+  if (drag && drag.moved) { selectProps(picked); touched(); }
+  drag = null; svg.classList.remove("panning");
+});
 svg.addEventListener("wheel", e => {
   if (!view) return; e.preventDefault();
   const r = svg.getBoundingClientRect(), k = Math.exp(e.deltaY * 0.0015);
@@ -476,32 +562,125 @@ svg.addEventListener("wheel", e => {
 }, { passive: false });
 
 const propName = k => nice(k).replace(/\b(a|b|c|d|e|f|g|h)$/, m => m.toUpperCase());
-function selectProp(i) {
-  selProp = i;
-  const p = i === null ? null : hole().props[i];
-  $("propSel").hidden = !p; if (!p) return;
-  $("propName").textContent = propName(p.kind); $("propScale").value = p.scale || 1; $("propFlip").checked = !!p.flip; showPropSize();
+const centroid = idx => { const P_ = idx.map(i => props()[i].at); return [P_.reduce((a, p) => a + p[0], 0) / P_.length, P_.reduce((a, p) => a + p[1], 0) / P_.length]; };
+function selectProps(idx) {
+  picked = idx.slice().sort((a, b) => a - b); selBase = null;
+  $("propSel").hidden = !picked.length; if (!picked.length) return;
+  const ps = picked.map(i => props()[i]), one = ps.length === 1, gs = new Set(ps.map(p => p.g || 0));
+  const grouped = gs.size === 1 && !gs.has(0);
+  $("propName").textContent = one ? propName(ps[0].kind) : `${ps.length} props${grouped ? " (a group)" : ""}`;
+  $("propScale").value = one ? ps[0].scale || 1 : 1;
+  $("propGroup").hidden = one || grouped; $("propUngroup").hidden = !ps.some(p => p.g); $("propSaveGroup").hidden = one;
+  showPropSize();
 }
-function showPropSize() { const p = hole().props[selProp], sp = PROPS[p.kind]; if (sp) $("propSize").textContent = `${Math.round(sp.m * (p.scale || 1) * 10) / 10} m${sp.solid ? " · blocks shots" : ""}${sp.lie === "water" ? " · water" : ""}`; }
-$("propScale").oninput = () => { const p = hole().props[selProp], v = Number($("propScale").value); if (v === 1) delete p.scale; else p.scale = v; showPropSize(); drawProps(); touched(); };
-$("propFlip").onchange = () => { const p = hole().props[selProp]; if ($("propFlip").checked) p.flip = true; else delete p.flip; drawProps(); touched(); };
-$("propDel").onclick = () => { const h = hole(); h.props.splice(selProp, 1); if (!h.props.length) delete h.props; selectProp(null); drawProps(); touched(); };
+function showPropSize() {
+  const ps = picked.map(i => props()[i]);
+  if (ps.length === 1) {
+    const p = ps[0], sp = PROPS[p.kind]; if (!sp) return;
+    $("propSize").textContent = `${Math.round(sp.m * (p.scale || 1) * 10) / 10} m`;
+    const l = lieOf(sp); $("propLie").textContent = l ? `Ball here: ${LIE_TEXT[l]}` : "Ball here: no effect (plays as the ground under it)";
+  } else {
+    $("propSize").textContent = "";
+    const ls = [...new Set(ps.map(p => PROPS[p.kind] && lieOf(PROPS[p.kind])).filter(Boolean))];
+    $("propLie").textContent = ls.length ? "Ball here: " + ls.map(l => LIE_TEXT[l]).join(" · ") : "";
+  }
+}
+$("propScale").addEventListener("pointerdown", () => pushUndo());
+$("propScale").addEventListener("keydown", () => pushUndo());
+$("propScale").oninput = () => {
+  const v = Number($("propScale").value);
+  if (picked.length === 1) { const p = props()[picked[0]]; if (v === 1) delete p.scale; else p.scale = v; }
+  else {      // a selection grows and shrinks as one: spacing and sizes together, about its middle
+    if (!selBase) selBase = { c: centroid(picked), ps: picked.map(i => ({ at: props()[i].at.slice(), scale: props()[i].scale || 1 })) };
+    picked.forEach((i, k) => {
+      const b = selBase.ps[k], p = props()[i], sc = Math.min(Math.max(b.scale * v, 0.25), 4);
+      p.at = [r2(selBase.c[0] + (b.at[0] - selBase.c[0]) * v), r2(selBase.c[1] + (b.at[1] - selBase.c[1]) * v)];
+      if (Math.abs(sc - 1) < 1e-3) delete p.scale; else p.scale = Math.round(sc * 1000) / 1000;
+    });
+  }
+  showPropSize(); drawProps(); touched();
+};
+$("propFlip").onclick = () => {
+  pushUndo(); const c = centroid(picked);
+  for (const i of picked) {
+    const p = props()[i]; if (p.flip) delete p.flip; else p.flip = true;
+    if (picked.length > 1) p.at = [r2(2 * c[0] - p.at[0]), p.at[1]];      // mirror the layout too
+  }
+  selBase = null; drawProps(); touched();
+};
+$("propDup").onclick = () => {
+  pushUndo(); const h = hole(), first = h.props.length, gmap = {}, base = newGroupId();
+  for (const i of picked) {      // the copy sits a little to the right and nearer, in groups of its own
+    const p = JSON.parse(JSON.stringify(h.props[i])); p.at = [r2(p.at[0] + 8), r2(p.at[1] - 8)];
+    if (p.g) p.g = gmap[p.g] = gmap[p.g] || base + Object.keys(gmap).length;
+    h.props.push(p);
+  }
+  selectProps(h.props.map((p, i) => i).slice(first)); drawProps(); touched();
+};
+$("propGroup").onclick = () => { pushUndo(); const g = newGroupId(); picked.forEach(i => props()[i].g = g); selectProps(picked); drawProps(); touched(); };
+$("propUngroup").onclick = () => { pushUndo(); picked.forEach(i => delete props()[i].g); selectProps(picked); drawProps(); touched(); };
+$("propDel").onclick = () => deleteProps(picked);
+$("propSaveGroup").onclick = async () => {
+  const name = (prompt("Name this group (it joins the Groups list for every course):") || "").trim(); if (!name) return;
+  const c = centroid(picked), kinds = picked.map(i => props()[i].kind);
+  const set = Object.keys(SETS).find(k => kinds.every(x => SETS[k][x])) || $("propSet").value;
+  const g = { name, set, props: picked.map(i => { const p = props()[i], q = { kind: p.kind, at: [r2(p.at[0] - c[0]), r2(p.at[1] - c[1])] };
+    if (p.scale) q.scale = p.scale; if (p.flip) q.flip = true; return q; }) };
+  try { GROUPS = await api("/api/groups", [...GROUPS, g]); if (set !== $("propSet").value) { $("propSet").value = set; showPalette(); } else showGroups(); msg(`Saved the group “${name}”.`, "ok"); }
+  catch (e) { msg(e.message, "bad"); }
+};
 function showPalette() {
   stopPlacing();
-  $("palette").innerHTML = Object.entries(SETS[$("propSet").value] || {}).map(([k, sp]) =>
-    `<button data-kind="${k}" title="${propName(k)}"><img src="${sp.url}" alt="${propName(k)}"></button>`).join("");
+  $("palette").innerHTML = Object.entries(SETS[$("propSet").value] || {}).map(([k, sp]) => {
+    const l = lieOf(sp), t = `${propName(k)}${l ? " · " + LIE_TEXT[l] : ""}`;
+    return `<button data-kind="${k}" title="${t}"><img src="${sp.url}" alt="${propName(k)}"></button>`;
+  }).join("");
+  showGroups();
 }
+function showGroups() {
+  const set = $("propSet").value, box = $("groupPal"); box.innerHTML = "";
+  GROUPS.forEach((g, gi) => {
+    if (g.set !== set) return;
+    const b = document.createElement("div"); b.className = "gp" + (placeGroup === g ? " on" : ""); b.dataset.group = gi; b.title = g.name;
+    const mini = document.createElementNS(SVGNS, "svg"); b.appendChild(mini);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of [...g.props].sort((a, c) => c.at[1] - a.at[1])) {
+      const bx = propImage(p, mini); if (!bx) continue;
+      x0 = Math.min(x0, bx.x); y0 = Math.min(y0, bx.y); x1 = Math.max(x1, bx.x + bx.w); y1 = Math.max(y1, bx.y + bx.h);
+    }
+    mini.setAttribute("viewBox", `${x0 - 1} ${y0 - 1} ${x1 - x0 + 2} ${y1 - y0 + 2}`);
+    b.insertAdjacentHTML("beforeend", `<span>${g.name.replace(/[<&]/g, c => c === "<" ? "&lt;" : "&amp;")}</span><button class="x" data-delgroup="${gi}" title="Remove this group from the list">✕</button>`);
+    box.appendChild(b);
+  });
+  if (!box.children.length) box.innerHTML = `<p class="dim">None for this set yet: select a few props and press “Save as group…”.</p>`;
+}
+$("groupPal").onclick = async e => {
+  const d = e.target.closest("[data-delgroup]");
+  if (d) {
+    const g = GROUPS[Number(d.dataset.delgroup)];
+    if (!confirm(`Remove the group “${g.name}” from the list? Props already placed stay.`)) return;
+    try { GROUPS = await api("/api/groups", GROUPS.filter(x => x !== g)); stopPlacing(); showGroups(); } catch (err) { msg(err.message, "bad"); }
+    return;
+  }
+  const b = e.target.closest("[data-group]"); if (!b) return;
+  const g = GROUPS[Number(b.dataset.group)], again = placeGroup === g; stopPlacing(); if (again) return;
+  placeGroup = g; b.classList.add("on"); svg.classList.add("placing");
+  if (picked.length) { selectProps([]); drawProps(); }
+};
 $("propSet").onchange = showPalette;
-function stopPlacing() { placeKind = null; svg.classList.remove("placing"); document.querySelectorAll(".palette button").forEach(b => b.classList.remove("on")); }
+function stopPlacing() { placeKind = null; placeGroup = null; svg.classList.remove("placing"); document.querySelectorAll(".palette button, .groups .gp").forEach(b => b.classList.remove("on")); }
 $("palette").onclick = e => {
   const b = e.target.closest("button"); if (!b) return;
   const again = placeKind === b.dataset.kind; stopPlacing(); if (again) return;
   placeKind = b.dataset.kind; b.classList.add("on"); svg.classList.add("placing");
-  if (selProp !== null) { selectProp(null); drawProps(); }
+  if (picked.length) { selectProps([]); drawProps(); }
 };
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { stopPlacing(); if (selProp !== null) { selectProp(null); drawProps(); } }
-  if ((e.key === "Delete" || e.key === "Backspace") && selProp !== null && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("propDel").click(); }
+  const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && document.activeElement.type !== "range";
+  if (e.key === "Escape") { stopPlacing(); if (picked.length) { selectProps([]); drawProps(); } }
+  if ((e.key === "Delete" || e.key === "Backspace") && picked.length && !typing) { e.preventDefault(); deleteProps(picked); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !typing) { e.preventDefault(); $("undo").click(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g" && !typing && picked.length > 1) { e.preventDefault(); $("propGroup").click(); }
 });
 
 // ---------------- save and build ----------------
@@ -545,7 +724,7 @@ function watchBuild() {
 window.addEventListener("beforeunload", e => { if (dirty()) { e.preventDefault(); e.returnValue = ""; } });
 (async () => {
   try {
-    [OPTS, SETS] = await Promise.all([api("/api/options"), api("/api/props").catch(() => ({}))]);
+    [OPTS, SETS, GROUPS] = await Promise.all([api("/api/options"), api("/api/props").catch(() => ({})), api("/api/groups").catch(() => [])]);
     PROPS = Object.assign({}, ...Object.values(SETS));
     $("propSet").innerHTML = Object.keys(SETS).map(k => `<option value="${k}">${k[0].toUpperCase() + k.slice(1)}</option>`).join("");
     await loadCourses();

@@ -1,0 +1,13 @@
+{
+ "groups": [
+  {"name": "Hay field", "set": "medieval", "props": [{"kind": "haystack", "at": [-9.0, 2.0]}, {"kind": "haystack", "at": [1.0, 7.0], "scale": 0.85}, {"kind": "haystack", "at": [9.0, -1.0]}, {"kind": "hay_bales", "at": [-1.0, -5.0]}]},
+  {"name": "Farmyard", "set": "medieval", "props": [{"kind": "haystack", "at": [-8.0, 6.0]}, {"kind": "hay_bales", "at": [3.0, 8.0]}, {"kind": "cart", "at": [9.0, 0.0]}, {"kind": "wheelbarrow", "at": [-2.0, -3.0]}, {"kind": "fence", "at": [-14.0, -4.0]}, {"kind": "fence", "at": [-5.0, -10.0]}]},
+  {"name": "Army camp", "set": "medieval", "props": [{"kind": "tent", "at": [-8.0, 5.0]}, {"kind": "tent_blue", "at": [6.0, 6.0]}, {"kind": "tent_small", "at": [0.0, -3.0]}, {"kind": "barrels", "at": [-11.0, -5.0]}, {"kind": "crates", "at": [10.0, -4.0]}, {"kind": "flag_red", "at": [-1.0, 11.0]}]},
+  {"name": "Market", "set": "medieval", "props": [{"kind": "well", "at": [0.0, 0.0]}, {"kind": "cart", "at": [-9.0, 3.0]}, {"kind": "barrels", "at": [7.0, 4.0]}, {"kind": "crates", "at": [8.0, -4.0]}, {"kind": "crate_open", "at": [-6.0, -5.0]}, {"kind": "tile_cobble", "at": [0.0, -8.0]}]},
+  {"name": "Ruined wall", "set": "medieval", "props": [{"kind": "ruin_wall_a", "at": [-15.0, 0.0]}, {"kind": "ruin_wall_c", "at": [0.0, 2.0]}, {"kind": "ruin_wall_e", "at": [15.0, -1.0]}]},
+  {"name": "Rock garden", "set": "nature", "props": [{"kind": "boulder", "at": [0.0, 2.0]}, {"kind": "rock_mossy_a", "at": [-7.0, -2.0]}, {"kind": "rock_cluster", "at": [8.0, 4.0]}, {"kind": "stones", "at": [5.0, -5.0]}, {"kind": "pebbles", "at": [-3.0, -7.0]}]},
+  {"name": "Pond corner", "set": "nature", "props": [{"kind": "pond_grass", "at": [0.0, 0.0]}, {"kind": "reed_pond", "at": [-11.0, -6.0]}, {"kind": "bush_flowers", "at": [13.0, 5.0]}, {"kind": "stones", "at": [8.0, -10.0]}]},
+  {"name": "Copse", "set": "nature", "props": [{"kind": "oak", "at": [-7.0, 4.0]}, {"kind": "pine", "at": [7.0, 6.0]}, {"kind": "tree_round", "at": [0.0, -3.0]}, {"kind": "bush", "at": [-11.0, -7.0]}, {"kind": "bush_lavender", "at": [10.0, -6.0]}]},
+  {"name": "Meadow", "set": "nature", "props": [{"kind": "long_grass_a", "at": [-6.0, 1.0]}, {"kind": "long_grass_b", "at": [5.0, 3.0]}, {"kind": "bush_flowers", "at": [0.0, -5.0]}, {"kind": "long_grass_a", "at": [1.0, 8.0], "flip": true}]}
+ ]
+}

@@ -13,7 +13,8 @@
    23,
    62
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "stream_bend": {
   "file": "stream_bend.png",
@@ -29,7 +30,8 @@
    335,
    64
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "pond_grass": {
   "file": "pond_grass.png",
@@ -45,7 +47,8 @@
    516,
    87
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "pond_stone": {
   "file": "pond_stone.png",
@@ -61,7 +64,8 @@
    758,
    66
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "long_grass_a": {
   "file": "long_grass_a.png",
@@ -76,7 +80,8 @@
   "sheet": [
    42,
    341
-  ]
+  ],
+  "lie": "rough"
  },
  "long_grass_b": {
   "file": "long_grass_b.png",
@@ -91,7 +96,8 @@
   "sheet": [
    311,
    342
-  ]
+  ],
+  "lie": "rough"
  },
  "path_dirt_a": {
   "file": "path_dirt_a.png",
@@ -106,7 +112,9 @@
   "sheet": [
    583,
    369
-  ]
+  ],
+  "lie": "path",
+  "flat": true
  },
  "path_dirt_b": {
   "file": "path_dirt_b.png",
@@ -121,7 +129,9 @@
   "sheet": [
    849,
    367
-  ]
+  ],
+  "lie": "path",
+  "flat": true
  },
  "grass_patch": {
   "file": "grass_patch.png",
@@ -151,7 +161,9 @@
   "sheet": [
    317,
    553
-  ]
+  ],
+  "lie": "rough",
+  "flat": true
  },
  "path_dirt_c": {
   "file": "path_dirt_c.png",
@@ -166,7 +178,9 @@
   "sheet": [
    589,
    548
-  ]
+  ],
+  "lie": "path",
+  "flat": true
  },
  "sand_bank": {
   "file": "sand_bank.png",
@@ -181,7 +195,9 @@
   "sheet": [
    850,
    540
-  ]
+  ],
+  "lie": "sand",
+  "flat": true
  },
  "oak": {
   "file": "oak.png",
@@ -196,7 +212,8 @@
   "sheet": [
    25,
    759
-  ]
+  ],
+  "lie": "trees"
  },
  "oak_wide": {
   "file": "oak_wide.png",
@@ -211,7 +228,8 @@
   "sheet": [
    255,
    771
-  ]
+  ],
+  "lie": "trees"
  },
  "pine_small": {
   "file": "pine_small.png",
@@ -226,7 +244,8 @@
   "sheet": [
    482,
    766
-  ]
+  ],
+  "lie": "trees"
  },
  "pine": {
   "file": "pine.png",
@@ -241,7 +260,8 @@
   "sheet": [
    635,
    732
-  ]
+  ],
+  "lie": "trees"
  },
  "pine_tall": {
   "file": "pine_tall.png",
@@ -256,7 +276,8 @@
   "sheet": [
    785,
    718
-  ]
+  ],
+  "lie": "trees"
  },
  "tree_round": {
   "file": "tree_round.png",
@@ -271,7 +292,8 @@
   "sheet": [
    927,
    784
-  ]
+  ],
+  "lie": "trees"
  },
  "tree_bushy": {
   "file": "tree_bushy.png",
@@ -286,7 +308,8 @@
   "sheet": [
    37,
    1012
-  ]
+  ],
+  "lie": "trees"
  },
  "tree_bushy_b": {
   "file": "tree_bushy_b.png",
@@ -301,7 +324,8 @@
   "sheet": [
    262,
    1029
-  ]
+  ],
+  "lie": "trees"
  },
  "tree_cone": {
   "file": "tree_cone.png",
@@ -316,7 +340,8 @@
   "sheet": [
    468,
    1064
-  ]
+  ],
+  "lie": "trees"
  },
  "bush": {
   "file": "bush.png",
@@ -331,7 +356,8 @@
   "sheet": [
    611,
    1126
-  ]
+  ],
+  "lie": "rough"
  },
  "bush_flowers": {
   "file": "bush_flowers.png",
@@ -346,7 +372,8 @@
   "sheet": [
    768,
    1119
-  ]
+  ],
+  "lie": "rough"
  },
  "bush_lavender": {
   "file": "bush_lavender.png",
@@ -361,7 +388,8 @@
   "sheet": [
    939,
    1094
-  ]
+  ],
+  "lie": "rough"
  },
  "boulder": {
   "file": "boulder.png",
@@ -376,7 +404,8 @@
   "sheet": [
    36,
    1295
-  ]
+  ],
+  "lie": "trees"
  },
  "stone": {
   "file": "stone.png",
@@ -421,7 +450,8 @@
   "sheet": [
    675,
    1296
-  ]
+  ],
+  "lie": "trees"
  },
  "rock_tall": {
   "file": "rock_tall.png",
@@ -436,7 +466,8 @@
   "sheet": [
    925,
    1275
-  ]
+  ],
+  "lie": "trees"
  },
  "rock_mossy_a": {
   "file": "rock_mossy_a.png",
@@ -451,7 +482,8 @@
   "sheet": [
    47,
    1494
-  ]
+  ],
+  "lie": "trees"
  },
  "pebbles": {
   "file": "pebbles.png",
@@ -481,7 +513,8 @@
   "sheet": [
    441,
    1478
-  ]
+  ],
+  "lie": "trees"
  },
  "rock_cluster": {
   "file": "rock_cluster.png",
@@ -496,7 +529,8 @@
   "sheet": [
    634,
    1453
-  ]
+  ],
+  "lie": "trees"
  },
  "rock_slab": {
   "file": "rock_slab.png",
@@ -511,7 +545,8 @@
   "sheet": [
    871,
    1453
-  ]
+  ],
+  "lie": "trees"
  },
  "stream_bank": {
   "file": "stream_bank.png",
@@ -527,7 +562,8 @@
    40,
    1613
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "pond_large": {
   "file": "pond_large.png",
@@ -543,7 +579,8 @@
    415,
    1654
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "reed_pond": {
   "file": "reed_pond.png",
@@ -559,7 +596,8 @@
    865,
    1646
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  },
  "sand_shore": {
   "file": "sand_shore.png",
@@ -575,6 +613,7 @@
    52,
    1827
   ],
-  "lie": "water"
+  "lie": "water",
+  "flat": true
  }
 }

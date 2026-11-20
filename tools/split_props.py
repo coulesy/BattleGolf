@@ -8,8 +8,11 @@ art/<set>/source/sheet.json names the two pictures and every prop on the sheet:
   "min_area"         pixels of white a group needs to stand alone; smaller specks join the nearest prop
   "split"            lists of props that share one shadow but should come out separately
   "props"            name -> {"at": [x, y] rough centre on the sheet, "m": width on the course in metres,
-                              "solid": blocks shots like a tree, "k": ground point is k * width above the
-                              bottom of the picture (or "centre" for flat things), "lie": "water" (optional)}
+                              "solid": nothing automatic may overlap it, "k": ground point is k * width above the
+                              bottom of the picture (or "centre" for flat things),
+                              "lie": how a ball there plays (optional): "water", "sand" (a bunker), "hay" (plays as a bunker),
+                              "trees" (blocks shots: buildings, rocks, trees), "path" (fairway: paths, bridges),
+                              "rough" (long grass, bushes); left out, a solid prop plays as trees}
 Shadows are left out: the game draws its own. Each prop's mask is lined up with the colour sheet automatically.
 """
 import json, os, sys
@@ -71,7 +74,8 @@ for nm in names:
     w, h, p = int(x1 - x0), int(y1 - y0), P[nm]
     ay = h / 2 if p.get("k") == "centre" else h - p.get("k", 0.25) * w
     man[nm] = dict(file=f"{nm}.png", w=w, h=h, m=p["m"], solid=bool(p.get("solid")), anchor=[round(w / 2), round(ay)],
-                   sheet=[int(x0), int(y0)], **({"lie": p["lie"]} if p.get("lie") else {}))
+                   sheet=[int(x0), int(y0)], **({"lie": p["lie"]} if p.get("lie") else {}),
+                   **({"flat": True} if p.get("k") == "centre" else {}))
 json.dump(man, open(f"{OUT}/props.json", "w"), indent=1)
 print(len(man), "props in", OUT)
 

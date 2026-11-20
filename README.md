@@ -172,7 +172,21 @@ python3 tools/course_editor.py
 - For each hole, pick **par 3, 4 or 5** (that sets the tiles: a tee, 0–2 fairways and a green), then set each tile's options: tee length and height; fairway length, bend, width, slope and a gap of rough; green approach, shape, slope, height and turn.
 - **Features** adds bunkers, lakes, streams, treelines, copses, single trees and rocks or bushes, each on a tile and a spot (left, right, cross, front of the green…), with how far along the tile, size and count.
 - The middle shows a **plan view** of the hole that updates as you edit: the tee is at the bottom, with fairway, green, bunkers, water, woods, the centre line, where each tile starts and a 50 m bar. Drag to pan and scroll to zoom; *Fit* shows the whole hole. Par, length and the composer's warnings (an odd length for the par, a hazard over the tee or green) show as you go.
-- **Props**: pick a set (*Nature*: trees, bushes, rocks, long grass, paths, ponds and streams; *Medieval*: castles, towers, ruined walls, hay, carts, fences, tents, bridges, flags) and a picture, then click the plan to place it. Drag to move; click one to change its size, flip it or delete it. In the built hole, props are drawn at their ground point with trees cleared from under them. Trees, big rocks, buildings, walls, hay, carts, fences, tents and spikes block shots like trees, and the water in ponds and streams plays as water. Props are saved in the hole's recipe as `"props": [{"kind", "at": [x, y]}]`, in metres from the tee (x to the right, y straight ahead), so they move with the hole.
+- **Props**: pick a set (*Nature*: trees, bushes, rocks, long grass, paths, ponds and streams; *Medieval*: castles, towers, ruined walls, hay, carts, fences, tents, bridges, flags) and a picture, then click the plan to place it. Click a prop to select it; **Shift**-click or **Shift**-drag a box to select several. Drag to move the selection. The selection card shows how a ball plays there and can resize (a multiple selection grows or shrinks as one, spacing included), flip (a multiple selection is mirrored), duplicate, group, ungroup or delete. To remove props: **right-click** one, press **Delete** on the selection, or *Clear all* for the whole hole. *Undo* (**Cmd/Ctrl+Z**) steps back through prop changes on the hole you're on. In the built hole, props are drawn at their ground point with trees cleared from under them. Props are saved in the hole's recipe as `"props": [{"kind", "at": [x, y]}]`, in metres from the tee (x to the right, y straight ahead), so they move with the hole.
+- **Prop groups**: props that belong together (a farmyard, a camp, a rock garden) can be grouped (*Group*, or **Cmd/Ctrl+G**). Clicking any one then selects the whole group, so it moves, resizes and is deleted as one; grouped props carry `"g": <number>` in the recipe. *Save as group…* adds the selection to the **Groups** list under the pictures, shared by every course (`art/groups.json`). Pick a group there and click the plan to drop the whole set, already grouped. Starter groups: *Hay field*, *Farmyard*, *Army camp*, *Market* and *Ruined wall* (medieval), and *Rock garden*, *Pond corner*, *Copse* and *Meadow* (nature). The ✕ on a group removes it from the list, but props already placed stay.
+- **How props play**: each picture has a `lie` in `props.json`, which is baked into the hole's lie grid:
+
+  | `lie` | Plays as | Props |
+  |---|---|---|
+  | `hay` | Hay: plays exactly like a bunker, but the game says *In the hay!* and shows *Hay* (lie code 8) | haystack, hay bales |
+  | `sand` | Bunker | sand bank |
+  | `trees` | Trees (blocks shots, ball stays where it lands) | trees, boulders and big rocks, buildings, walls, fences, carts, wells, barrels, crates, tents, spikes, archery target |
+  | `path` | Fairway (and wins over water, so a bridge can be crossed) | paths, cobble and stone tiles, bridges, drawbridge, platform |
+  | `rough` | Rough, even on the fairway | long grass, bushes, dirt patch |
+  | `water` | Water (only the blue of the picture) | ponds, streams, canal, reed pond, sand shore |
+  | none | The ground underneath | flags, small stones, pebbles, grass patch |
+
+  Flat pictures (paths, ponds, long grass) cover their drawn shape. Upright ones (hay, buildings, rocks) cover a circle round their ground point. The tee and green always win.
 - *Reshuffle* changes the hole's `seed`: new bunker shapes, fairway edges, green rolls and heading. Stroke index is worked out by length unless you set it.
 - **Save** writes the recipe. **Save & build hole** also composes it into `data/<course>-NN.json` and renders it into `game/courses/` (about 3 minutes; one build at a time), then updates `courses.json`; *Save & build every hole* queues the lot. The built picture shows on the right, and *Play the game* opens it at `/game/`.
 
@@ -181,7 +195,7 @@ python3 tools/course_editor.py
 - Props placed in the editor claim their ground first.
 - Trees may overlap each other a little, as in a wood. Nothing else overlaps anything.
 
-Each spot's choice is seeded from the hole and its position, so the base picture and the detail tile always agree. Trees, big rocks and buildings still block shots, and small ponds play as water. The `space` and `neon` themes keep their own drawn scenery until they have prop sets of their own.
+Each spot's choice is seeded from the hole and its position, so the base picture and the detail tile always agree. Trees, big rocks and buildings still block shots, and small ponds play as water (see *How props play*). The `space` and `neon` themes keep their own drawn scenery until they have prop sets of their own.
 
 Each prop set lives in `art/<set>/`: the cut-out pictures and their sizes in `props/props.json`, cut from the sheet and its black-and-white mask in `source/` by `python3 tools/split_props.py art/<set>` (names, centres and sizes in `source/sheet.json`).
 

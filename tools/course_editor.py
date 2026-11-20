@@ -78,6 +78,7 @@ def check_recipe(cid, r):
             q = dict(kind=p["kind"], at=[round(float(at[0]), 2), round(float(at[1]), 2)])
             if p.get("scale", 1) != 1: q["scale"] = round(min(max(float(p["scale"]), 0.25), 4.0), 3)
             if p.get("flip"): q["flip"] = True
+            if p.get("g"): q["g"] = int(p["g"])           # props placed or joined as a group move together
             props.append(q)
         if props: rec["props"] = props
         else: rec.pop("props", None)
@@ -161,6 +162,40 @@ def prop_sets():
     return out
 
 
+GROUPS = f"{ROOT}/art/groups.json"
+def load_groups():
+    """Saved prop groups (art/groups.json): [{name, set, props: [{kind, at: [x, y] metres from the middle, scale?, flip?}]}]."""
+    try: return json.load(open(GROUPS))["groups"]
+    except (OSError, ValueError, KeyError): return []
+
+
+def save_groups(body):
+    if not isinstance(body, list) or len(body) > 200: raise ValueError("groups must be a list")
+    out = []
+    for g in body:
+        if not isinstance(g, dict): raise ValueError("bad group")
+        name = str(g.get("name", "")).strip()[:40]; st = str(g.get("set", ""))
+        if not name or not PROP_KIND.match(st): raise ValueError("a group needs a name and a prop set")
+        ps = []
+        for p in g.get("props", [])[:60]:
+            if not (isinstance(p, dict) and PROP_KIND.match(str(p.get("kind", "")))): raise ValueError(f"group {name}: bad prop")
+            at = p.get("at")
+            if not (isinstance(at, list) and len(at) == 2 and all(isinstance(v, (int, float)) and abs(v) < 500 for v in at)):
+                raise ValueError(f"group {name}: prop position must be [x, y] metres")
+            q = dict(kind=p["kind"], at=[round(float(at[0]), 2), round(float(at[1]), 2)])
+            if p.get("scale", 1) != 1: q["scale"] = round(min(max(float(p["scale"]), 0.25), 4.0), 3)
+            if p.get("flip"): q["flip"] = True
+            ps.append(q)
+        if not ps: raise ValueError(f"group {name} has no props")
+        out.append(dict(name=name, set=st, props=ps))
+    with recipe_lock:
+        tmp = GROUPS + ".tmp"
+        with open(tmp, "w") as f:
+            f.write('{\n "groups": [\n' + ",\n".join("  " + json.dumps(g) for g in out) + "\n ]\n}\n")
+        os.replace(tmp, GROUPS)
+    return out
+
+
 def options():
     """What the page offers in its tile and module forms (taken from the composer, so they can't drift)."""
     return dict(themes=THEMES, bends=list(C.BENDS), widths=list(C.WIDTHS), slopes=list(C.SLOPES), sizes=list(C.FAIRWAY_LEN),
@@ -196,6 +231,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/courses": return self.send_json(list_courses())
             if path == "/api/options": return self.send_json(options())
             if path == "/api/props": return self.send_json(prop_sets())
+            if path == "/api/groups": return self.send_json(load_groups())
             if path.startswith("/api/recipe/"): return self.send_json(load_recipe(path[len("/api/recipe/"):]))
             if path.startswith("/api/build/"):
                 cid, n = self.hole_ref(path, "/api/build/"); hid = f"{cid}-{n:02d}"
@@ -228,6 +264,7 @@ class Handler(SimpleHTTPRequestHandler):
                 try: return self.send_json(C.preview({"id": cid}, int(body.get("n", 1)), {**body["hole"], "theme": course.get("theme", "classic")}))
                 except (C.RecipeError, KeyError, TypeError, ValueError) as e: return self.send_json(dict(error=str(e)), 400)
             if path == "/api/new": return self.send_json(new_course(body))
+            if path == "/api/groups": return self.send_json(save_groups(body))
             if path.startswith("/api/recipe/"): return self.send_json(save_recipe(path[len("/api/recipe/"):], body))
             if path.startswith("/api/build/"):
                 cid, n = self.hole_ref(path, "/api/build/"); start_build(cid, n)

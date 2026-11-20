@@ -12,7 +12,8 @@
   "sheet": [
    37,
    41
-  ]
+  ],
+  "lie": "trees"
  },
  "tower_tall": {
   "file": "tower_tall.png",
@@ -27,7 +28,8 @@
   "sheet": [
    362,
    53
-  ]
+  ],
+  "lie": "trees"
  },
  "keep_small": {
   "file": "keep_small.png",
@@ -42,7 +44,8 @@
   "sheet": [
    510,
    126
-  ]
+  ],
+  "lie": "trees"
  },
  "tower_square": {
   "file": "tower_square.png",
@@ -57,7 +60,8 @@
   "sheet": [
    687,
    85
-  ]
+  ],
+  "lie": "trees"
  },
  "keep_large": {
   "file": "keep_large.png",
@@ -72,7 +76,8 @@
   "sheet": [
    857,
    67
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_a": {
   "file": "ruin_wall_a.png",
@@ -87,7 +92,8 @@
   "sheet": [
    41,
    369
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_b": {
   "file": "ruin_wall_b.png",
@@ -102,7 +108,8 @@
   "sheet": [
    306,
    364
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_c": {
   "file": "ruin_wall_c.png",
@@ -117,7 +124,8 @@
   "sheet": [
    592,
    379
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_d": {
   "file": "ruin_wall_d.png",
@@ -132,7 +140,8 @@
   "sheet": [
    865,
    344
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_e": {
   "file": "ruin_wall_e.png",
@@ -147,7 +156,8 @@
   "sheet": [
    39,
    526
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_f": {
   "file": "ruin_wall_f.png",
@@ -162,7 +172,8 @@
   "sheet": [
    312,
    536
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_g": {
   "file": "ruin_wall_g.png",
@@ -177,7 +188,8 @@
   "sheet": [
    605,
    534
-  ]
+  ],
+  "lie": "trees"
  },
  "ruin_wall_h": {
   "file": "ruin_wall_h.png",
@@ -192,7 +204,8 @@
   "sheet": [
    877,
    576
-  ]
+  ],
+  "lie": "trees"
  },
  "haystack": {
   "file": "haystack.png",
@@ -207,7 +220,8 @@
   "sheet": [
    39,
    741
-  ]
+  ],
+  "lie": "hay"
  },
  "hay_bales": {
   "file": "hay_bales.png",
@@ -222,7 +236,8 @@
   "sheet": [
    234,
    758
-  ]
+  ],
+  "lie": "hay"
  },
  "cart": {
   "file": "cart.png",
@@ -237,7 +252,8 @@
   "sheet": [
    507,
    760
-  ]
+  ],
+  "lie": "trees"
  },
  "wheelbarrow_wide": {
   "file": "wheelbarrow_wide.png",
@@ -252,7 +268,8 @@
   "sheet": [
    748,
    764
-  ]
+  ],
+  "lie": "trees"
  },
  "wheelbarrow": {
   "file": "wheelbarrow.png",
@@ -267,7 +284,8 @@
   "sheet": [
    935,
    779
-  ]
+  ],
+  "lie": "trees"
  },
  "fence": {
   "file": "fence.png",
@@ -282,7 +300,8 @@
   "sheet": [
    39,
    1015
-  ]
+  ],
+  "lie": "trees"
  },
  "fence_gate": {
   "file": "fence_gate.png",
@@ -297,7 +316,8 @@
   "sheet": [
    40,
    1127
-  ]
+  ],
+  "lie": "trees"
  },
  "stone_wall_gate": {
   "file": "stone_wall_gate.png",
@@ -312,7 +332,8 @@
   "sheet": [
    376,
    1000
-  ]
+  ],
+  "lie": "trees"
  },
  "stone_wall_short": {
   "file": "stone_wall_short.png",
@@ -327,7 +348,8 @@
   "sheet": [
    314,
    1092
-  ]
+  ],
+  "lie": "trees"
  },
  "fence_corner": {
   "file": "fence_corner.png",
@@ -342,7 +364,8 @@
   "sheet": [
    750,
    998
-  ]
+  ],
+  "lie": "trees"
  },
  "well": {
   "file": "well.png",
@@ -357,7 +380,8 @@
   "sheet": [
    35,
    1296
-  ]
+  ],
+  "lie": "trees"
  },
  "barrels": {
   "file": "barrels.png",
@@ -372,7 +396,8 @@
   "sheet": [
    192,
    1345
-  ]
+  ],
+  "lie": "trees"
  },
  "crates": {
   "file": "crates.png",
@@ -387,7 +412,8 @@
   "sheet": [
    287,
    1307
-  ]
+  ],
+  "lie": "trees"
  },
  "archery_target": {
   "file": "archery_target.png",
@@ -402,7 +428,8 @@
   "sheet": [
    459,
    1316
-  ]
+  ],
+  "lie": "trees"
  },
  "tent_small": {
   "file": "tent_small.png",
@@ -417,7 +444,8 @@
   "sheet": [
    587,
    1282
-  ]
+  ],
+  "lie": "trees"
  },
  "tent": {
   "file": "tent.png",
@@ -432,7 +460,8 @@
   "sheet": [
    753,
    1258
-  ]
+  ],
+  "lie": "trees"
  },
  "tent_blue": {
   "file": "tent_blue.png",
@@ -447,7 +476,8 @@
   "sheet": [
    945,
    1250
-  ]
+  ],
+  "lie": "trees"
  },
  "barrel": {
   "file": "barrel.png",
@@ -462,7 +492,8 @@
   "sheet": [
    57,
    1495
-  ]
+  ],
+  "lie": "trees"
  },
  "barrel_b": {
   "file": "barrel_b.png",
@@ -477,7 +508,8 @@
   "sheet": [
    190,
    1495
-  ]
+  ],
+  "lie": "trees"
  },
  "crate": {
   "file": "crate.png",
@@ -492,7 +524,8 @@
   "sheet": [
    313,
    1490
-  ]
+  ],
+  "lie": "trees"
  },
  "crate_open": {
   "file": "crate_open.png",
@@ -507,7 +540,8 @@
   "sheet": [
    448,
    1492
-  ]
+  ],
+  "lie": "trees"
  },
  "bridge_a": {
   "file": "bridge_a.png",
@@ -522,7 +556,8 @@
   "sheet": [
    628,
    1447
-  ]
+  ],
+  "lie": "path"
  },
  "bridge_b": {
   "file": "bridge_b.png",
@@ -537,7 +572,8 @@
   "sheet": [
    876,
    1454
-  ]
+  ],
+  "lie": "path"
  },
  "spikes": {
   "file": "spikes.png",
@@ -552,7 +588,8 @@
   "sheet": [
    36,
    1674
-  ]
+  ],
+  "lie": "trees"
  },
  "drawbridge": {
   "file": "drawbridge.png",
@@ -567,7 +604,8 @@
   "sheet": [
    216,
    1623
-  ]
+  ],
+  "lie": "path"
  },
  "flag_red": {
   "file": "flag_red.png",
@@ -672,7 +710,8 @@
   "sheet": [
    36,
    1824
-  ]
+  ],
+  "lie": "trees"
  },
  "platform": {
   "file": "platform.png",
@@ -687,7 +726,8 @@
   "sheet": [
    216,
    1834
-  ]
+  ],
+  "lie": "path"
  },
  "tile_cobble": {
   "file": "tile_cobble.png",
@@ -702,7 +742,8 @@
   "sheet": [
    419,
    1854
-  ]
+  ],
+  "lie": "path"
  },
  "tile_grass_stones": {
   "file": "tile_grass_stones.png",
@@ -717,7 +758,8 @@
   "sheet": [
    584,
    1852
-  ]
+  ],
+  "lie": "path"
  },
  "tile_path_a": {
   "file": "tile_path_a.png",
@@ -732,7 +774,8 @@
   "sheet": [
    749,
    1847
-  ]
+  ],
+  "lie": "path"
  },
  "tile_path_b": {
   "file": "tile_path_b.png",
@@ -747,6 +790,7 @@
   "sheet": [
    929,
    1844
-  ]
+  ],
+  "lie": "path"
  }
 }
