@@ -3,7 +3,7 @@
 Default (MODE=grid): the green as a 3D wire mesh, 2 m squares, each point lifted by the green's height
 (exaggerated, level with the pin) and each wire coloured by steepness in eight bands from blue (flat) to magenta
 (over 10 %), the same scale as the game's slope key and arrows. The mesh is cut to the green's outline.
-MODE=steep: a flat map coloured by steepness. MODE=relief: the old height colours with slope shading.
+MODE=steep: a flat map coloured by steepness. MODE=vector: flat steepness bands with ink outlines and a white grid. MODE=relief: the old height colours with slope shading.
 The slopes come from the hole's green_grid (the same numbers the game rolls putts on); the green's outline from
 the renderer's flat heat image (kept in build/heat-backup/ once a hole in game/courses has been redrawn).
 
@@ -179,12 +179,62 @@ def reheat_grid(hole_dir, data_name, out_dir=None):
     return dest, 0, exag, relief
 
 
+INK = (18, 40, 28)   # outline colour, the same dark green as the contour lines and the toon renderer's ink
+
+
+def reheat_vector(hole_dir, data_name, out_dir=None):
+    """MODE=vector: the green drawn flat, like the rest of the cartoon art. Solid, saturated steepness bands
+    (the same eight as the slope key and arrows) with dark ink outlines where one band meets the next, and a
+    flat white 2 m grid on top, laid out from the pin so the cup sits on a corner. Drawn 3x and shrunk, so every
+    edge is crisp and anti-aliased. Same size and place as the flat heat map."""
+    d = json.load(open(f"{hole_dir}/{data_name}"))
+    hp = f"{hole_dir}/{d['heat']['file']}"
+    src = Image.open(outline_source(hole_dir, d['heat']['file'])).convert("RGBA"); W, H = src.size
+    SS = 3
+    alpha = np.asarray(src.resize((W * SS, H * SS), Image.BILINEAR), float)[..., 3]
+    hx, hy, hw, hh = (d["heat"][k] for k in ("x", "y", "w", "h"))
+    A = np.array(d["A"]); b = np.array(d["b"]); Ai = np.linalg.inv(A)
+    px = hx + (np.arange(W * SS) + 0.5) * hw / (W * SS); py = hy + (np.arange(H * SS) + 0.5) * hh / (H * SS)
+    PX, PY = np.meshgrid(px, py)
+    X = Ai[0, 0] * (PX - b[0]) + Ai[0, 1] * (PY - b[1])
+    Y = Ai[1, 0] * (PX - b[0]) + Ai[1, 1] * (PY - b[1])
+    h = smooth_height(d); e = 0.5
+    gx = (h(X + e, Y) - h(X - e, Y)) / (2 * e); gy = (h(X, Y + e) - h(X, Y - e)) / (2 * e)
+    sl = gaussian_filter(np.hypot(gx, gy), 2.5 * SS)              # smooth band shapes, no speckle
+    band = np.searchsorted([lim for lim, _ in STEEP], sl, side="right").clip(0, len(STEEP) - 1)
+    rgb = np.array([c for _, c in STEEP], float)[band]
+    px_m = 1 / math.sqrt(abs(np.linalg.det(A)) * (W * SS / hw) * (H * SS / hh))   # metres per supersampled px
+    # ink where the band changes, about 1.3 heat px wide
+    edge = (np.diff(band, axis=0, prepend=band[:1]) != 0) | (np.diff(band, axis=1, prepend=band[:, :1]) != 0)
+    from scipy.ndimage import binary_dilation
+    edge = binary_dilation(edge, iterations=max(1, int(0.6 * SS)))
+    # flat white grid, CELL metres, anchored on the pin
+    qx, qy = (X - d["pin"][0]) / CELL, (Y - d["pin"][1]) / CELL
+    dist = np.minimum(np.abs(qx - np.round(qx)), np.abs(qy - np.round(qy))) * CELL / px_m   # px to the nearest line
+    gridk = np.clip(0.55 * SS + 0.5 - dist, 0, 1)[..., None]
+    rgb = rgb * (1 - gridk * 0.6) + 255 * gridk * 0.6
+    rgb[edge] = INK
+    # ink round the green's own edge too, so it reads as a sticker laid on the grass
+    inside = alpha > 128
+    rim = inside & binary_dilation(~inside, iterations=SS)
+    rgb[rim] = INK
+    a = np.where(inside, 235, 0).astype(float)
+    img = Image.fromarray(np.dstack([rgb, a]).clip(0, 255).astype(np.uint8), "RGBA").resize((W, H), Image.LANCZOS)
+    dest = f"{out_dir}/{d['heat']['file']}" if out_dir else hp
+    img.save(dest)
+    gm = inside
+    return dest, float(np.percentile(sl[gm], 50)) if gm.any() else 0.0, float(sl[gm].max()) if gm.any() else 0.0
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]; out = None; mode = os.environ.get("MODE", "grid")
     if args[:1] == ["--out"]: out = args[1]; args = args[2:]; os.makedirs(out, exist_ok=True)
     for hd in args:
         for dn in ("game_data.json", "game_data_portrait.json"):
-            if mode == "grid":
+            if mode == "vector":
+                dest, med, mx = reheat_vector(hd.rstrip("/"), dn, out)
+                print(f"{dest}: median slope {med * 100:.1f}%, steepest {mx * 100:.1f}%")
+            elif mode == "grid":
                 dest, _, exag, relief = reheat_grid(hd.rstrip("/"), dn, out)
                 print(f"{dest}: relief {relief * 100:.0f} cm, shown {exag:.1f}x")
             else:
