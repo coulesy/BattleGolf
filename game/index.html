@@ -1637,9 +1637,8 @@
     else if (a.kind === "fly" && lie === 3) toast("On the green");
     else if (a.lipped) toast("Lipped out!");
     else if (a.kind === "roll" && toPin() < 1.2) toast("So close!");
-    // gimme rings: rest within 1 m = +1 stroke, within 2 m = +2 strokes, then holed
-    if (lie !== 9) { const dp = toPin();
-      if (dp <= 2) { const g = dp <= 1 ? 1 : 2; S.strokes += g; SFX.cup(0.6); return holeOut(`${a.lipped ? "Lipped out · " : ""}Gimme  +${g}`); } }
+    // gimme ring: rest within 1 m = +1 stroke, then holed
+    if (lie !== 9 && toPin() <= 1) { S.strokes += 1; SFX.cup(0.6); return holeOut(`${a.lipped ? "Lipped out · " : ""}Gimme  +1`); }
     S.lie = lie === 9 ? 0 : lie;
     if (S.lie === 4) S.lie = 2;
     if (S.prev && Math.hypot(S.ball.x - D.tee[0], S.ball.y - D.tee[1]) < 3) S.lie = 4;
@@ -1961,7 +1960,6 @@
   }
   function drawGimmeRings() {
     ctx.save();
-    ring(2, "rgba(255,225,74,.16)", "rgba(255,225,74,.95)", [5, 4]);
     ring(1, "rgba(255,255,255,.22)", "rgba(255,255,255,.95)", []);
     const pxPerM = ppm * zoom;
     if (pxPerM > 7) {   // labels only once zoomed in enough to read
@@ -1969,7 +1967,7 @@
       ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
       const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];      // world direction that points down the screen
       let dn = [-A[0][1] / det, A[0][0] / det]; const dl = Math.hypot(...dn); dn = [dn[0] / dl, dn[1] / dl];
-      for (const [r, txt, col] of [[1.5, "+2", "#ffe14a"], [0.55, "+1", "#fff"]]) {
+      for (const [r, txt, col] of [[0.55, "+1", "#fff"]]) {
         const [lx, ly] = toScreen(...toImg(pin.x + dn[0] * r, pin.y + dn[1] * r));
         ctx.strokeText(txt, lx, ly); ctx.fillStyle = col; ctx.fillText(txt, lx, ly);
       }
@@ -2017,7 +2015,7 @@
     } else {
       // close-up putting view only once everyone still playing is on the green (no zooming in and out between players)
       const allOnGreen = players.every(p => p.st.done || p.st.lie === 3);
-      if (S && putting() && allOnGreen && !S.done && !S.anim) {   // frame ball + hole so the gimme rings are readable
+      if (S && putting() && allOnGreen && !S.done && !S.anim) {   // frame ball + hole so the gimme ring is readable
         const [bx, by] = toImg(S.ball.x, S.ball.y), [hx, hy] = toImg(pin.x, pin.y);
         const span = Math.max(Math.hypot(bx - hx, by - hy), 4 * ppm);
         wantZoom = Math.min(baseZoom * 9, Math.max(baseZoom * 2.5, 0.42 * Math.min(VW, VH) / span));
