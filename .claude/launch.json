@@ -32,6 +32,18 @@
         "game"
       ],
       "port": 8766
+    },
+    {
+      "name": "battlegolf-3",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8767",
+        "--directory",
+        "game"
+      ],
+      "port": 8767
     }
   ]
 }

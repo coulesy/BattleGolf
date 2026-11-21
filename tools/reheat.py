@@ -1,6 +1,8 @@
 """Redraws a built hole's green heat map, without re-rendering the hole. build_course.sh runs it on every build.
 
-Default (MODE=grid): the green as a 3D wire mesh, 2 m squares, each point lifted by the green's height
+Default (MODE=slope): the whole green washed with a smooth steepness heat map, clear where it's flatter than 2 %
+and fading in, more solid the steeper it is.
+MODE=grid: the green as a 3D wire mesh, 2 m squares, each point lifted by the green's height
 (exaggerated, level with the pin) and each wire coloured by steepness in eight bands from blue (flat) to magenta
 (over 10 %), the same scale as the game's slope key and arrows. The mesh is cut to the green's outline.
 MODE=steep: a flat map coloured by steepness. MODE=vector: flat steepness bands with ink outlines and a white grid. MODE=relief: the old height colours with slope shading.
@@ -180,6 +182,45 @@ def reheat_grid(hole_dir, data_name, out_dir=None):
     return dest, 0, exag, relief
 
 
+CLEAR = 0.02         # MODE=slope: anything flatter than this (2 %) is left clear
+SOLID = 0.08         # ...and the colour is at its strongest from this steep (8 %) up
+MAX_A = 0.9          # strongest opacity
+
+
+def reheat_slope(hole_dir, data_name, out_dir=None):
+    """MODE=slope (the default): the whole green washed with a smooth steepness heat map. Flat ground (under 2 %)
+    is left clear so the green shows through; from there the colour fades in, getting more solid the steeper it
+    is, and runs through the slope key's colours (cyan, green, yellow, orange, red, magenta). Same size and place
+    as the flat heat map."""
+    d = json.load(open(f"{hole_dir}/{data_name}"))
+    hp = f"{hole_dir}/{d['heat']['file']}"
+    src = Image.open(outline_source(hole_dir, d['heat']['file'])).convert("RGBA"); W, H = src.size
+    alpha = np.asarray(src, float)[..., 3]
+    hx, hy, hw, hh = (d["heat"][k] for k in ("x", "y", "w", "h"))
+    A = np.array(d["A"]); b = np.array(d["b"]); Ai = np.linalg.inv(A)
+    px = hx + (np.arange(W) + 0.5) * hw / W; py = hy + (np.arange(H) + 0.5) * hh / H
+    PX, PY = np.meshgrid(px, py)
+    X = Ai[0, 0] * (PX - b[0]) + Ai[0, 1] * (PY - b[1])
+    Y = Ai[1, 0] * (PX - b[0]) + Ai[1, 1] * (PY - b[1])
+    h = smooth_height(d); e = 0.5
+    gx = (h(X + e, Y) - h(X - e, Y)) / (2 * e); gy = (h(X, Y + e) - h(X, Y - e)) / (2 * e)
+    px_m = math.sqrt(abs(np.linalg.det(A)) * (W / hw) * (H / hh))        # heat px per metre
+    sl = gaussian_filter(np.hypot(gx, gy), 0.4 * px_m)                   # no speckle from the 2 m grid
+    # colour: a smooth ramp through the slope key's colours, each at the middle of its band
+    lims = [lim for lim, _ in STEEP][1:-1]                               # 2 % .. 10 %
+    stops_s = np.array([CLEAR] + [(a + b_) / 2 for a, b_ in zip(lims, lims[1:])] + [0.13])
+    stops_c = np.array([c for _, c in STEEP[1:]], float)                 # cyan .. magenta
+    rgb = np.stack([np.interp(sl, stops_s, stops_c[:, i]) for i in range(3)], -1)
+    t = np.clip((sl - CLEAR) / (SOLID - CLEAR), 0, 1)
+    a = MAX_A * t ** 0.6 * 255
+    edge = gaussian_filter((alpha > 128).astype(float), 0.25 * px_m / 4)  # the green's edge, a short fade
+    a *= np.clip(edge, 0, 1)
+    dest = f"{out_dir}/{d['heat']['file']}" if out_dir else hp
+    Image.fromarray(np.dstack([rgb, a]).clip(0, 255).astype(np.uint8), "RGBA").save(dest)
+    gm = alpha > 128
+    return dest, float(np.percentile(sl[gm], 50)) if gm.any() else 0.0, float(sl[gm].max()) if gm.any() else 0.0
+
+
 INK = (18, 40, 28)   # outline colour, the same dark green as the contour lines and the toon renderer's ink
 
 
@@ -228,11 +269,14 @@ def reheat_vector(hole_dir, data_name, out_dir=None):
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]; out = None; mode = os.environ.get("MODE", "grid")
+    args = sys.argv[1:]; out = None; mode = os.environ.get("MODE", "slope")
     if args[:1] == ["--out"]: out = args[1]; args = args[2:]; os.makedirs(out, exist_ok=True)
     for hd in args:
         for dn in ("game_data.json", "game_data_portrait.json"):
-            if mode == "vector":
+            if mode == "slope":
+                dest, med, mx = reheat_slope(hd.rstrip("/"), dn, out)
+                print(f"{dest}: median slope {med * 100:.1f}%, steepest {mx * 100:.1f}%")
+            elif mode == "vector":
                 dest, med, mx = reheat_vector(hd.rstrip("/"), dn, out)
                 print(f"{dest}: median slope {med * 100:.1f}%, steepest {mx * 100:.1f}%")
             elif mode == "grid":
