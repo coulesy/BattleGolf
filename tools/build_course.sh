@@ -43,7 +43,7 @@ import sys, os; sys.path.insert(0, os.environ["ROOT"] + "/tools"); import pin
 print("pin", pin.repin("."))
 PY
 python3 "$ROOT/tools/green_tile.py" hole.json .   # 12x tile of the green, and its heat map at that resolution
-python3 "$ROOT/tools/reheat.py" .          # green heat map: wire grid lifted by height, coloured by steepness
+python3 "$ROOT/tools/reheat.py" .          # green heat map: steepness wash, clear under 2 %
 DEST="${OUT:-$ROOT/game}"; mkdir -p "$DEST"
 cp course.jpg course_portrait.jpg detail_land.jpg detail_portrait.jpg green_land.jpg green_portrait.jpg green_land_heat.png green_portrait_heat.png green_land_contours.png green_portrait_contours.png game_data.json game_data_portrait.json "$DEST/"
 echo "copied assets to $DEST"
