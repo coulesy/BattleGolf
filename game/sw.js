@@ -5,7 +5,7 @@
 // pictures are added to it as each hole is played.
 const VERSION = "bg-v35";
 const CORE = [
-  "./", "index.html", "config.js", "manifest.webmanifest", "courses/courses.json", "logo.webp",
+  "./", "index.html", "config.js", "manifest.webmanifest", "courses/courses.json", "logo.webp", "sprites/ball.svg", "sprites/ball.json",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "audio/mischief.mp3",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",
 ];
