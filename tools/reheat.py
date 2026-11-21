@@ -126,6 +126,7 @@ def reheat_grid(hole_dir, data_name, out_dir=None):
     hx, hy, hw, hh = (d["heat"][k] for k in ("x", "y", "w", "h"))
     A = np.array(d["A"]); b = np.array(d["b"]); Ai = np.linalg.inv(A)
     kx, ky = W / hw, H / hh                                    # heat px per base-image px
+    sc = kx / 4                                                # widths below are for a 4x heat image; the green tile's is 12x
     to_px = lambda x, y: ((A[0, 0] * x + A[0, 1] * y + b[0] - hx) * kx, (A[1, 0] * x + A[1, 1] * y + b[1] - hy) * ky)
     up_m = math.sqrt(abs(np.linalg.det(A))) / math.sqrt(0.72) * ky   # heat px for one upright metre (camera tilt 0.72)
     h = smooth_height(d)
@@ -169,10 +170,10 @@ def reheat_grid(hole_dir, data_name, out_dir=None):
                 if not (on[v0] or on[v1]): cx_, cy_ = SX[v0], SY[v0]
                 lines.append(((PYg[v0] + PYg[v1]) / 2, [p0, p1], steep_col(cx_, cy_)))
     for _, pts, col in sorted(lines, key=lambda t: t[0]):     # far first, near wires on top
-        dr.line(pts, fill=(15, 30, 20, 140), width=max(1, int((WIRE + 0.9) * SS)))
-        dr.line(pts, fill=col + (255,), width=max(1, int(WIRE * SS)))
+        dr.line(pts, fill=(15, 30, 20, 140), width=max(1, int((WIRE + 0.9) * sc * SS)))
+        dr.line(pts, fill=col + (255,), width=max(1, int(WIRE * sc * SS)))
     out = np.asarray(img.resize((W, H), Image.LANCZOS), float)
-    mask = gaussian_filter((alpha > 128).astype(float), 0.9)  # the green's edge, softened into a short fade
+    mask = gaussian_filter((alpha > 128).astype(float), 0.9 * sc)  # the green's edge, softened into a short fade
     out[..., 3] *= mask
     dest = f"{out_dir}/{d['heat']['file']}" if out_dir else hp
     Image.fromarray(out.clip(0, 255).astype(np.uint8), "RGBA").save(dest)
