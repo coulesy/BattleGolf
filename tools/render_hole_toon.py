@@ -469,6 +469,29 @@ if gstyle in ("rings", "plain"):  # a darker collar just inside the edge frames 
         if gm_.any():
             col_ = gm_ & (_edt(gm_) < 1.1 / mpp)
             gcol[col_] = g_dk * 0.94
+# height shading on the green, from its slope grid (the same numbers putts roll on): the high ground lighter, the
+# low ground darker. Measured in metres, not stretched to fit, so a gentle green gets a faint wash and a severe one
+# strong contrast: GREEN_SHADE_M either side of the green's middle height gets the full light or shade.
+# Drawn as flat layers, one per 0.2 m step, not a smooth gradient.
+GREEN_SHADE_M = 0.6
+GREEN_LAYERS = 3              # layers each side of the middle: 0.2 m apiece
+if H.get("green_grid") and green.any():
+    _gg = H["green_grid"]; _n, _st = _gg["n"], _gg["step"]
+    _cm = np.frombuffer(base64.b64decode(_gg["cm"]), dtype="<i2").reshape(_n, _n).astype(float)
+    _c, _s = math.cos(-north_rot), math.sin(-north_rot)
+    _ys, _xs = np.nonzero(green)
+    _y0, _y1, _x0, _x1 = _ys.min(), _ys.max() + 1, _xs.min(), _xs.max() + 1
+    _Xg, _Yg = X[_y0:_y1, _x0:_x1] - G[0], Y[_y0:_y1, _x0:_x1] - G[1]
+    _E, _N = _c * _Xg - _s * _Yg, _s * _Xg + _c * _Yg
+    _hz = map_coordinates(_cm, [(_n - 1) / 2 - _N / _st, (_n - 1) / 2 + _E / _st], order=3, mode="nearest") / 100.0
+    _gm = green[_y0:_y1, _x0:_x1]
+    # in sharp layers, toon style: one layer per GREEN_LAYERS of the scale (0.2 m), so a steeper green shows more of them
+    _k = np.clip(np.round((_hz - np.median(_hz[_gm])) / GREEN_SHADE_M * GREEN_LAYERS) / GREEN_LAYERS, -1, 1)[..., None]
+    _sub = gcol[_y0:_y1, _x0:_x1]
+    _sub[:] = np.where(_k > 0, _sub + (255 - _sub) * _k * 0.42, _sub * (1 + _k * 0.30))
+# richer greens: push the colours away from grey (saturation up by GREEN_SAT)
+GREEN_SAT = 1.45
+_gl = gcol.mean(-1, keepdims=True); gcol = np.clip(_gl + (gcol - _gl) * GREEN_SAT, 0, 255)
 img[ogreen] = gcol[ogreen]
 img[green] = gcol[green]
 tstripe = (np.floor(tv / 3) % 2).astype(bool)
@@ -509,6 +532,10 @@ _pxm = mpp                                        # metres per pixel
 _w = max(1.0 * U, 1.5) * _pxm                     # line width: U px, half what it was
 _cov = np.clip(np.minimum(GSD + _w, -GSD) / _pxm + 0.5, 0, 1)[..., None]
 img[:] = img * (1 - _cov * 0.9) + c(PAL["l_green"]) * _cov * 0.9
+# and a bright rim just inside it, like a highlight on the lip of the green
+_hw = max(0.8 * U, 1.2) * _pxm
+_hc = np.clip(np.minimum(GSD + _w + _hw, -(GSD + _w)) / _pxm + 0.5, 0, 1)[..., None] * green[..., None]
+img[:] = img * (1 - _hc * 0.55) + 255 * _hc * 0.55
 if GLOW:
     _e = _cov[..., 0] > 0.5; glow[_e] = np.maximum(glow[_e], c(PAL["l_green"]))
 outline(ogreen, 2 * U, c(PAL["l_green"]), 0.9)
