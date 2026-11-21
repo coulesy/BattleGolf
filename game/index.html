@@ -491,6 +491,7 @@
     CL = D.centreline; CLarc = [0];
     for (let i = 1; i < CL.length; i++) CLarc.push(CLarc[i - 1] + Math.hypot(CL[i][0] - CL[i - 1][0], CL[i][1] - CL[i - 1][1]));
     for (const k in arrowCache) delete arrowCache[k];
+    GR = D.ground ? { ...D.ground, h: new Int16Array(Uint8Array.from(atob(D.ground.cm), ch => ch.charCodeAt(0)).buffer) } : null;
     WIND = windFor(courseId, dir);
     zoom = 0; resize();
     $("loading").classList.add("hide");
@@ -542,19 +543,34 @@
     const v = (a, b) => gcm[a * gn + b];
     return ((v(i, j) * (1 - fj) + v(i, j + 1) * fj) * (1 - fi) + (v(i + 1, j) * (1 - fj) + v(i + 1, j + 1) * fj) * fi) / 100;
   }
+  // ---------- ground slope everywhere else (the whole picture, 2 m cells, cm) ----------
+  // Mounds, hollows and tiers: the ball rolls on these after landing, and putts that run off the green feel them too.
+  let GR = null;
+  function groundAt(x, y) {
+    const i = Math.min(GR.nx - 1.001, Math.max(0, (x - GR.x0) / GR.cell)), j = Math.min(GR.ny - 1.001, Math.max(0, (y - GR.y0) / GR.cell));
+    const i0 = Math.floor(i), j0 = Math.floor(j), fi = i - i0, fj = j - j0, v = (a, b) => GR.h[b * GR.nx + a];
+    return ((v(i0, j0) * (1 - fi) + v(i0 + 1, j0) * fi) * (1 - fj) + (v(i0, j0 + 1) * (1 - fi) + v(i0 + 1, j0 + 1) * fi) * fj) / 100;
+  }
   function gradAt(x, y) {
+    if (GR && lieAt(x, y) !== 3) {                // off the green: the ground map
+      const e = 1;
+      return [(groundAt(x + e, y) - groundAt(x - e, y)) / (2 * e), (groundAt(x, y + e) - groundAt(x, y - e)) / (2 * e)];
+    }
     const e = 0.3;
     return [(heightAt(x + e, y) - heightAt(x - e, y)) / (2 * e), (heightAt(x, y + e) - heightAt(x, y - e)) / (2 * e)];
   }
-  // roll a putt: friction + gravity along the slope
-  const FRICTION_GREEN = 0.6, FRICTION_OFF = 2.4, G_ROLL = 9.81 * 5 / 7;
+  // roll a ball: friction + gravity along the slope. Friction by lie: the green is quick, the rough grabs it.
+  // Anything else (trees, bunker, water, hay, off the map) stops it where it goes in.
+  const FRICTION_GREEN = 0.6, G_ROLL = 9.81 * 5 / 7;
+  const ROLL_FR = { 3: FRICTION_GREEN, 2: 1.6, 4: 1.6, 1: 2.6, 0: 4.2 };
   // the cup: same size as drawn (exaggerated like the ball). A ball whose centre passes over it drops if it's slow
   // enough at its closest point to the centre; dead-centre can be quicker than a ball catching the edge.
   // Too fast and it lips out: swings round the rim, leaves at a new angle and loses pace.
   const CUP_HOLE = 0.4, V_CAPTURE = 1.6, V_CAPTURE_MIN = 0.4;
   const captureSpeed = off => Math.max(V_CAPTURE_MIN, V_CAPTURE * Math.sqrt(Math.max(0, 1 - (off / CUP_HOLE) ** 2)));
-  function simulatePutt(from, dirAng, flatDist) {
-    let p = { ...from }, v = Math.sqrt(2 * FRICTION_GREEN * flatDist), vx = Math.cos(dirAng) * v, vy = Math.sin(dirAng) * v;
+  const simulatePutt = (from, dirAng, flatDist) => simulateRoll(from, dirAng, Math.sqrt(2 * FRICTION_GREEN * flatDist));
+  function simulateRoll(from, dirAng, v) {
+    let p = { ...from }, vx = Math.cos(dirAng) * v, vy = Math.sin(dirAng) * v;
     const pts = [{ ...p }], dt = 1 / 120; let time = 0, holed = false, lipped = false;
     let inCup = false, prevD = Infinity; const lips = [];   // point indexes where it caught the rim (for the sound)
     for (let n = 0; n < 2400; n++) {
@@ -577,9 +593,8 @@
           continue;
         } else prevD = dc;
       } else inCup = false;
-      const lie = lieAt(p.x, p.y);
-      if (lie === 9 || lie === 7) break;          // off the map, or into the water
-      const fr = lie === 3 ? FRICTION_GREEN : FRICTION_OFF;
+      const lie = lieAt(p.x, p.y), fr = ROLL_FR[lie];
+      if (fr === undefined) break;                // into trees, sand, water, hay or off the map: it stops there
       const [gx, gy] = gradAt(p.x, p.y), ax_ = -G_ROLL * gx, ay_ = -G_ROLL * gy;
       const sp = Math.hypot(vx, vy);
       if (sp < 0.03) { if (Math.hypot(ax_, ay_) <= fr * 1.05) break; vx += ax_ * dt; vy += ay_ * dt; }
@@ -949,9 +964,9 @@
   function ghostPos(a) {
     if (a.kind === "roll") { const k = Math.min(1, a.t / a.dur), q = a.pts[Math.min(a.pts.length - 1, Math.floor(k * (a.pts.length - 1)))]; return { x: q.x, y: q.y, h: 0 }; }
     if (a.t < a.du) { const k = a.t / a.du, b = a.bv ? k * k - k : 0;   // the bend sits off the straight chord, most mid-flight
-      return { x: a.f[0] + (a.l[0] - a.f[0]) * k + (a.bv ? a.bv[0] * b : 0), y: a.f[1] + (a.l[1] - a.f[1]) * k + (a.bv ? a.bv[1] * b : 0), h: 4 * a.pk * k * (1 - k) }; }
+      return { x: a.f[0] + (a.l[0] - a.f[0]) * k + (a.bv ? a.bv[0] * b : 0), y: a.f[1] + (a.l[1] - a.f[1]) * k + (a.bv ? a.bv[1] * b : 0), h: 4 * a.pk * k * (1 - k), air: k }; }
     const k = 1 - Math.pow(1 - Math.min(1, (a.t - a.du) / 0.5), 2);
-    return { x: a.l[0] + (a.r[0] - a.l[0]) * k, y: a.l[1] + (a.r[1] - a.l[1]) * k, h: 0 };
+    return { x: a.l[0] + (a.r[0] - a.l[0]) * k, y: a.l[1] + (a.r[1] - a.l[1]) * k, h: 0, land: a.t - a.du };
   }
 
   // your shots: queued and sent in order, retried if the connection drops
@@ -1666,18 +1681,23 @@
       const wd = windDrift(tgt.d);                       // the wind isn't in the aiming line: you allow for it yourself
       const land = { x: tgt.x + wd[0], y: tgt.y + wd[1] };
       const landLie = lieAt(land.x, land.y);
-      const rollD = landLie === 9 ? 0 : tgt.d * (ROLL[landLie] ?? 0.03);
-      let rest = { x: land.x + u[0] * rollD, y: land.y + u[1] * rollD };
-      const restLie = lieAt(rest.x, rest.y);
-      if (restLie === 9 || restLie === 5) rest = { ...land };
-      // chip-in: does the roll pass over the cup?
-      const rdx = rest.x - land.x, rdy = rest.y - land.y, rl2 = rdx * rdx + rdy * rdy || 1;
-      const k = Math.max(0, Math.min(1, ((pin.x - land.x) * rdx + (pin.y - land.y) * rdy) / rl2));
-      const holed = Math.hypot(land.x + rdx * k - pin.x, land.y + rdy * k - pin.y) < 0.35;
+      // the roll after landing: as fast as it would need to run its usual distance on the flat, then the slopes
+      // take over (down a tier, off a mound, back down a bank it didn't climb). Can chip in, same cup as putts.
+      let rest = { ...land }, holed = false, rollPts = null, rollDur = 0;
+      if (ROLL_FR[landLie] !== undefined) {
+        const rollD = tgt.d * (ROLL[landLie] ?? 0.03);
+        const sim = simulateRoll(land, Math.atan2(u[1], u[0]), Math.sqrt(2 * ROLL_FR[landLie] * rollD));
+        let pts = sim.pts, n = pts.length - 1;
+        if (!sim.holed) {                          // into the trees or off the map: it stops at the edge
+          while (n > 0 && (lieAt(pts[n].x, pts[n].y) === 5 || lieAt(pts[n].x, pts[n].y) === 9)) n--;
+          pts = pts.slice(0, n + 1);
+        }
+        holed = sim.holed; rest = { ...pts[pts.length - 1] }; rollPts = pts; rollDur = Math.min(sim.time, 7);
+      }
       const D0 = tgt.d, L0 = tgt.lat, bend = tgt.bend, v = dirs().v;
       const posAt = k => { const q = flightAt(D0, L0, bend, k); return { x: q.x + wd[0] * k * k, y: q.y + wd[1] * k * k }; };
       // ghosts curve by bv off the straight chord, k² - k: the wind's k² drift curves the same way, so it adds in
-      S.anim = { kind: "fly", from: S.prev, land, posAt, bend: [v[0] * bend + wd[0], v[1] * bend + wd[1]], rest: holed ? { x: pin.x, y: pin.y } : rest, t: 0,
+      S.anim = { kind: "fly", from: S.prev, land, posAt, bend: [v[0] * bend + wd[0], v[1] * bend + wd[1]], rest: holed ? { x: pin.x, y: pin.y } : rest, t: 0, rollPts, rollDur,
                  dur: 0.8 + tgt.d / 200 * 1.3, peak: Math.min(tgt.d * 0.16, 30), holed, landLie, pw: shotPower(tgt.d) };
     }
     S.phase = "anim"; setPrompt(); updateHud();
@@ -1867,12 +1887,76 @@
   }
   // drawn sizes in metres (exaggerated so they read on screen, ball a bit smaller than the cup)
   const BALL_R = 0.18, CUP_R = 0.4;
-  function drawBall(gx, gy, h, col = players[cur].col, label) {
+  // ---------- ball sprite ----------
+  // sprites/ball.svg (built by tools/ball_sprites.py): 8 frames x 24 rows, rolling / backspin / in the air, each in
+  // the 8 screen directions S SW W NW N NE E SE. It is rasterised once per player, with the stripe in their colour.
+  // The sheet has no shadows: drawBall draws its own, so it can slide off and shrink as the ball climbs.
+  const BALL_SHEET_SCALE = 0.6, BALL_FRAMES = 8;
+  const BS = { svg: null, info: null, sheets: new Map(), pose: new Map() };
+  Promise.all([fetch("sprites/ball.svg").then(r => r.text()), fetch("sprites/ball.json").then(r => r.json())])
+    .then(([svg, info]) => { BS.svg = svg; BS.info = info; }).catch(() => {});
+  const hexRGB = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(c => c + c).join(""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+  const rgbHex = c => "#" + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+  function ballSheet(col) {
+    if (!BS.svg) return null;
+    const have = BS.sheets.get(col);
+    if (have) return have.cv;
+    const s = { cv: null }; BS.sheets.set(col, s);
+    // solo play keeps the red stripe; a near-white player colour would vanish on a white ball, so it goes slate
+    const rgb = hexRGB(col), light = (rgb[0] * 0.3 + rgb[1] * 0.59 + rgb[2] * 0.11) > 225;
+    const main = col.toLowerCase() === "#fff" ? "#F04A3E" : light ? "#5b6675" : col;
+    const dark = rgbHex(hexRGB(main).map(v => v * 0.72));
+    const url = URL.createObjectURL(new Blob([BS.svg.replaceAll("#F04A3E", main).replaceAll("#B8302A", dark)], { type: "image/svg+xml" }));
+    const im = new Image();
+    im.onload = () => {
+      const [cw, ch] = BS.info.cell, cv = document.createElement("canvas");
+      cv.width = Math.round(cw * BALL_FRAMES * BALL_SHEET_SCALE); cv.height = Math.round(ch * BS.info.rows.length * BALL_SHEET_SCALE);
+      cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+      s.cv = cv; URL.revokeObjectURL(url);
+    };
+    im.onerror = () => URL.revokeObjectURL(url);
+    im.src = url;
+    return null;
+  }
+  // which way each ball is heading on screen and how far it has turned, so it rolls as far as it travels
+  function ballPose(key, gx, gy) {
+    const [ix, iy] = toImg(gx, gy), now = performance.now();
+    let p = BS.pose.get(key);
+    if (!p) { p = { x: ix, y: iy, dir: 4, f: 0, t: now }; BS.pose.set(key, p); return p; }
+    const dx = ix - p.x, dy = iy - p.y, m = Math.hypot(dx, dy) / ppm, dt = Math.min(0.1, (now - p.t) / 1000);
+    p.x = ix; p.y = iy; p.t = now;
+    if (m > 0.003 && m < 15) {   // a bigger jump is a new hole or a drop, not travel
+      p.dir = ((Math.round(-Math.atan2(dx, dy) / (Math.PI / 4)) % 8) + 8) % 8;
+      // one turn per circumference, capped so a fast ball never strobes backwards
+      p.f = (p.f + Math.min(m / (2 * Math.PI * BALL_R) * BALL_FRAMES, Math.max(dt, 1 / 60) * 30)) % BALL_FRAMES;
+    }
+    return p;
+  }
+  // o.air: 0-1 through the flight; o.land: seconds since it came down
+  function drawBall(gx, gy, h, col = players[cur].col, label, o = {}) {
     const [sx, sy] = toScreen(...toImg(gx, gy));
-    const r = Math.max(multi() ? 5 : 4, BALL_R * ppm * zoom);
-    ctx.fillStyle = "rgba(20,50,15,.35)";
-    ctx.beginPath(); ctx.ellipse(sx + h * 0.15 * ppm * zoom, sy, r * 1.1, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-    circle(sx, sy - h * ppm * zoom, r, col, "#2d5f1a", 2);
+    const r = Math.max(multi() ? 5 : 4, BALL_R * ppm * zoom), hp = h * ppm * zoom;
+    const sheet = ballSheet(col), pose = ballPose(col, gx, gy);
+    if (!sheet) {   // sprite not loaded yet
+      ctx.fillStyle = "rgba(20,50,15,.35)";
+      ctx.beginPath(); ctx.ellipse(sx + h * 0.15 * ppm * zoom, sy, r * 1.1, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      circle(sx, sy - hp, r, col, "#2d5f1a", 2);
+    } else {
+      let row, fr;
+      if (o.air != null) { const k = o.air; row = 16; fr = k < 0.08 ? 1 : k < 0.3 ? 2 : k < 0.7 ? 3 : k < 0.9 ? 4 : 5; }
+      else if (o.land != null && o.land < 0.1) { row = 16; fr = 6; }          // the thump: squashed flat
+      else if (o.land != null && o.land < 0.16) { row = 16; fr = 0; }
+      else if (o.land != null && o.land < 0.5) { row = 8; fr = Math.floor(pose.f); }   // skidding in, spraying turf
+      else { row = 0; fr = Math.floor(pose.f); }
+      row += pose.dir;
+      // shadow: on the ground under the ball, thrown off by the sun and smaller and fainter the higher it goes
+      const sc = Math.max(0.4, 1 / (1 + h / 8));
+      ctx.fillStyle = `rgba(27,36,51,${(0.26 * (0.5 + 0.5 * sc)).toFixed(3)})`;
+      ctx.beginPath(); ctx.ellipse(sx + h * 0.15 * ppm * zoom, sy + r * 0.8, r * 1.02 * sc, r * 0.5 * sc, 0, 0, Math.PI * 2); ctx.fill();
+      // pin the sprite's ball centre (the air frames bake in a hop, so it moves per frame) to the real height
+      const I = BS.info, [cw, ch] = I.cell, k = r / I.ballR, q = BALL_SHEET_SCALE;
+      ctx.drawImage(sheet, fr * cw * q, row * ch * q, cw * q, ch * q, sx - I.cx * k, sy - hp - I.cy[row][fr] * k, cw * k, ch * k);
+    }
     if (label) {   // name tag over the other players' balls
       ctx.save(); ctx.font = "800 12px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.strokeStyle = "#23461a";
       ctx.strokeText(label, sx, sy - r - 6); ctx.fillStyle = col; ctx.fillText(label, sx, sy - r - 6); ctx.restore();
@@ -1923,7 +2007,7 @@
     if (ON.active) for (const p of ON.roster.values()) {   // online: the other phones' balls, replaying their shots
       if (p.id === ON.me.id) continue;
       const g = p.anim && ghostPos(p.anim);
-      if (g) drawBall(g.x, g.y, g.h, p.col, p.name);
+      if (g) drawBall(g.x, g.y, g.h, p.col, p.name, g);
       else if (!p.done && p.hole === viewHole() && p.order.length) drawBall(p.ball.x, p.ball.y, 0, p.col, tag(p.ball.x, p.ball.y, p.name));
       else if (SPEC && p.id === SPEC.id && !p.order.length) drawBall(D.tee[0], D.tee[1], 0, p.col, p.name);   // watching someone who hasn't teed off yet
     }
@@ -2114,14 +2198,20 @@
     if (S.anim) {
       const a = S.anim; a.t += dt;
       if (a.kind === "fly") {
-        const fT = a.dur, rT = 0.5;
+        const fT = a.dur, rT = a.rollPts ? Math.max(0.3, a.rollDur) : 0.5;
         if (!a.landed && a.t >= fT) { a.landed = true; SFX.land(a.landLie, a.pw); }
         if (a.t < fT) {
           const k = a.t / fT;
-          const q = a.posAt(k); drawBall(q.x, q.y, 4 * a.peak * k * (1 - k));
+          const q = a.posAt(k); drawBall(q.x, q.y, 4 * a.peak * k * (1 - k), undefined, undefined, { air: k });
         } else if (a.t < fT + rT) {
-          const k = 1 - Math.pow(1 - (a.t - fT) / rT, 2);
-          drawBall(a.land.x + (a.rest.x - a.land.x) * k, a.land.y + (a.rest.y - a.land.y) * k, 0);
+          const o = { land: a.t - fT };
+          if (a.rollPts) {                         // the simulated roll: its points are evenly spaced in time
+            const q = a.rollPts[Math.min(a.rollPts.length - 1, Math.floor((a.t - fT) / rT * (a.rollPts.length - 1)))];
+            drawBall(q.x, q.y, 0, undefined, undefined, o);
+          } else {
+            const k = 1 - Math.pow(1 - (a.t - fT) / rT, 2);
+            drawBall(a.land.x + (a.rest.x - a.land.x) * k, a.land.y + (a.rest.y - a.land.y) * k, 0, undefined, undefined, o);
+          }
         } else { drawBall(a.rest.x, a.rest.y, 0); finishShot(); }
       } else {
         const k = Math.min(1, a.t / a.dur), qi = Math.min(a.pts.length - 1, Math.floor(k * (a.pts.length - 1))), q = a.pts[qi];

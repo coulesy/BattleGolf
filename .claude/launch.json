@@ -20,6 +20,18 @@
         "tools/course_editor.py"
       ],
       "port": 8790
+    },
+    {
+      "name": "battlegolf-alt",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "game"
+      ],
+      "port": 8766
     }
   ]
 }

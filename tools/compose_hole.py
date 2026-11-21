@@ -35,10 +35,16 @@ TEE_ELEV = dict(level=0, raised=2.5, elevated=9)
 GREEN_SHAPES = dict(oval=(15, 11), long=(19, 9), round=(13, 13), wide=(10, 17), kidney=(15, 12))
 GREEN_SLOPES = ("flat", "back_to_front", "front_to_back", "left_to_right", "right_to_left", "crown", "bowl", "two_tier")
 GREEN_ELEV = dict(level=0, raised=2.5, sunken=-2)
+# fairway tiers: a step in the ground across the fairway (metres up, + or -, and where along the tile, 0-1)
+TIERS = dict(none=[], up=[(2.4, 0.55)], down=[(-2.4, 0.55)], double_up=[(1.8, 0.35), (1.8, 0.72)],
+             double_down=[(-1.8, 0.35), (-1.8, 0.72)])
+TIER_RAMP = 9.0                                  # metres the step takes to climb
+# mounds and hollows over the hole: how many per 100 m of fairway, and how tall (m)
+MOUNDS = dict(flat=(0, 0), gentle=(3, 0.7), rolling=(6, 1.3), wild=(10, 2.0))
 GREEN_STYLES = ("stripes", "checker", "diamond", "rings", "crosscut", "plain")   # the green's mowing pattern (art only)
 SIZES = dict(small=0.75, medium=1.0, large=1.35)
 TILE_OPTS = dict(tee={"elev", "len", "turn"},
-                 fairway={"len", "size", "bend", "turn", "corner", "width", "slope", "gap"},
+                 fairway={"len", "size", "bend", "turn", "corner", "width", "slope", "gap", "tier", "mounds"},
                  green={"len", "shape", "slope", "elev", "angle", "turn", "style"})
 SLOTS = {"bunker": {"left", "right", "cross", "centre", "front", "back", "front_left", "front_right", "back_left", "back_right"},
          "lake": {"left", "right", "cross", "front", "island"},
@@ -49,6 +55,9 @@ SLOTS = {"bunker": {"left", "right", "cross", "centre", "front", "back", "front_
 
 class RecipeError(ValueError):
     pass
+
+
+GRID_STEP, GRID_HALF = 4.0, 40         # the elevation grid: 4 m cells, 160 m either side of the tee->green line
 
 
 def smooth(x):
@@ -207,6 +216,10 @@ class Hole:
             if sl not in SLOPES: raise RecipeError(f"hole {self.n}: fairway slope '{sl}' isn't one of {list(SLOPES)}")
             rise, bump = SLOPES[sl]; f = (s - a) / (b - a)
             z += rise * smooth(f) + bump * math.exp(-((f - 0.5) / 0.22) ** 2) * (0 <= f <= 1.3)
+            tr = t.get("tier", "none")
+            if tr not in TIERS: raise RecipeError(f"hole {self.n}: fairway tier '{tr}' isn't one of {list(TIERS)}")
+            for h_, at_ in TIERS[tr]:
+                z += h_ * smooth((s - (a + at_ * (b - a))) / TIER_RAMP + 0.5)
         ge = self.spans["green"][2].get("elev", "level")
         if ge not in GREEN_ELEV: raise RecipeError(f"hole {self.n}: green elev '{ge}' isn't one of {list(GREEN_ELEV)}")
         z += GREEN_ELEV[ge] * math.exp(-((s - self.total) / 18) ** 2)
@@ -220,15 +233,35 @@ class Hole:
         z += 0.035 * np.clip(d - 25, 0, None)            # land rises gently away from the hole
         ph = self.rng.uniform(0, 6.3, 4)
         z += 1.2 * np.sin(pts[:, 0] / 41 + ph[0]) * np.cos(pts[:, 1] / 53 + ph[1]) + 0.7 * np.sin(pts[:, 0] / 23 + pts[:, 1] / 29 + ph[2])
+        for mx, my, r_, h_ in self.mounds():
+            z += h_ * np.exp(-((pts[:, 0] - mx) ** 2 + (pts[:, 1] - my) ** 2) / (2 * r_ * r_))
         return base + z
+
+    def mounds(self):
+        """mounds and hollows along the hole, from each fairway's `mounds` (par 3s: rolling over the carry).
+        Their own random numbers, so adding them doesn't move anything else on the hole."""
+        if hasattr(self, "_mounds"): return self._mounds
+        rng = np.random.default_rng(self.n * 977 + 13); out = []
+        spans = [(a, b, t.get("mounds", "rolling")) for nm, (a, b, t) in self.spans.items() if nm.startswith("fairway")]
+        if not spans: spans = [(25, self.total - 22, "rolling")]
+        for a, b, lv in spans:
+            if lv not in MOUNDS: raise RecipeError(f"hole {self.n}: fairway mounds '{lv}' isn't one of {list(MOUNDS)}")
+            per, hgt = MOUNDS[lv]
+            for _ in range(int(round(per * (b - a) / 100))):
+                s_ = rng.uniform(a, b); p_, _, side = self.at(s_)
+                c_ = p_ + side * rng.uniform(-26, 26)
+                if np.linalg.norm(c_ - self.G) < 20 or np.linalg.norm(c_ - self.T) < 15: continue
+                out.append((float(c_[0]), float(c_[1]), rng.uniform(5, 12), hgt * rng.uniform(0.5, 1.0) * (1 if rng.random() < 0.7 else -0.8)))
+        self._mounds = out
+        return out
 
     def elevation_grid(self):
         """the renderer's grid: rows from the tee to 20 m past the green, columns 18 m either side"""
         D = float(np.linalg.norm(self.G - self.T)); gtotal = D + 20
-        half = min(max(math.floor(gtotal / 2 / 18 + 0.5), 1), 12); cols = 2 * half + 1
-        rows = max(int(gtotal / 18) + 1, 3)
+        half = GRID_HALF; cols = 2 * half + 1
+        rows = max(int(gtotal / GRID_STEP) + 1, 3)
         a = (self.G - self.T) / D; r = np.array([a[1], -a[0]])
-        pts = np.array([self.T + a * (gtotal * i / (rows - 1)) + r * (18 * (j - half)) for i in range(rows) for j in range(cols)])
+        pts = np.array([self.T + a * (gtotal * i / (rows - 1)) + r * (GRID_STEP * (j - half)) for i in range(rows) for j in range(cols)])
         return [round(float(z), 2) for z in self.ground(pts)]
 
     # ---- feature modules ----
@@ -436,7 +469,7 @@ def compose(course, i, rec, origin):
                 tee_elev=round(float(z_t), 2), green_elev=round(float(z_g), 2),
                 theme=rec.get("theme", course.get("theme", "classic")),
                 green_style=h.spans["green"][2].get("style", "stripes"),
-                grid=h.elevation_grid(), green_grid=h.green_grid(),
+                grid=h.elevation_grid(), grid_step=GRID_STEP, grid_half=GRID_HALF, green_grid=h.green_grid(),
                 path=ll(h.P[::5].tolist() + [h.G]),
                 map=dict(fairway=[ll(P) for P in feats["fairway"]], green=[ll(P) for P in feats["green"]],
                          bunker=[ll(P) for P in feats["bunker"]], water=[ll(P) for P in feats["water"]],

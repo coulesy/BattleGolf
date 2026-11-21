@@ -374,17 +374,30 @@ else:
 # ---------------- elevation -> toon hill shading ----------------
 # Same layout as the Pure Golf app's generateHoleGrid: rows every total/(rows-1) metres from the tee to 20 m
 # past the green, columns 18 m apart either side of the tee->green line (positive = right of the line).
-GSTEP, gtotal = 18.0, D + 20.0
+GSTEP, gtotal = float(H.get("grid_step", 18.0)), D + 20.0
 garr = np.array(H["grid"], float)
-half = min(max(math.floor(gtotal / 2 / GSTEP + 0.5), 1), 12)
-for h_ in (half, half - 1, half + 1):                # distances differ slightly from the app's: try neighbours
-    if h_ >= 1 and len(garr) % (2 * h_ + 1) == 0 and len(garr) // (2 * h_ + 1) >= 3: half = h_; break
+if "grid_half" in H: half = int(H["grid_half"])       # composed holes say how the grid is laid out
+else:
+    half = min(max(math.floor(gtotal / 2 / GSTEP + 0.5), 1), 12)
+    for h_ in (half, half - 1, half + 1):            # distances differ slightly from the app's: try neighbours
+        if h_ >= 1 and len(garr) % (2 * h_ + 1) == 0 and len(garr) // (2 * h_ + 1) >= 3: half = h_; break
 gcols = 2 * half + 1; grows = len(garr) // gcols
 grid = garr[:grows * gcols].reshape(grows, gcols)
 WXg, WYg = np.meshgrid(bx[0] + np.arange(wnx) * WC, by[0] + np.arange(wny) * WC)
 ZW = map_coordinates(grid, [np.clip((WYg - T[1]) / (gtotal / (grows - 1)), 0, grows - 1),
                             np.clip((WXg - T[0]) / GSTEP + half, 0, gcols - 1)], order=1)
-ZW = gaussian_filter(ZW, 14 / WC) + 0.35 * NBW
+ZW = gaussian_filter(ZW, (14 if GSTEP > 10 else 2.5) / WC) + 0.35 * NBW   # a fine grid keeps its mounds and tiers
+if GSTEP > 10:
+    # holes from GPS data only have a coarse 18 m grid, so they get the composer's rolling mounds and hollows here,
+    # along their centre line (same sizes as compose_hole.MOUNDS["rolling"]), clear of the tee and the green
+    _mr = np.random.default_rng((sum(map(ord, H.get("course", ""))) * 31 + H["hole"] * 7 + 5) % 2**32)
+    _tan = np.gradient(curve, axis=0); _tan /= np.linalg.norm(_tan, axis=1, keepdims=True) + 1e-9
+    for _ in range(int(round(6 * max(total - 100, 0) / 100))):
+        _s = _mr.uniform(80, total - 20); _k = int(np.searchsorted(arc, _s)); _k = min(_k, len(curve) - 1)
+        _c = curve[_k] + np.array([_tan[_k, 1], -_tan[_k, 0]]) * _mr.uniform(-26, 26)
+        _r, _h = _mr.uniform(5, 12), 1.3 * _mr.uniform(0.5, 1.0) * (1 if _mr.random() < 0.7 else -0.8)
+        if np.linalg.norm(_c - G) < 20 or np.linalg.norm(_c - T) < 15: continue
+        ZW += _h * np.exp(-((WXg - _c[0]) ** 2 + (WYg - _c[1]) ** 2) / (2 * _r * _r))
 gyw, gxw = np.gradient(ZW * 6, WC)
 lx, ly = cR.T @ np.array([-0.7, 0.7])          # light from top-left of the *screen*
 HSW = gaussian_filter((gxw * lx + gyw * ly) / np.sqrt(1 + gxw ** 2 + gyw ** 2), 3 / WC)
@@ -427,6 +440,8 @@ stripe = (np.floor(sarc / 9) % 2).astype(bool)
 fwc = stripes("fair", stripe)
 allfair = fairway | ofair
 img[allfair] = fwc[allfair]
+# fairways take the hill shading too (darker on slopes away from the light, lighter facing it), so mounds and tiers show
+img[allfair] = img[allfair] * np.array([0.86, 1.0, 1.09])[band][allfair][:, None]
 # green surface: one of a few mowing patterns, picked per hole in the editor (the green tile's "style").
 # All are worked out in metres on the green, so they stay crisp in the 12x green tile.
 GREEN_STYLES = ("stripes", "checker", "diamond", "rings", "crosscut", "plain")
@@ -454,6 +469,29 @@ if gstyle in ("rings", "plain"):  # a darker collar just inside the edge frames 
         if gm_.any():
             col_ = gm_ & (_edt(gm_) < 1.1 / mpp)
             gcol[col_] = g_dk * 0.94
+# height shading on the green, from its slope grid (the same numbers putts roll on): the high ground lighter, the
+# low ground darker. Measured in metres, not stretched to fit, so a gentle green gets a faint wash and a severe one
+# strong contrast: GREEN_SHADE_M either side of the green's middle height gets the full light or shade.
+# Drawn as flat layers, one per 0.2 m step, not a smooth gradient.
+GREEN_SHADE_M = 0.6
+GREEN_LAYERS = 3              # layers each side of the middle: 0.2 m apiece
+if H.get("green_grid") and green.any():
+    _gg = H["green_grid"]; _n, _st = _gg["n"], _gg["step"]
+    _cm = np.frombuffer(base64.b64decode(_gg["cm"]), dtype="<i2").reshape(_n, _n).astype(float)
+    _c, _s = math.cos(-north_rot), math.sin(-north_rot)
+    _ys, _xs = np.nonzero(green)
+    _y0, _y1, _x0, _x1 = _ys.min(), _ys.max() + 1, _xs.min(), _xs.max() + 1
+    _Xg, _Yg = X[_y0:_y1, _x0:_x1] - G[0], Y[_y0:_y1, _x0:_x1] - G[1]
+    _E, _N = _c * _Xg - _s * _Yg, _s * _Xg + _c * _Yg
+    _hz = map_coordinates(_cm, [(_n - 1) / 2 - _N / _st, (_n - 1) / 2 + _E / _st], order=3, mode="nearest") / 100.0
+    _gm = green[_y0:_y1, _x0:_x1]
+    # in sharp layers, toon style: one layer per GREEN_LAYERS of the scale (0.2 m), so a steeper green shows more of them
+    _k = np.clip(np.round((_hz - np.median(_hz[_gm])) / GREEN_SHADE_M * GREEN_LAYERS) / GREEN_LAYERS, -1, 1)[..., None]
+    _sub = gcol[_y0:_y1, _x0:_x1]
+    _sub[:] = np.where(_k > 0, _sub + (255 - _sub) * _k * 0.42, _sub * (1 + _k * 0.30))
+# richer greens: push the colours away from grey (saturation up by GREEN_SAT)
+GREEN_SAT = 1.45
+_gl = gcol.mean(-1, keepdims=True); gcol = np.clip(_gl + (gcol - _gl) * GREEN_SAT, 0, 255)
 img[ogreen] = gcol[ogreen]
 img[green] = gcol[green]
 tstripe = (np.floor(tv / 3) % 2).astype(bool)
@@ -494,6 +532,10 @@ _pxm = mpp                                        # metres per pixel
 _w = max(1.0 * U, 1.5) * _pxm                     # line width: U px, half what it was
 _cov = np.clip(np.minimum(GSD + _w, -GSD) / _pxm + 0.5, 0, 1)[..., None]
 img[:] = img * (1 - _cov * 0.9) + c(PAL["l_green"]) * _cov * 0.9
+# and a bright rim just inside it, like a highlight on the lip of the green
+_hw = max(0.8 * U, 1.2) * _pxm
+_hc = np.clip(np.minimum(GSD + _w + _hw, -(GSD + _w)) / _pxm + 0.5, 0, 1)[..., None] * green[..., None]
+img[:] = img * (1 - _hc * 0.55) + 255 * _hc * 0.55
 if GLOW:
     _e = _cov[..., 0] > 0.5; glow[_e] = np.maximum(glow[_e], c(PAL["l_green"]))
 outline(ogreen, 2 * U, c(PAL["l_green"]), 0.9)
@@ -509,8 +551,10 @@ if GLOW:
 # soft ink along hill-band boundaries in the rough (cartoon contours)
 bedge = (np.abs(np.diff(band, axis=0, prepend=band[:1])) + np.abs(np.diff(band, axis=1, prepend=band[:, :1]))) > 0
 bedge = gaussian_filter(bedge.astype(float), 1.2 * U) > 0.2
+fedge = bedge & allfair & ~green                 # on the fairway too, but lighter
 bedge &= ~cut & ~bunker & ~water & ~ogreen & ~ofair
 img[bedge] = img[bedge] * (1.35 if THEME == "neon" else 0.86)
+img[fedge] = img[fedge] * (1.2 if THEME == "neon" else 0.92)
 
 base = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8)).filter(ImageFilter.SMOOTH)
 cv = ImageDraw.Draw(base, "RGBA")
@@ -978,6 +1022,10 @@ if len(sys.argv) > 3 and not DETAIL:
                 par=H["par"], hole=H["hole"], yards=H["yards_yellow"], cell=CELL, gx0=round(float(gx0), 2), gy0=round(float(gy0), 2),
                 nx=nx_, ny=ny_, lie=base64.b64encode(lie.tobytes()).decode(), trees=trees_out, img=[OUT_W, OUT_H])
     if flags_out: data["flags"] = flags_out
+    # the ground's height for the game's ball roll: every 2 m over the picture, cm above its lowest point
+    _g = ZW[::4, ::4]; _z0 = float(_g.min())
+    data["ground"] = dict(x0=round(float(bx[0]), 2), y0=round(float(by[0]), 2), cell=4 * WC, nx=int(_g.shape[1]), ny=int(_g.shape[0]),
+                          cm=base64.b64encode(np.round((_g - _z0) * 100).clip(-32000, 32000).astype("<i2").tobytes()).decode())
     json.dump(data, open(sys.argv[3], "w"))
     print("game data", nx_, ny_, len(trees_out))
 
