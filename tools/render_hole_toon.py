@@ -198,11 +198,46 @@ du, dv = X - gc[0], Y - gc[1]
 gu, gv, gr = green_r(du, dv)
 green = gr < 1.0
 if OSM_ON and W_green_own is not None:
-    green = world_sample(gaussian_filter(W_green_own, 0.8 / WC), X, Y) > 0.5
-    GD = distance_transform_edt(W_green_own < 0.5) * WC          # metres outside the real green
-    gdist = world_sample(GD, X, Y)
+    GD = distance_transform_edt(W_green_own < 0.5) * WC          # metres outside the real green (coarse, far out)
+    # Near the green, its edge comes from the drawn outline itself: corners rounded off (Chaikin), drawn on a 5 cm
+    # grid and turned into a signed distance (metres, + outside). Sampled smoothly, that gives a clean, even edge
+    # however far the game zooms in; the 0.5 m world grid alone left it lumpy.
+    _P = np.asarray(own_green, float)
+    if np.allclose(_P[0], _P[-1]): _P = _P[:-1]
+    for _ in range(4):
+        _Q = np.roll(_P, -1, 0); _P = np.stack([0.75 * _P + 0.25 * _Q, 0.25 * _P + 0.75 * _Q], 1).reshape(-1, 2)
+    FC = 0.05; _lo = _P.min(0) - 14; _hi = _P.max(0) + 14
+    _fn = ((_hi - _lo) / FC).astype(int) + 1
+    _m = Image.new("L", (int(_fn[0]), int(_fn[1])), 0)
+    ImageDraw.Draw(_m).polygon([tuple(q) for q in ((_P - _lo) / FC)], fill=255)
+    _in = np.asarray(_m) > 127
+    GSDF = (distance_transform_edt(~_in) - distance_transform_edt(_in)) * FC
+    def gsd(x, y):
+        x, y = np.asarray(x, float), np.asarray(y, float)
+        fine = map_coordinates(GSDF, [(y - _lo[1]) / FC, (x - _lo[0]) / FC], order=1, mode="nearest")
+        near = (x > _lo[0]) & (x < _hi[0]) & (y > _lo[1]) & (y < _hi[1])
+        return np.where(near, fine, np.maximum(world_sample(GD, x, y), 14))
+    GSD = gsd(X, Y)
+    # right at the edge, the exact distance to the (densely resampled) outline, so the line has no 5 cm ripple
+    _seg = np.linalg.norm(np.diff(np.vstack([_P, _P[:1]]), axis=0), axis=1)
+    _cum = np.concatenate([[0], np.cumsum(_seg)]); _Pc = np.vstack([_P, _P[:1]])
+    _ts = np.arange(0, _cum[-1], 0.01)
+    _dense = np.stack([np.interp(_ts, _cum, _Pc[:, 0]), np.interp(_ts, _cum, _Pc[:, 1])], 1)
+    _band = np.abs(GSD) < 0.6
+    if _band.any():
+        _q = np.stack([X[_band], Y[_band]], 1)
+        _d, _i = cKDTree(_dense).query(_q)
+        # inside or out from the outline's own direction (its outward normal at the nearest point), not the grid
+        _tan = np.roll(_dense, -1, 0) - np.roll(_dense, 1, 0)
+        _area = np.sum(_Pc[:-1, 0] * _Pc[1:, 1] - _Pc[1:, 0] * _Pc[:-1, 1])
+        _nrm = np.stack([_tan[:, 1], -_tan[:, 0]], 1) * (1 if _area > 0 else -1)
+        _out = np.sum((_q - _dense[_i]) * _nrm[_i], 1) > 0
+        GSD[_band] = np.where(_out, _d, -_d)
+    green = GSD < 0
+    gdist = np.maximum(GSD, 0)
 else:
     gdist = (gr - 1.0) * a_ax                                     # roughly metres outside the generated green
+    GSD = gdist
 
 fw_start = 80.0
 half_w = 15 + 4 * np.exp(-((sarc - 230) / 60) ** 2) - 4 * np.clip((sarc - (total - 60)) / 50, 0, 1) + 2.0 * nb
@@ -308,7 +343,7 @@ _wd, _wi = cKDTree(curve).query(np.stack([WXw.ravel(), WYw.ravel()], 1))
 WDst, WSarc = _wd.reshape(WXw.shape), arc[_wi].reshape(WXw.shape)
 Whw = 15 + 4 * np.exp(-((WSarc - 230) / 60) ** 2) - 4 * np.clip((WSarc - (total - 60)) / 50, 0, 1) + 2.0 * NBW
 if OSM_ON and W_green_own is not None:
-    WGd = GD
+    WGd = np.maximum(gsd(WXw, WYw), 0)
 else:
     WGd = (green_r(WXw - gc[0], WYw - gc[1])[2] - 1.0) * a_ax
 Wfr = (WDst < Whw) & (WSarc > fw_start) & (WSarc < total - 2)
@@ -392,8 +427,33 @@ stripe = (np.floor(sarc / 9) % 2).astype(bool)
 fwc = stripes("fair", stripe)
 allfair = fairway | ofair
 img[allfair] = fwc[allfair]
-gstripe = (np.floor(gu / 2.5) % 2).astype(bool)
-gcol = stripes("green", gstripe)
+# green surface: one of a few mowing patterns, picked per hole in the editor (the green tile's "style").
+# All are worked out in metres on the green, so they stay crisp in the 12x green tile.
+GREEN_STYLES = ("stripes", "checker", "diamond", "rings", "crosscut", "plain")
+gstyle = H.get("green_style", "stripes")
+if gstyle not in GREEN_STYLES: gstyle = "stripes"
+g_lt, g_dk = c(PAL["green"][0]), c(PAL["green"][1])
+if gstyle == "checker":
+    gcol = stripes("green", ((np.floor(gu / 3) + np.floor(gv / 3)) % 2).astype(bool))
+elif gstyle == "diamond":
+    ga_, gb_ = (gu + gv) / math.sqrt(2), (gu - gv) / math.sqrt(2)
+    gcol = stripes("green", ((np.floor(ga_ / 2.8) + np.floor(gb_ / 2.8)) % 2).astype(bool))
+elif gstyle == "rings":
+    gcol = stripes("green", (np.floor(np.hypot(gu, gv) / 2.2) % 2).astype(bool))
+elif gstyle == "crosscut":       # stripes both ways: three tones where they cross
+    n_ = (np.floor(gu / 2.5) % 2) + (np.floor(gv / 2.5) % 2)
+    tones = np.stack([g_lt, (g_lt + g_dk) / 2, g_dk * 0.985])
+    gcol = tones[n_.astype(int)]
+elif gstyle == "plain":
+    gcol = np.broadcast_to(g_lt, gu.shape + (3,)).copy()
+else:
+    gcol = stripes("green", (np.floor(gu / 2.5) % 2).astype(bool))
+if gstyle in ("rings", "plain"):  # a darker collar just inside the edge frames the putting surface
+    from scipy.ndimage import distance_transform_edt as _edt
+    for gm_ in (green, ogreen):
+        if gm_.any():
+            col_ = gm_ & (_edt(gm_) < 1.1 / mpp)
+            gcol[col_] = g_dk * 0.94
 img[ogreen] = gcol[ogreen]
 img[green] = gcol[green]
 tstripe = (np.floor(tv / 3) % 2).astype(bool)
@@ -429,7 +489,13 @@ def outline(mask, width_px, colr=ink, alpha=1.0):
     if GLOW: glow[e] = np.maximum(glow[e], colr)
 outline(cut, 4 * U, alpha=0.95)
 outline(allfair, 3 * U, c(PAL["l_fair"]), 0.85)
-outline(green, 2 * U, c(PAL["l_green"]), 0.9)
+# the green's own edge: a thin line of even width, anti-aliased, from the signed distance to its outline
+_pxm = mpp                                        # metres per pixel
+_w = max(1.0 * U, 1.5) * _pxm                     # line width: U px, half what it was
+_cov = np.clip(np.minimum(GSD + _w, -GSD) / _pxm + 0.5, 0, 1)[..., None]
+img[:] = img * (1 - _cov * 0.9) + c(PAL["l_green"]) * _cov * 0.9
+if GLOW:
+    _e = _cov[..., 0] > 0.5; glow[_e] = np.maximum(glow[_e], c(PAL["l_green"]))
 outline(ogreen, 2 * U, c(PAL["l_green"]), 0.9)
 outline(otee, 2 * U, c(PAL["l_fair"]), 0.8)
 outline(bunker, 3 * U, c(PAL["l_sand"]), 0.95)

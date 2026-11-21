@@ -200,7 +200,7 @@ def options():
     """What the page offers in its tile and module forms (taken from the composer, so they can't drift)."""
     return dict(themes=THEMES, bends=list(C.BENDS), widths=list(C.WIDTHS), slopes=list(C.SLOPES), sizes=list(C.FAIRWAY_LEN),
                 tee_elev=list(C.TEE_ELEV), green_shapes=list(C.GREEN_SHAPES), green_slopes=list(C.GREEN_SLOPES),
-                green_elev=list(C.GREEN_ELEV), module_sizes=list(C.SIZES), slots={k: sorted(v) for k, v in C.SLOTS.items()},
+                green_elev=list(C.GREEN_ELEV), green_styles=list(C.GREEN_STYLES), module_sizes=list(C.SIZES), slots={k: sorted(v) for k, v in C.SLOTS.items()},
                 fairway_len=C.FAIRWAY_LEN, tee=C.TEE, par_yards=C.PAR_YARDS)
 
 

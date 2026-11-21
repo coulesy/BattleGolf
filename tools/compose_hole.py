@@ -35,10 +35,11 @@ TEE_ELEV = dict(level=0, raised=2.5, elevated=9)
 GREEN_SHAPES = dict(oval=(15, 11), long=(19, 9), round=(13, 13), wide=(10, 17), kidney=(15, 12))
 GREEN_SLOPES = ("flat", "back_to_front", "front_to_back", "left_to_right", "right_to_left", "crown", "bowl", "two_tier")
 GREEN_ELEV = dict(level=0, raised=2.5, sunken=-2)
+GREEN_STYLES = ("stripes", "checker", "diamond", "rings", "crosscut", "plain")   # the green's mowing pattern (art only)
 SIZES = dict(small=0.75, medium=1.0, large=1.35)
 TILE_OPTS = dict(tee={"elev", "len", "turn"},
                  fairway={"len", "size", "bend", "turn", "corner", "width", "slope", "gap"},
-                 green={"len", "shape", "slope", "elev", "angle", "turn"})
+                 green={"len", "shape", "slope", "elev", "angle", "turn", "style"})
 SLOTS = {"bunker": {"left", "right", "cross", "centre", "front", "back", "front_left", "front_right", "back_left", "back_right"},
          "lake": {"left", "right", "cross", "front", "island"},
          "stream": {"left", "right", "cross", "front"},
@@ -434,6 +435,7 @@ def compose(course, i, rec, origin):
                 green_front=ll(h.G - u * h.green_radius(math.pi))[0], green_back=ll(h.G + u * h.green_radius(0))[0],
                 tee_elev=round(float(z_t), 2), green_elev=round(float(z_g), 2),
                 theme=rec.get("theme", course.get("theme", "classic")),
+                green_style=h.spans["green"][2].get("style", "stripes"),
                 grid=h.elevation_grid(), green_grid=h.green_grid(),
                 path=ll(h.P[::5].tolist() + [h.G]),
                 map=dict(fairway=[ll(P) for P in feats["fairway"]], green=[ll(P) for P in feats["green"]],

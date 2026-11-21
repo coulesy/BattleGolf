@@ -305,7 +305,7 @@ function tileCard(t, i, par) {
   } else {
     body = `<div class="grid3">${field("Approach (m)", num("len", t.len, 40, 'min="10" max="120"'))}${field("Shape", sel("shape", OPTS.green_shapes, t.shape || "oval"))}${field("Slope", sel("slope", OPTS.green_slopes, t.slope || "back_to_front"))}</div>
       <div class="grid2" style="margin-top:6px">${field("Height", sel("elev", OPTS.green_elev, t.elev || "level"))}${field("Green rotated (°)", num("angle", t.angle, 0, 'min="-90" max="90" step="5"'))}</div>
-      <div class="grid3" style="margin-top:6px">${field("Approach turn (°)", num("turn", t.turn, 0, TURN))}</div>`;
+      <div class="grid3" style="margin-top:6px">${field("Approach turn (°)", num("turn", t.turn, 0, TURN))}${field("Surface", sel("style", OPTS.green_styles || ["stripes"], t.style || "stripes"))}</div>`;
   }
   return `<div class="card" data-tile="${i}"><div class="head"><span class="dot" style="background:${col}"></span><span class="grow">${label}</span></div>${body}</div>`;
 }
